@@ -19,6 +19,8 @@ tags: [docs, agents, sdlc]
 ### Ключевые особенности
 
 - **26 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
+- **Markdown-first** — все артефакты, стандарты и входные данные — `.md` файлы
+- **Obsidian vault** — вся система открывается как хранилище знаний в Obsidian
 - **Интерактивный лаунчер** `sdlc.sh` — единая точка входа для всего цикла
 - **7 Quality Gates** — принудительные переходы между этапами с чеклистами
 - **Definition of Done (11 пунктов)** — обязательные условия закрытия каждой задачи
@@ -96,20 +98,142 @@ _agents/
 
 ---
 
+## Markdown-first и Obsidian
+
+### Всё работает через .md файлы
+
+Система полностью построена на Markdown. Каждый артефакт, отчёт, стандарт, входной документ — это `.md` файл. Агенты читают входные `.md` файлы и создают выходные `.md` файлы. Никаких баз данных, никаких проприетарных форматов.
+
+```
+inputs/idea.md               ← пишешь описание идеи в Obsidian
+      ↓  s1-pm читает idea.md
+outputs/PM-2026-05-10-feasibility.md   ← агент создаёт артефакт
+      ↓  s2-ba читает PM-feasibility.md
+outputs/BA-2026-05-10-BRD.md           ← следующий агент создаёт свой артефакт
+```
+
+Каждый `.md` файл артефакта содержит:
+- **YAML frontmatter** — дата, теги, статус, агент
+- **Структурированный контент** — разделы по шаблону роли
+- **Чеклисты** — Gate-условия и DoD-пункты
+- **Вердикт** — `PASSED / FAILED / GO / NO-GO` для Gate-файлов
+
+Стандарты тоже `.md` файлы — агент читает `quality.md` и `data-formats.md` как обычный документ и применяет правила.
+
+### Интеграция с Obsidian
+
+Вся система является **Obsidian vault**. Папка `Claude/` открывается в Obsidian как хранилище знаний — артефакты всех проектов и всех этапов видны в едином интерфейсе.
+
+**Возможности Obsidian в системе:**
+
+| Функция | Как используется |
+|---------|-----------------|
+| **Graph View** | Граф связей между артефактами этапов и проектов |
+| **Wiki-links** `[[...]]` | Перекрёстные ссылки: `[[OVERVIEW]]`, `[[Local_Run/_workflow]]` |
+| **YAML frontmatter** | Метаданные каждого файла: `date`, `tags`, `status` |
+| **Tags** | Фильтрация по проектам, этапам, ролям, статусу |
+| **Backlinks** | Видно какие документы ссылаются на текущий |
+| **Search** | Поиск по всем артефактам всех проектов сразу |
+| **Folder navigation** | Структура `stage1..stage7` видна в боковой панели |
+| **Dataview plugin** | Автоматические таблицы задач, статусов, дат |
+
+**Структура vault (папка `Claude/` в Obsidian):**
+
+```
+Claude/                            ← корень Obsidian vault
+├── _agents/                       ← этот репозиторий (агенты + стандарты)
+│   ├── _standards/quality.md      ← читается в Obsidian как документ
+│   ├── _standards/data-formats.md
+│   └── OVERVIEW.md                ← [[OVERVIEW]] в Obsidian
+│
+├── projects/
+│   └── {PROJECT}/
+│       ├── Dashboard.md           ← прогресс проекта, таблица этапов
+│       ├── docs/CHANGELOG.md      ← история изменений
+│       ├── stage1-planning/
+│       │   ├── inputs/idea.md     ← пишешь в Obsidian → агент читает
+│       │   └── outputs/           ← артефакты агентов → читаешь в Obsidian
+│       ├── stage2-requirements/outputs/
+│       ├── ...stage7-ops/outputs/
+│       └── tracking/
+│           ├── backlog.md         ← список задач
+│           ├── current-sprint.md  ← активный спринт
+│           └── sprints/sprint-NN.md
+│
+└── Local_Run/
+    └── {project}/                 ← заметки о GitHub-проектах
+        ├── overview.md
+        ├── setup.md
+        ├── build.md
+        └── run.md
+```
+
+**Dashboard.md** каждого проекта — живая таблица прогресса в Obsidian:
+
+```markdown
+---
+date: 2026-05-10
+tags: [project/my-project, dashboard]
+status: active
+---
+
+# SDLC Dashboard — my-project
+
+| Этап | Статус | Последнее обновление |
+|------|--------|---------------------|
+| 1 — Планирование    | ✅ Done       | 2026-05-10 |
+| 2 — Требования      | 🔄 In Progress| 2026-05-10 |
+| 3 — Дизайн          | ⏳ Pending    | —          |
+```
+
+**Теги для навигации по артефактам:**
+
+```yaml
+---
+date: 2026-05-10
+tags: [project/my-project, stage/requirements, agent/ba, status/done]
+---
+```
+
+В Obsidian можно сразу найти все артефакты конкретного проекта (`#project/my-project`), все BRD всех проектов (`#agent/ba`), все незавершённые этапы (`#status/in-progress`).
+
+### Workflow: Obsidian + агенты
+
+```
+1. Открыть idea.md в Obsidian → написать описание проекта
+         ↓
+2. Запустить sdlc.sh → агент читает idea.md → создаёт PM-feasibility.md
+         ↓
+3. Открыть PM-feasibility.md в Obsidian → прочитать, при необходимости дополнить
+         ↓
+4. Следующий агент читает PM-feasibility.md → создаёт следующий артефакт
+         ↓
+5. В Obsidian Graph View видна вся цепочка артефактов проекта
+```
+
+Входные файлы (`inputs/`) можно готовить прямо в Obsidian перед запуском агента — интервью, требования, описания — всё в привычном редакторе.
+
+---
+
 ## Быстрый старт
 
 ### Предварительные требования
 
 - [Claude Code CLI](https://claude.ai/code) — установлен и авторизован
+- [Obsidian](https://obsidian.md) — для просмотра и редактирования артефактов (опционально, но рекомендуется)
 - `pass` — менеджер паролей (для хранения секретов)
 - `bash` 4.0+
 
 ### Установка
 
 ```bash
+# Клонировать в папку _agents внутри Obsidian vault
+# Рекомендуемая структура: Claude/_agents/
 git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
 cd _agents
 ```
+
+**Для Obsidian:** открой папку `Claude/` (родительская директория `_agents/`) как vault в Obsidian. Все артефакты и документация сразу доступны в интерфейсе.
 
 ### Запуск
 
