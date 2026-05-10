@@ -123,9 +123,13 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 ### ВХОД (Gate 3): проверить перед началом каждого спринта
 □ ARCH-HLD.md существует в stage3-design/outputs/
 □ SEC-*-threat-model.md существует с вердиктом PASS или CONDITIONAL PASS
+□ RBAC-*-model.md и RBAC-*-matrix.md существуют в stage3-design/outputs/
 □ DBA-schema.sql или DBA-schema.dbml существует
 □ Нет открытых Critical/High угроз из Threat Model
 Если Gate 3 не пройден → сообщить об этом, не начинать разработку.
+
+При реализации аутентификации/авторизации — читать RBAC-*-model.md и реализовывать
+права строго по матрице. Изменения в RBAC требуют обновления RBAC артефактов (через s3-rbac).
 
 ### ВЫХОД (вклад в Gate 4): проверять после каждого PR
 □ Definition of Done (DoD) из quality.md §2 выполнен — все 11 пунктов (включая DoD-11)

@@ -75,6 +75,7 @@ _agents/
 Этап 3: Дизайн ──[Gate 3]──►
   s3-arch     → HLD, ADR, API Spec
   s3-security → Threat Model (STRIDE/DREAD/OWASP)
+  s3-rbac     → RBAC Model, Permission Matrix, RLS + SQL схема
   s3-dba      → DB Schema, Migrations
 
 Этап 4: Разработка ──[Gate 4]──►
@@ -321,7 +322,8 @@ bash sdlc.sh  # → пункт 2 → выбери проект
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
 | `s3-arch` | Solution Architect — HLD, ADR, API Spec | `/hld`, `/adr` |
-| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD) | *(задача текстом)* |
+| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD/OWASP) | *(задача текстом)* |
+| `s3-rbac` | RBAC Designer — роли, матрица прав, RLS, SQL схема | `/rbac-model`, `/rbac-matrix` |
 | `s3-dba` | DBA — DB Schema, Migrations | *(задача текстом)* |
 
 ### Этап 4 — Разработка
@@ -444,6 +446,9 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 | s2-ba | `BA-YYYY-MM-DD-BRD.md` | `BA-2026-05-10-BRD.md` |
 | s3-arch | `ARCH-YYYY-MM-DD-HLD.md` | `ARCH-2026-05-10-HLD.md` |
 | s3-security | `SEC-YYYY-MM-DD-threat-model.md` | блокирует Gate 3 при наличии Critical/High |
+| s3-rbac | `RBAC-YYYY-MM-DD-model.md` | роли, иерархия, SoD, условный доступ |
+| s3-rbac | `RBAC-YYYY-MM-DD-matrix.md` | матрица прав (роль × ресурс × действие) |
+| s3-rbac | `RBAC-YYYY-MM-DD-schema.sql` | таблицы RBAC + RLS политики |
 | s4-dev | `DEV-YYYY-MM-DD-update-notes-PR[N].md` | обязателен после каждого PR |
 | s4-techlead | `TL-YYYY-MM-DD-review-PR[N].md` | блокирует Gate 4 |
 | s5-qa | `QA-YYYY-MM-DD-go-no-go.md` | блокирует Gate 5 |
