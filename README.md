@@ -6,7 +6,7 @@ tags: [docs, agents, sdlc]
 # Claude SDLC Agents
 
 > Автоматизированная система управления жизненным циклом разработки (SDLC) на базе Claude Code.
-> 26 специализированных AI-агентов покрывают весь цикл — от идеи до деплоя и эксплуатации.
+> 27 специализированных AI-агентов покрывают весь цикл — от идеи до деплоя и эксплуатации.
 
 ---
 
@@ -18,7 +18,7 @@ tags: [docs, agents, sdlc]
 
 ### Ключевые особенности
 
-- **26 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
+- **27 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
 - **Markdown-first** — все артефакты, стандарты и входные данные — `.md` файлы
 - **Obsidian vault** — вся система открывается как хранилище знаний в Obsidian
 - **Интерактивный лаунчер** `sdlc.sh` — единая точка входа для всего цикла
@@ -42,7 +42,7 @@ _agents/
 │   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
 │   └── company.md     ← Стек, роли, методология
 │
-├── s0-*/              ← Инфраструктура (secrets, github, validate, tracker)
+├── s0-*/              ← Инфраструктура (kickoff, secrets, github, validate, tracker)
 ├── s1-*/              ← Этап 1: Планирование (pm, pmo, finance)
 ├── s2-*/              ← Этап 2: Требования (ba, po, qa-req)
 ├── s3-*/              ← Этап 3: Дизайн (arch, security, dba)
@@ -59,6 +59,10 @@ _agents/
 ## SDLC-цикл
 
 ```
+Онбординг (перед первым запуском — обязательно)
+  s0-kickoff /new      → интервью: заполняет idea.md и PM-input-interview.md
+  s0-kickoff /refresh  → обновление беклога / видения для существующего проекта
+
 Подготовка (необязательно, выбирается пользователем)
   └─ s0-validate, s0-secrets, s0-tracker /sprint-init
 
@@ -75,6 +79,7 @@ _agents/
 Этап 3: Дизайн ──[Gate 3]──►
   s3-arch     → HLD, ADR, API Spec
   s3-security → Threat Model (STRIDE/DREAD/OWASP)
+  s3-rbac     → RBAC Model, Permission Matrix, RLS + SQL схема
   s3-dba      → DB Schema, Migrations
 
 Этап 4: Разработка ──[Gate 4]──►
@@ -217,66 +222,71 @@ tags: [project/my-project, stage/requirements, agent/ba, status/done]
 
 ## Быстрый старт
 
+> Подробное руководство с примерами — см. [GETTING_STARTED.md](GETTING_STARTED.md)
+
 ### Предварительные требования
 
 - [Claude Code CLI](https://claude.ai/code) — установлен и авторизован
-- [Obsidian](https://obsidian.md) — для просмотра и редактирования артефактов (опционально, но рекомендуется)
-- `pass` — менеджер паролей (для хранения секретов)
 - `bash` 4.0+
+- `pass` — менеджер паролей (для хранения секретов)
+- [Obsidian](https://obsidian.md) — опционально, но рекомендуется
 
 ### Установка
 
 ```bash
-# Клонировать в папку _agents внутри Obsidian vault
-# Рекомендуемая структура: Claude/_agents/
 git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
 cd _agents
-```
-
-**Для Obsidian:** открой папку `Claude/` (родительская директория `_agents/`) как vault в Obsidian. Все артефакты и документация сразу доступны в интерфейсе.
-
-### Запуск
-
-```bash
 bash sdlc.sh
 ```
 
-Из Claude Code чата:
+**Для Obsidian:** открой папку `Claude/` как vault — все артефакты видны в едином интерфейсе.
+
+### Первый запуск (новый проект)
+
 ```
-! bash "/path/to/_agents/sdlc.sh"
+sdlc.sh
+  → 3) Создать новый проект   ← создаёт структуру stage1..stage7
+  → 0) Kickoff                ← интервью: заполняет все входные данные
+  → 2) Полный SDLC-цикл       ← запускает 24 шага
 ```
 
-### Структура проекта (создаётся автоматически)
+Или пошагово:
 
 ```bash
-# Через лаунчер: пункт 3 → создать проект
-# Или вручную:
-bash sdlc.sh  # → пункт 3
+bash sdlc.sh   # → 3) создай проект (вводи имя)
+               # → соглашайся запустить Kickoff → проходи интервью
+               # → 2) полный SDLC-цикл
 ```
 
-Лаунчер создаёт:
-```
-projects/{PROJECT}/
-  Dashboard.md
-  stage1-planning/inputs/idea.md  ← заполни описание идеи
-  stage1-planning/outputs/
-  stage2-requirements/...
-  ...stage7-ops/...
-  tracking/
-```
+### Kickoff — обязательный шаг перед первым циклом
 
-### Первый цикл
+**`s0-kickoff`** собирает входные данные через структурированное интервью.
+Без него агент `s1-pm` получит пустой `idea.md` и создаст артефакты только на предположениях.
 
-```bash
-# 1. Создай проект
-bash sdlc.sh  # → пункт 3 → введи имя проекта
+| Режим | Когда использовать | Команда |
+|-------|-------------------|---------|
+| `/new` | Новый проект, пустые входные данные | `sdlc.sh → 0) Kickoff → 1)` |
+| `/refresh` | Обновить беклог / видение / NFR | `sdlc.sh → 0) Kickoff → 2)` |
+| `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
 
-# 2. Заполни idea.md
-nano "projects/MY_PROJECT/stage1-planning/inputs/idea.md"
+**Режим `/new` — 4 блока интервью:**
+1. **Продукт** — идея, проблема, аудитория, конкуренты, уникальность
+2. **Бизнес** — модель, бюджет, ROI, команда, срок MVP
+3. **Техника** — стек, масштаб (RPS/DAU), доступность, compliance, интеграции
+4. **Приоритеты** — стейкхолдеры, Scope Out, must-have для MVP
 
-# 3. Запусти полный цикл
-bash sdlc.sh  # → пункт 2 → выбери проект
-```
+Вопросы задаются последовательно, по одному. После каждого блока — резюме и подтверждение.
+
+Выход: заполненный `idea.md` + `PM-input-interview-YYYY-MM-DD.md` → передаёт `s1-pm`.
+
+**Режим `/refresh` — обновление существующего проекта:**
+
+Показывает текущий статус проекта, предлагает меню разделов для обновления:
+- Продуктовое видение и OKR → передаёт `s1-pm /vision`
+- Новые функции в беклог → передаёт `s2-ba` + `s2-po`
+- Приоритизация беклога → передаёт `s2-po`
+- Изменение NFR / масштаба → передаёт `s2-ba`
+- Scope Out — что убираем → передаёт `s2-ba` + `s2-po`
 
 ---
 
@@ -286,6 +296,7 @@ bash sdlc.sh  # → пункт 2 → выбери проект
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
+| `s0-kickoff` | Project Kickoff — интервью для нового проекта / обновление беклога | `/start`, `/new`, `/refresh` |
 | `s0-secrets` | Secrets Manager — pass: хранение, ротация, env | `/add`, `/rotate`, `/env` |
 | `s0-github` | GitHub Sync — репо, ветки, PR, push | `/init`, `/sync`, `/push`, `/status`, `/pr` |
 | `s0-validate` | Structure + Quality Validator | `/validate [project\|all]`, `/fix [project\|all]` |
@@ -321,7 +332,8 @@ bash sdlc.sh  # → пункт 2 → выбери проект
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
 | `s3-arch` | Solution Architect — HLD, ADR, API Spec | `/hld`, `/adr` |
-| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD) | *(задача текстом)* |
+| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD/OWASP) | *(задача текстом)* |
+| `s3-rbac` | RBAC Designer — роли, матрица прав, RLS, SQL схема | `/rbac-model`, `/rbac-matrix` |
 | `s3-dba` | DBA — DB Schema, Migrations | *(задача текстом)* |
 
 ### Этап 4 — Разработка
@@ -444,6 +456,9 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 | s2-ba | `BA-YYYY-MM-DD-BRD.md` | `BA-2026-05-10-BRD.md` |
 | s3-arch | `ARCH-YYYY-MM-DD-HLD.md` | `ARCH-2026-05-10-HLD.md` |
 | s3-security | `SEC-YYYY-MM-DD-threat-model.md` | блокирует Gate 3 при наличии Critical/High |
+| s3-rbac | `RBAC-YYYY-MM-DD-model.md` | роли, иерархия, SoD, условный доступ |
+| s3-rbac | `RBAC-YYYY-MM-DD-matrix.md` | матрица прав (роль × ресурс × действие) |
+| s3-rbac | `RBAC-YYYY-MM-DD-schema.sql` | таблицы RBAC + RLS политики |
 | s4-dev | `DEV-YYYY-MM-DD-update-notes-PR[N].md` | обязателен после каждого PR |
 | s4-techlead | `TL-YYYY-MM-DD-review-PR[N].md` | блокирует Gate 4 |
 | s5-qa | `QA-YYYY-MM-DD-go-no-go.md` | блокирует Gate 5 |
@@ -474,4 +489,6 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents — автоматизированный SDLC на базе Claude Code*
+---
+
+*Claude SDLC Agents — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*

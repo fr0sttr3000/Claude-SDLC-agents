@@ -78,6 +78,158 @@ Red → Green → Refactor
 - Parse mode: использовать **HTML** (`parse_mode=ParseMode.HTML`), не Markdown v1
   - Markdown v1 ломается на `_`, `*`, `` ` `` в пользовательском контенте без экранирования
 
+## RBAC — Реализация (FastAPI + SQLAlchemy)
+
+Читать перед реализацией авторизации:
+- `stage3-design/outputs/RBAC-*-model.md` — роли, иерархия, ресурсы
+- `stage3-design/outputs/RBAC-*-matrix.md` — матрица прав (роль × ресурс × действие)
+- `stage3-design/outputs/RBAC-*-schema.sql` — SQL-схема таблиц RBAC
+
+### Шаблон: dependency для FastAPI
+
+```python
+# app/auth/dependencies.py
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.session import get_session
+from app.auth.models import User
+from app.rbac.service import has_permission
+
+def require_permission(resource: str, action: str):
+    async def _check(
+        current_user: User = Depends(get_current_user),
+        session: AsyncSession = Depends(get_session),
+    ) -> User:
+        allowed = await has_permission(session, current_user.id, resource, action)
+        if not allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+        return current_user
+    return _check
+```
+
+```python
+# app/rbac/service.py
+from uuid import UUID
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+async def has_permission(
+    session: AsyncSession, user_id: UUID, resource: str, action: str
+) -> bool:
+    result = await session.execute(
+        text("""
+            SELECT 1
+            FROM user_roles ur
+            JOIN role_permissions rp ON rp.role_id = ur.role_id
+            JOIN permissions p ON p.id = rp.permission_id
+            WHERE ur.user_id = :user_id
+              AND p.resource = :resource
+              AND p.action = :action
+            LIMIT 1
+        """),
+        {"user_id": user_id, "resource": resource, "action": action},
+    )
+    return result.scalar() is not None
+```
+
+### Шаблон: использование на endpoint
+
+```python
+# app/api/v1/documents.py
+@router.delete("/{doc_id}", dependencies=[Depends(require_permission("document", "delete"))])
+async def delete_document(doc_id: UUID, session: AsyncSession = Depends(get_session)):
+    ...
+```
+
+### Шаблон: owner-only (RLS + application check)
+
+```python
+# app/rbac/service.py
+async def is_owner(session: AsyncSession, user_id: UUID, resource_id: UUID, table: str) -> bool:
+    result = await session.execute(
+        text(f"SELECT 1 FROM {table} WHERE id = :rid AND owner_id = :uid LIMIT 1"),
+        {"rid": resource_id, "uid": user_id},
+    )
+    return result.scalar() is not None
+```
+
+RLS в PostgreSQL (дополнительный слой, не замена application check):
+```sql
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY owner_isolation ON documents
+    USING (owner_id = current_setting('app.current_user_id')::uuid);
+```
+
+Установка контекста перед запросом:
+```python
+await session.execute(text("SET LOCAL app.current_user_id = :uid"), {"uid": str(user_id)})
+```
+
+### Шаблон: наследование ролей
+
+```python
+# app/rbac/service.py — рекурсивный CTE для иерархии ролей
+async def get_effective_roles(session: AsyncSession, user_id: UUID) -> list[UUID]:
+    result = await session.execute(
+        text("""
+            WITH RECURSIVE role_tree AS (
+                SELECT role_id FROM user_roles WHERE user_id = :uid
+                UNION
+                SELECT rh.parent_role_id
+                FROM role_hierarchy rh
+                JOIN role_tree rt ON rt.role_id = rh.child_role_id
+            )
+            SELECT role_id FROM role_tree
+        """),
+        {"uid": user_id},
+    )
+    return [row[0] for row in result.fetchall()]
+```
+
+### Правила реализации RBAC
+
+- **Deny by Default**: если право не найдено → 403, никогда не 200
+- **Не дублировать матрицу в коде** — строки `resource`/`action` берутся из constans, совпадающих с RBAC-*-matrix.md
+- **Нет хардкода ролей** в бизнес-логике (`if user.role == "admin"`) — только через `has_permission()`
+- **Owner-check** — двойной: application-level + RLS (оба обязательны для owner_only ресурсов)
+- **SoD-конфликты** из матрицы → проверять при назначении роли:
+  ```python
+  async def assign_role(session, user_id, role_id):
+      conflicts = await get_sod_conflicts(session, user_id, role_id)
+      if conflicts:
+          raise ValueError(f"SoD violation: {conflicts}")
+  ```
+
+### Обязательные тесты RBAC (`tests/test_rbac.py`)
+
+```python
+# Шаблон — адаптировать под матрицу проекта
+async def test_deny_by_default(session, user_without_roles):
+    assert not await has_permission(session, user_without_roles.id, "document", "delete")
+
+async def test_role_grants_permission(session, user_with_editor_role):
+    assert await has_permission(session, user_with_editor_role.id, "document", "edit")
+
+async def test_role_hierarchy_inherited(session, user_with_admin_role):
+    # admin наследует editor → должен иметь editor-права
+    assert await has_permission(session, user_with_admin_role.id, "document", "edit")
+
+async def test_owner_only_blocks_other_user(session, user_a, user_b, document_owned_by_a):
+    assert not await is_owner(session, user_b.id, document_owned_by_a.id, "documents")
+
+async def test_sod_conflict_raises(session, user, conflicting_role_id):
+    with pytest.raises(ValueError, match="SoD violation"):
+        await assign_role(session, user.id, conflicting_role_id)
+```
+
+### Gate 4 — RBAC checklist (добавить к DoD)
+
+□ `tests/test_rbac.py` создан: deny-by-default, role grants, hierarchy, owner-only, SoD
+□ Нет хардкода ролей в бизнес-логике (`if role == "..."`)
+□ Все endpoints с доступом к данным используют `require_permission()`
+□ Owner-only ресурсы: двойная проверка (app + RLS)
+□ Константы resource/action совпадают с RBAC-*-matrix.md
+
 ## Conventional Commits
 feat / fix / refactor / test / docs
 
@@ -123,9 +275,13 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 ### ВХОД (Gate 3): проверить перед началом каждого спринта
 □ ARCH-HLD.md существует в stage3-design/outputs/
 □ SEC-*-threat-model.md существует с вердиктом PASS или CONDITIONAL PASS
+□ RBAC-*-model.md и RBAC-*-matrix.md существуют в stage3-design/outputs/
 □ DBA-schema.sql или DBA-schema.dbml существует
 □ Нет открытых Critical/High угроз из Threat Model
 Если Gate 3 не пройден → сообщить об этом, не начинать разработку.
+
+При реализации аутентификации/авторизации — читать RBAC-*-model.md и реализовывать
+права строго по матрице. Изменения в RBAC требуют обновления RBAC артефактов (через s3-rbac).
 
 ### ВЫХОД (вклад в Gate 4): проверять после каждого PR
 □ Definition of Done (DoD) из quality.md §2 выполнен — все 11 пунктов (включая DoD-11)
