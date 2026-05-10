@@ -129,6 +129,8 @@ status: active
 Для каждого завершённого этапа (статус в Dashboard.md != Pending):
 - Stage 2: QA-REQ-*-review.md существует в stage2/outputs/
 - Stage 3: SEC-*-threat-model.md существует в stage3/outputs/
+- Stage 3: RBAC-*-model.md существует в stage3/outputs/
+- Stage 3: RBAC-*-matrix.md существует в stage3/outputs/
 - Stage 3: DBA-schema.* существует в stage3/outputs/
 - Stage 4: TL-*-review-PR*.md существует в stage4/outputs/ (хотя бы один)
 - Stage 4: DEV-*-update-notes-PR*.md существует в stage4/outputs/

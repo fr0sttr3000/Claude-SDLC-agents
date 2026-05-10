@@ -191,12 +191,13 @@ tags: [overview, sdlc, architecture]
   ─────────────────────────────────────────────────────────────────
   Шаг 10  s3-arch /hld                  High-Level Design + ADR
   Шаг 11  s3-security                   Threat Model (STRIDE/DREAD/OWASP)
-  Шаг 12  s3-dba                        DB Schema + Migrations
+  Шаг 12  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
+  Шаг 13  s3-dba                        DB Schema + Migrations (читает RBAC-schema.sql)
                                          ── Quality Gate 3: s4-dev ждёт PASSED ──►
 
 Этап 4: Разработка
   ─────────────────────────────────────────────────────────────────
-  Шаг 13  s4-dev                        Dev Report + PR Summary
+  Шаг 14  s4-dev                        Dev Report + PR Summary
                                          + Update Notes (обязательно после каждого PR)
                                          + CHANGELOG.md обновлён
   Шаг 14  s4-techlead                   Code Review (DoD: все 10 пунктов)
