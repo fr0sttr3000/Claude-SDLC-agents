@@ -17,6 +17,7 @@ declare -A AGENT_DESC=(
   [l2-setup]="Local Setup — установить зависимости и настроить .env"
   [l3-build]="Local Builder — собрать проект"
   [l4-run]="Local Runner — запустить и проверить проект"
+  [s0-kickoff]="Project Kickoff — интервью для нового проекта / обновление беклога"
   [s0-secrets]="Secrets Manager — pass: добавить, ротировать, env"
   [s0-github]="GitHub Sync — init репо, push, pull, PR"
   [s0-validate]="Structure Validator — проверить и починить структуру проекта"
@@ -280,7 +281,7 @@ menu_single_agent() {
   local -a stages=("0: Инфраструктура" "L: Local Run (GitHub проекты)" "1: Планирование" "2: Требования" "3: Дизайн"
                    "4: Разработка" "5: Тестирование" "6: Деплой")
   local -a groups=(
-    "s0-secrets s0-github s0-validate s0-tracker"
+    "s0-kickoff s0-secrets s0-github s0-validate s0-tracker"
     "l1-analyze l2-setup l3-build l4-run"
     "s1-pm s1-pmo s1-finance"
     "s2-ba s2-po s2-qa-req"
@@ -526,6 +527,36 @@ menu_new_project() {
   read -rp "$(echo -e "${W}Название проекта:${N} ")" name
   if [[ -z "$name" ]]; then echo -e "${R}Пустое имя${N}"; sleep 1; return; fi
   create_project "$name"
+  echo
+  echo -e "${C}Проект создан. Запустить интервью для заполнения входных данных? (s0-kickoff /new)${N}"
+  read -rp "$(echo -e "${W}[Enter = да / n = пропустить]:${N} ")" run_kickoff
+  if [[ "$run_kickoff" != "n" && "$run_kickoff" != "N" ]]; then
+    run_agent "s0-kickoff" "$name" "/new $name"
+  fi
+  read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+}
+
+menu_kickoff() {
+  header
+  echo -e "${W}── Kickoff — Онбординг / Обновление проекта ─────────${N}"
+  echo
+  echo -e "  ${Y}1)${N} ${G}Новый проект${N} — провести интервью с нуля   ${C}(/new)${N}"
+  echo -e "  ${Y}2)${N} ${C}Обновить существующий${N} — беклог, видение   ${C}(/refresh)${N}"
+  echo -e "  ${Y}3)${N} Авто-определение режима                     ${C}(/start)${N}"
+  echo -e "  ${Y}b)${N} Назад"
+  echo
+  read -rp "$(echo -e "${W}Выбери [1-3/b]:${N} ")" choice
+  [[ "$choice" == "b" || "$choice" == "B" ]] && return
+
+  pick_project || return
+
+  case "$choice" in
+    1) run_agent "s0-kickoff" "$PROJECT" "/new $PROJECT" ;;
+    2) run_agent "s0-kickoff" "$PROJECT" "/refresh $PROJECT" ;;
+    3) run_agent "s0-kickoff" "$PROJECT" "/start $PROJECT" ;;
+    *) echo -e "${R}Неверный выбор${N}"; sleep 0.5; return ;;
+  esac
+  echo
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
 }
 
@@ -592,6 +623,7 @@ menu_list_projects() {
 main_menu() {
   while true; do
     header
+    echo -e "  ${Y}0)${N} ${G}Kickoff${N} — онбординг нового проекта / обновление беклога"
     echo -e "  ${Y}1)${N} ${W}Запустить один агент${N}"
     echo -e "  ${Y}2)${N} ${W}Полный SDLC-цикл${N} (все ${#CYCLE_AGENTS[@]} шагов)"
     echo -e "  ${Y}3)${N} Создать новый проект"
@@ -602,6 +634,7 @@ main_menu() {
     echo
     read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
     case "$choice" in
+      0) menu_kickoff ;;
       1) menu_single_agent ;;
       2) menu_full_cycle ;;
       3) menu_new_project ;;
