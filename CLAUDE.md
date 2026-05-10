@@ -7,7 +7,7 @@
 
 ## Структура vault
 ```
-_agents/        ← 26 специализированных агентов (CLAUDE.md + .claude/commands/)
+_agents/        ← 27 специализированных агентов (CLAUDE.md + .claude/commands/)
   _standards/   ← Стандарты компании (читать перед каждой задачей)
   sdlc.sh       ← Главный лаунчер (полный SDLC-цикл)
   localrun.sh   ← Лаунчер Local Run (GitHub-проекты)
@@ -49,6 +49,7 @@ claude --continue          # продолжить последний диало�
 ## Агенты — инфраструктура (этап 0)
 | Агент | Роль | Ключевые команды |
 |-------|------|-----------------|
+| `s0-kickoff` | Project Kickoff — онбординг / обновление беклога | `/start`, `/new`, `/refresh` |
 | `s0-secrets` | Secrets Manager | `/add`, `/rotate`, `/env` |
 | `s0-github` | GitHub Sync | `/init`, `/sync`, `/push`, `/status`, `/pr` |
 | `s0-validate` | Structure Validator | `/validate`, `/fix` |
