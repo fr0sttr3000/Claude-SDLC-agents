@@ -51,7 +51,7 @@ tags: [overview, sdlc, architecture]
 ├── CLAUDE.md              ← Глобальный контекст (читается агентами)
 ├── OVERVIEW.md            ← Этот файл — полный обзор системы
 │
-├── _agents/               ← 26 агентов + стандарты
+├── _agents/               ← 27 агентов + стандарты
 │   ├── README.md          ← Операционное руководство
 │   ├── CLAUDE.md          ← Глобальный контекст агентов (quality gates, правила)
 │   ├── _standards/        ← Стандарты компании (доступны всем агентам)
@@ -60,6 +60,7 @@ tags: [overview, sdlc, architecture]
 │   │   └── data-formats.md ← Форматы DB/ENV/API, тесты форматов (читать перед каждой задачей)
 │   ├── sdlc.sh            ← Главный лаунчер (SDLC-цикл + необязательные шаги)
 │   ├── localrun.sh        ← Local Run лаунчер (GitHub-проекты)
+│   ├── s0-kickoff/        ← Project Kickoff — онбординг нового проекта / обновление беклога
 │   ├── s0-secrets/        ← Secrets Manager
 │   ├── s0-github/         ← GitHub Sync
 │   ├── s0-validate/       ← Structure Validator + Quality Artifacts Validator
@@ -165,8 +166,10 @@ tags: [overview, sdlc, architecture]
 - `s0-validate /validate` после цикла — проверить артефакты
 
 ```
-Этап 0: Инфраструктура
+Этап 0: Онбординг / Инфраструктура
   ─────────────────────────────────────────────────────────────────
+  s0-kickoff /new           Интервью (4 блока) → заполняет idea.md + PM-input-interview.md
+  s0-kickoff /refresh       Обновить видение / беклог / NFR для существующего проекта
   s0-validate /fix          Проверить и починить структуру (если нужно)
   s0-tracker /sprint-init   Запустить спринт (перед циклом)
 
@@ -191,12 +194,13 @@ tags: [overview, sdlc, architecture]
   ─────────────────────────────────────────────────────────────────
   Шаг 10  s3-arch /hld                  High-Level Design + ADR
   Шаг 11  s3-security                   Threat Model (STRIDE/DREAD/OWASP)
-  Шаг 12  s3-dba                        DB Schema + Migrations
+  Шаг 12  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
+  Шаг 13  s3-dba                        DB Schema + Migrations (читает RBAC-schema.sql)
                                          ── Quality Gate 3: s4-dev ждёт PASSED ──►
 
 Этап 4: Разработка
   ─────────────────────────────────────────────────────────────────
-  Шаг 13  s4-dev                        Dev Report + PR Summary
+  Шаг 14  s4-dev                        Dev Report + PR Summary
                                          + Update Notes (обязательно после каждого PR)
                                          + CHANGELOG.md обновлён
   Шаг 14  s4-techlead                   Code Review (DoD: все 10 пунктов)
@@ -493,6 +497,29 @@ cd _agents/s0-github && claude /sync my-project   # синхронизация
 
 Ветки SDLC: `main`, `stage/planning`, `stage/requirements`, `stage/design`, `stage/development`, `stage/testing`, `stage/deploy`.
 
+### s0-kickoff — Project Kickoff
+
+```bash
+# Новый проект — провести интервью с нуля (4 блока вопросов)
+cd _agents/s0-kickoff && claude "/new my-project"
+
+# Обновить существующий проект — беклог, видение, NFR
+cd _agents/s0-kickoff && claude "/refresh my-project"
+
+# Авто-определение режима (new vs refresh)
+cd _agents/s0-kickoff && claude "/start my-project"
+```
+
+Режим **NEW**: 4 блока интервью (Продукт → Бизнес → Техника → Приоритеты).
+Выход: `idea.md` (заполненный) + `PM-input-interview-YYYY-MM-DD.md`.
+
+Режим **REFRESH**: меню из 5 разделов (Видение / Беклог / Приоритеты / NFR / Scope Out).
+Выход: `PM-input-refresh-*.md` и/или `BA-input-refresh-*.md` → передаёт s1-pm / s2-ba / s2-po.
+
+Через sdlc.sh: главное меню `0) Kickoff`.
+
+---
+
 ### s0-secrets — Secrets Manager
 
 ```bash
@@ -505,6 +532,9 @@ cd _agents/s0-secrets && claude /env my-project
 ## Меню лаунчера (sdlc.sh)
 
 ```
+0) Kickoff — онбординг нового проекта / обновление беклога
+   └─ Авто-определение: пустой проект → интервью NEW; существующий → меню REFRESH
+
 1) Запустить один агент
    └─ Выбор агента → выбор проекта → выбор команды/задачи
 
@@ -513,6 +543,7 @@ cd _agents/s0-secrets && claude /env my-project
 
 3) Создать новый проект
    └─ Создаёт структуру stage1..stage7, Dashboard.md, idea.md
+      Предлагает сразу запустить s0-kickoff /new для заполнения входных данных
 
 4) Список проектов
    └─ Прогресс-бар по заполненности outputs/

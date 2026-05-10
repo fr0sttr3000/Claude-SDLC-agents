@@ -103,6 +103,13 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 □ DBA-schema.sql или DBA-schema.dbml существует
 □ DEVOPS-cicd.yaml (шаблон CI/CD) существует
 
+# RBAC (s3-rbac)
+□ RBAC-*-model.md существует: все роли из BRD покрыты, иерархия описана
+□ RBAC-*-matrix.md существует: матрица полная (роль × ресурс × действие)
+□ RBAC-*-schema.sql существует: таблицы roles/permissions/role_permissions/user_roles + RLS
+□ SoD-конфликты выявлены и задокументированы
+□ Owner-ресурсы защищены RLS-политиками
+
 # Форматы данных (data-formats.md §5 s3-dba / §6 Gate 3)
 □ DBA-schema: все datetime — TIMESTAMPTZ (никогда WITHOUT TIME ZONE)
 □ DBA-schema: все PK — UUID v4, деньги — NUMERIC(p,s) (не FLOAT)

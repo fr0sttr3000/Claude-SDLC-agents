@@ -7,7 +7,7 @@
 
 ## Структура vault
 ```
-_agents/        ← 26 специализированных агентов (CLAUDE.md + .claude/commands/)
+_agents/        ← 27 специализированных агентов (CLAUDE.md + .claude/commands/)
   _standards/   ← Стандарты компании (читать перед каждой задачей)
   sdlc.sh       ← Главный лаунчер (полный SDLC-цикл)
   localrun.sh   ← Лаунчер Local Run (GitHub-проекты)
@@ -49,6 +49,7 @@ claude --continue          # продолжить последний диало�
 ## Агенты — инфраструктура (этап 0)
 | Агент | Роль | Ключевые команды |
 |-------|------|-----------------|
+| `s0-kickoff` | Project Kickoff — онбординг / обновление беклога | `/start`, `/new`, `/refresh` |
 | `s0-secrets` | Secrets Manager | `/add`, `/rotate`, `/env` |
 | `s0-github` | GitHub Sync | `/init`, `/sync`, `/push`, `/status`, `/pr` |
 | `s0-validate` | Structure Validator | `/validate`, `/fix` |
@@ -65,6 +66,7 @@ claude --continue          # продолжить последний диало�
 | 2 — Требования | `s2-qa-req` | Testability Review |
 | 3 — Дизайн | `s3-arch` | `/hld`, `/adr` |
 | 3 — Дизайн | `s3-security` | Threat Model |
+| 3 — Дизайн | `s3-rbac` | `/rbac-model`, `/rbac-matrix` |
 | 3 — Дизайн | `s3-dba` | DB Schema |
 | 4 — Разработка | `s4-dev` | Dev Report, Update Notes (обязательно после каждого PR) |
 | 4 — Разработка | `s4-techlead` | Code Review (блокирует PR без обновлённой документации) |
@@ -91,7 +93,7 @@ claude --continue          # продолжить последний диало�
 |---------|------|--------------|
 | S1 → S2 | Feasibility + Charter + Риски | **s2-ba** |
 | S2 → S3 | BRD + NFR с числами + QA-REQ review (0 BLOCKER) | **s3-arch** |
-| S3 → S4 | HLD + Threat Model (0 Critical/High) + DB schema | **s4-dev** |
+| S3 → S4 | HLD + Threat Model (0 Critical/High) + RBAC model + DB schema | **s4-dev** |
 | S4 → S5 | Все PR закрыты + DoD + coverage ≥80% + SAST pass | **s5-qa** |
 | S5 → S6 | Go/No-Go + UAT sign-off + PERF PASS | **s6-release** |
 | S6 → PROD | Checklist + release notes + rollback проверен | **s6-sre** |
