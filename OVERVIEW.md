@@ -187,55 +187,54 @@ tags: [overview, sdlc, architecture]
   Шаг  6  s2-ba /extract-requirements   Сбор требований
   Шаг  7  s2-ba /brd                    BRD + NFR (с числами) + RTM
   Шаг  8  s2-po /stories                User Stories + Backlog (INVEST/RICE)
-  Шаг  9  s2-qa-req                     Testability Review → Gate 2 PASSED/FAILED
+  Шаг  9  s2-qa-req /testability-review  Testability Review → Gate 2 PASSED/FAILED
                                          ── Quality Gate 2: s3-arch ждёт PASSED ──►
 
 Этап 3: Дизайн
   ─────────────────────────────────────────────────────────────────
   Шаг 10  s3-arch /hld                  High-Level Design + ADR
-  Шаг 11  s3-security                   Threat Model (STRIDE/DREAD/OWASP)
+  Шаг 11  s3-security /threat-model     Threat Model (STRIDE/DREAD/OWASP)
   Шаг 12  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
-  Шаг 13  s3-dba                        DB Schema + Migrations (читает RBAC-schema.sql)
+  Шаг 13  s3-dba /schema                DB Schema (читает RBAC-schema.sql)
                                          ── Quality Gate 3: s4-dev ждёт PASSED ──►
 
 Этап 4: Разработка
   ─────────────────────────────────────────────────────────────────
-  Шаг 14  s4-dev                        Dev Report + PR Summary
-                                         + Update Notes (обязательно после каждого PR)
-                                         + CHANGELOG.md обновлён
-  Шаг 14  s4-techlead                   Code Review (DoD: все 10 пунктов)
+  Шаг 14  s4-dev /dev-report            Dev Report + PR Summary
+  Шаг 15  s4-dev /update-notes          Update Notes (обязательно после каждого PR)
+  Шаг 16  s4-techlead /review           Code Review (DoD: все 11 пунктов)
                                          → Gate 4: TL-*-review-PR*.md для каждого PR
-  Шаг 15  s4-devops                     CI/CD + Runbook + Monitoring
+  Шаг 17  s4-devops /pipeline           CI/CD Pipeline (lint→test→build→SAST→secrets-scan)
+  Шаг 18  s4-devops /runbook            Runbook деплоя + rollback-процедура
                                          ── Quality Gate 4: s5-qa ждёт coverage≥80% ──►
 
 Этап 5: Тестирование
   ─────────────────────────────────────────────────────────────────
-  Шаг 16  s5-qa                         Test Plan + Go/No-Go → Gate 5 PASSED/FAILED
-  Шаг 17  s5-qa-auto                    Automation Report (coverage ≥95%)
-  Шаг 18  s5-perf                       Load Tests + Perf Report
+  Шаг 19  s5-qa /test-plan              Test Plan + тест-кейсы (IEEE 829)
+  Шаг 20  s5-qa-auto /e2e-report        Automation Report (coverage ≥95%)
+  Шаг 21  s5-perf /load-test            Load Tests (smoke/load/stress/soak) + вердикт
+  Шаг 22  s5-qa /go-no-go              Go/No-Go → Gate 5 PASSED/FAILED
                                          ── Quality Gate 5: s6-release ждёт PASSED ──►
 
 Этап 6: Деплой
   ─────────────────────────────────────────────────────────────────
-  Шаг 19  s6-release /release-checklist  Release Checklist + Gate 6
-           s6-release /release-notes      Release Notes v[X.Y.Z]
-  Шаг 20  s6-sre                         Post-Deploy Report (T+0..T+60)
+  Шаг 23  s6-release /release-checklist  Release Checklist + Gate 6
+  Шаг 24  s6-release /release-notes      Release Notes v[X.Y.Z]
+  Шаг 25  s6-sre /post-deploy            Post-Deploy Report (T+0..T+60)
                                           + Post-Mortem если был инцидент
 
 Этап 7: Эксплуатация (ОБЯЗАТЕЛЬНЫЙ — через 7 дней после деплоя)
   ─────────────────────────────────────────────────────────────────
-  Шаг 21  s6-sre (7.1)                   Monitoring Dashboard: RED + SLO + Error Budget
-  Шаг 22  s6-sre (7.2)                   Auto-Heal verification: kill → restart < 30 сек
-                                          Watchdog heartbeat + Circuit breaker + DLQ
-                                          → SRE-*-autoheal-report.md  [BLOCKER]
-           s6-sre (7.3)                   Incident Runbooks (4 типа)
-           s6-sre (7.4)                   SLO Review → SRE-*-ops-report.md
+  Шаг 26  s6-sre /gate7                  Monitoring Dashboard: RED + SLO + Error Budget
+                                          Auto-Heal verification: kill → restart < 30 сек
+                                          Incident Runbooks (4 типа)
+                                          SLO Review → SRE-*-ops-report.md
                                           ── Quality Gate 7 закрыт → следующий релиз разблокирован ──►
 
 Финальные шаги (всегда выполняются)
   ─────────────────────────────────────────────────────────────────
-  Шаг 23  s0-tracker /report     Отчёт цикла: план vs факт ◄ ПРЕДПОСЛЕДНИЙ
-  Шаг 24  s0-github /push        Push артефактов в GitHub   ◄ ПОСЛЕДНИЙ
+  Шаг 27  s0-tracker /report     Отчёт цикла: план vs факт ◄ ПРЕДПОСЛЕДНИЙ
+  Шаг 28  s0-github /push        Push артефактов в GitHub   ◄ ПОСЛЕДНИЙ
 ```
 
 ---
