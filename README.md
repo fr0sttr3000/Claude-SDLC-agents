@@ -317,7 +317,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 |-------|------|--------------|
 | `s1-pm` | Product Manager — Feasibility, Vision, OKR | `/feasibility`, `/vision` |
 | `s1-pmo` | Project Manager — Charter, WBS, Risk Register, RACI | `/charter`, `/risks` |
-| `s1-finance` | Finance Analyst — ROI, NPV, Business Case | *(задача текстом)* |
+| `s1-finance` | Finance Analyst — ROI, NPV, Business Case | `/business-case` |
 
 ### Этап 2 — Требования
 
@@ -325,39 +325,39 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 |-------|------|--------------|
 | `s2-ba` | Business Analyst — BRD, NFR (с числами), RTM | `/extract-requirements`, `/brd` |
 | `s2-po` | Product Owner — User Stories, Backlog (INVEST/RICE) | `/stories` |
-| `s2-qa-req` | QA (требования) — Testability Review → **Gate 2** | *(задача текстом)* |
+| `s2-qa-req` | QA (требования) — Testability Review → **Gate 2** | `/testability-review` |
 
 ### Этап 3 — Дизайн
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
 | `s3-arch` | Solution Architect — HLD, ADR, API Spec | `/hld`, `/adr` |
-| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD/OWASP) | *(задача текстом)* |
+| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD/OWASP) | `/threat-model` |
 | `s3-rbac` | RBAC Designer — роли, матрица прав, RLS, SQL схема | `/rbac-model`, `/rbac-matrix` |
-| `s3-dba` | DBA — DB Schema, Migrations | *(задача текстом)* |
+| `s3-dba` | DBA — DB Schema, Migrations | `/schema`, `/migration` |
 
 ### Этап 4 — Разработка
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
-| `s4-dev` | Backend Developer — код, PR Summary, Update Notes | *(задача текстом)* |
-| `s4-techlead` | Tech Lead — Code Review (DoD) → **Gate 4** | *(задача текстом)* |
-| `s4-devops` | DevOps Engineer — CI/CD, Runbook, Monitoring | *(задача текстом)* |
+| `s4-dev` | Backend Developer — код, PR Summary, Update Notes | `/dev-report`, `/update-notes` |
+| `s4-techlead` | Tech Lead — Code Review (DoD) → **Gate 4** | `/review` |
+| `s4-devops` | DevOps Engineer — CI/CD, Runbook, Monitoring | `/pipeline`, `/runbook` |
 
 ### Этап 5 — Тестирование
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
-| `s5-qa` | QA Engineer — Test Plan, Go/No-Go → **Gate 5** | *(задача текстом)* |
-| `s5-qa-auto` | QA Automation — E2E/API тесты (coverage ≥95%) | *(задача текстом)* |
-| `s5-perf` | Performance Engineer — Load Tests | *(задача текстом)* |
+| `s5-qa` | QA Engineer — Test Plan, Go/No-Go → **Gate 5** | `/test-plan`, `/go-no-go` |
+| `s5-qa-auto` | QA Automation — E2E/API тесты (coverage ≥95%) | `/e2e-report` |
+| `s5-perf` | Performance Engineer — Load Tests | `/load-test` |
 
 ### Этап 6/7 — Деплой и Эксплуатация
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
 | `s6-release` | Release Manager — Checklist → Gate 6, Release Notes | `/release-checklist`, `/release-notes` |
-| `s6-sre` | SRE — Post-Deploy + Monitoring + Auto-Heal verify + SLO Review → **Gate 7** | *(задача текстом)* |
+| `s6-sre` | SRE — Post-Deploy + Monitoring + Auto-Heal verify + SLO Review → **Gate 7** | `/post-deploy`, `/gate7` |
 
 ---
 
