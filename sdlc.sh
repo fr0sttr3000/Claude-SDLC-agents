@@ -62,23 +62,26 @@ declare -a CYCLE_AGENTS=(
   "s1-pm:/vision"
   "s1-pmo:/charter"
   "s1-pmo:/risks"
-  "s1-finance:Создай Business Case"
+  "s1-finance:/business-case"
   "s2-ba:/extract-requirements"
   "s2-ba:/brd"
   "s2-po:/stories"
-  "s2-qa-req:Проверь требования на тестируемость"
+  "s2-qa-req:/testability-review"
   "s3-arch:/hld"
-  "s3-security:Проведи Threat Modeling"
+  "s3-security:/threat-model"
   "s3-rbac:/rbac-model"
-  "s3-dba:Спроектируй схему БД"
-  "s4-dev:Создай отчёт по разработке"
-  "s4-techlead:Проведи code review"
-  "s4-devops:Создай CI/CD pipeline и runbook"
-  "s5-qa:Создай Test Plan и Go/No-Go"
-  "s5-qa-auto:Создай automation отчёт"
-  "s5-perf:Проведи Performance тестирование"
+  "s3-dba:/schema"
+  "s4-dev:/dev-report"
+  "s4-techlead:/review"
+  "s4-devops:/pipeline"
+  "s4-devops:/runbook"
+  "s5-qa:/test-plan"
+  "s5-qa-auto:/e2e-report"
+  "s5-perf:/load-test"
+  "s5-qa:/go-no-go"
   "s6-release:/release-checklist"
-  "s6-sre:Создай Post-Deploy отчёт"
+  "s6-release:/release-notes"
+  "s6-sre:/post-deploy"
   "s0-tracker:/report"
   "s0-github:/push"
 )
@@ -253,11 +256,11 @@ run_agent() {
       echo
       # Шаг 1: агент представляется
       echo -e "${B}── Агент инициирует диалог... ──────────────────────${N}"
-      (cd "$agent_dir" && env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
+      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
       echo
       # Шаг 2: продолжаем тот же диалог интерактивно
       echo -e "${B}── Продолжение диалога ─────────────────────────────${N}"
-      (cd "$agent_dir" && env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
+      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
       echo
       echo -e "${G}✓ Сессия завершена${N}"
       ;;
@@ -265,7 +268,7 @@ run_agent() {
       echo
       echo -e "${C}Запускаю: ${W}claude \"$claude_arg\"${N}"
       echo
-      (cd "$agent_dir" && env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "$claude_arg")
+      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "$claude_arg")
       echo
       echo -e "${G}✓ Агент завершил работу${N}"
       ;;

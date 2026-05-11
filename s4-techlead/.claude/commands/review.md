@@ -1,0 +1,61 @@
+---
+description: Провести Code Review PR (Gate 4 — блокирует релиз без полного DoD)
+---
+
+Проведи Code Review для проекта $ARGUMENTS.
+
+Прочитай:
+1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
+3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
+
+Уточни у пользователя: какой PR ревьюируем и где находится код.
+
+Создай файл TL-[дата]-review-PR[N].md в:
+/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/
+
+# Code Review — PR #[N] — $ARGUMENTS
+Дата: [сегодня]
+Агент: s4-techlead
+
+## Замечания
+Формат: [BLOCKER/MAJOR/MINOR/SUGGESTION/QUESTION/PRAISE] файл:строка описание
+
+### [BLOCKER] — блокируют merge
+[список]
+
+### [MAJOR] — требуют исправления в этом PR
+[список]
+
+### [MINOR] / [SUGGESTION]
+[список]
+
+### [PRAISE] — отметить хорошее
+[список]
+
+## Антипаттерны из prod — обязательная проверка
+□ CR-01 [BLOCKER] `server_default=func.cast(...)` — только строковый литерал
+□ [BLOCKER] datetime без `TIMESTAMP(timezone=True)` в SQLAlchemy
+□ [BLOCKER] Функциональный индекс на STABLE/VOLATILE функции
+□ CR-02 [BLOCKER] `callback.message.bot` без инъекции бота как параметра
+□ CR-03 [MAJOR] Scheduler-функции без guard `if _bot is None: return`
+□ CR-04 [MAJOR] Markdown v1 в Telegram-хэндлерах — использовать HTML
+□ [MAJOR] pydantic-settings validator не обрабатывает list/set/frozenset
+□ [MAJOR] `fileConfig(disable_existing_loggers=True)` в migrations/env.py
+
+## DoD Checklist — Gate 4
+□ Бизнес-логика соответствует Acceptance Criteria
+□ Edge cases покрыты
+□ Security: нет открытых уязвимостей
+□ Performance: нет N+1 queries
+□ Error handling: нет bare except/pass
+□ SOLID: SRP соблюдён, функции ≤ 20 строк
+□ Unit coverage ≥ 80% изменённого кода
+□ DEV-*-update-notes-PR[N].md существует
+□ README / API-spec / docstring / CHANGELOG обновлены
+□ SAST прошёл без Critical/High
+
+## РЕШЕНИЕ
+✅ **APPROVED** — PR готов к merge
+⚠️ **APPROVED WITH COMMENTS** — merge после исправления MINOR
+❌ **CHANGES REQUESTED** — есть BLOCKER или MAJOR

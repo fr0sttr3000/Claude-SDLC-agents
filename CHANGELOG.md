@@ -13,6 +13,46 @@ tags: [docs, changelog]
 
 ---
 
+## [1.4.0] — 2026-05-11
+
+### Added
+
+#### Skills (slash-команды) для 11 агентов — 18 новых команд
+Все агенты теперь имеют slash-команды. Ни один агент не требует задачи «свободным текстом».
+
+| Агент | Новые команды |
+|-------|--------------|
+| `s1-finance` | `/business-case` — Business Case (NPV, ROI, TCO, сценарный анализ) |
+| `s2-qa-req` | `/testability-review` — Testability Review + Gate 2 вердикт |
+| `s3-dba` | `/schema` — DB Schema (PostgreSQL, UUID v4, TIMESTAMPTZ) |
+| `s3-dba` | `/migration` — Alembic Migration Runbook (upgrade + downgrade) |
+| `s3-security` | `/threat-model` — Threat Model (STRIDE + DREAD + OWASP Top 10) |
+| `s4-dev` | `/dev-report` — Dev Report по завершённому PR |
+| `s4-dev` | `/update-notes` — Update Notes для PR (обязательно после каждого PR) |
+| `s4-techlead` | `/review` — Code Review с DoD checklist + Gate 4 вердикт |
+| `s4-devops` | `/pipeline` — CI/CD pipeline (lint→test→build→SAST→secrets-scan) |
+| `s4-devops` | `/runbook` — Runbook деплоя с rollback-процедурой и observability |
+| `s5-qa` | `/test-plan` — Test Plan с тест-кейсами (IEEE 829) |
+| `s5-qa` | `/go-no-go` — Go/No-Go решение + Gate 5 вердикт |
+| `s5-qa-auto` | `/e2e-report` — E2E/API Automation Report + coverage |
+| `s5-perf` | `/load-test` — Load Test (smoke/load/stress/soak) + вердикт |
+| `s6-sre` | `/post-deploy` — Post-Deploy Report (мониторинг T+0..T+60) |
+| `s6-sre` | `/gate7` — Gate 7: SLO Review + Auto-Heal + Incident Runbooks |
+
+#### CYCLE_AGENTS — полный переход на slash-команды
+- Все шаги полного цикла теперь используют `/slash-команды` вместо свободного текста
+- Добавлены ранее отсутствующие шаги: `/runbook` (s4-devops), `/release-notes` (s6-release), `/gate7` (s6-sre)
+- Цикл расширен с 23 до 26 шагов
+
+### Fixed
+
+#### Bash cwd drift — агенты больше не покидают свою директорию
+- **Проблема**: bash-состояние в Claude Code персистентно в рамках сессии. При выполнении `cd /path && cmd` директория менялась для всех последующих вызовов.
+- **`sdlc.sh`**: все три точки запуска агентов экспортируют `AGENT_DIR="$agent_dir"` — агент знает домашнюю директорию через переменную окружения.
+- **`CLAUDE.md`**: добавлен раздел «Рабочая директория» с правилом подоболочки: `(cd /path && cmd)` вместо `cd /path && cmd`.
+
+---
+
 ## [1.3.0] — 2026-05-10
 
 ### Added
