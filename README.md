@@ -40,7 +40,9 @@ _agents/
 ├── _standards/        ← Стандарты (читаются всеми агентами)
 │   ├── quality.md     ← DoD, DoR, Quality Gates, NFR, Auto-Heal
 │   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
-│   └── company.md     ← Стек, роли, методология
+│   ├── company.md     ← Стек, роли, методология
+│   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
+│   └── tech-debt-template.md      ← Шаблон журнала технического долга
 │
 ├── s0-*/              ← Инфраструктура (kickoff, secrets, github, validate, tracker)
 ├── s1-*/              ← Этап 1: Планирование (pm, pmo, finance)
@@ -268,6 +270,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `/new` | Новый проект, пустые входные данные | `sdlc.sh → 0) Kickoff → 1)` |
 | `/refresh` | Обновить беклог / видение / NFR | `sdlc.sh → 0) Kickoff → 2)` |
 | `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
+| `/cr` | Change Request — изменение требований в середине этапа | `cd s0-kickoff && claude "/cr my-project"` |
 
 **Режим `/new` — 4 блока интервью:**
 1. **Продукт** — идея, проблема, аудитория, конкуренты, уникальность
@@ -288,6 +291,13 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 - Изменение NFR / масштаба → передаёт `s2-ba`
 - Scope Out — что убираем → передаёт `s2-ba` + `s2-po`
 
+**Режим `/cr` — Change Request:**
+
+Интервью из 4 блоков (что изменилось / конкретно до-после / причина / срочность).
+Строит таблицу влияния: затронутые этапы → сброшенные DoR-пункты → что нужно переделать.
+Выход: `stage{N}/inputs/CR-YYYY-MM-DD-[N]-input.md` + запись в `tracking/dor-violations.md`.
+После CR пользователь вручную перезапускает затронутых агентов (агенты не взаимодействуют напрямую).
+
 ---
 
 ## Каталог агентов
@@ -296,11 +306,11 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
-| `s0-kickoff` | Project Kickoff — интервью для нового проекта / обновление беклога | `/start`, `/new`, `/refresh` |
+| `s0-kickoff` | Project Kickoff — интервью для нового проекта / обновление беклога / Change Request | `/start`, `/new`, `/refresh`, `/cr` |
 | `s0-secrets` | Secrets Manager — pass: хранение, ротация, env | `/add`, `/rotate`, `/env` |
 | `s0-github` | GitHub Sync — репо, ветки, PR, push | `/init`, `/sync`, `/push`, `/status`, `/pr` |
-| `s0-validate` | Structure + Quality Validator | `/validate [project\|all]`, `/fix [project\|all]` |
-| `s0-tracker` | Sprint & Task Tracker (DoD enforcement) | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
+| `s0-validate` | Structure + Quality Validator + DoR/DoD auto-check | `/validate [project\|all]`, `/fix [project\|all]`, `/dor-check [N]`, `/dod-check [K\|D\|I] [N] [PR]` |
+| `s0-tracker` | Sprint & Task Tracker (DoD + Tech Debt enforcement) | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
 
 ### Local Run (l-агенты)
 
@@ -365,21 +375,25 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 
 ### Definition of Done (11 пунктов)
 
-Каждая задача закрывается только при выполнении всех 11:
+DoD **бинарен** — нет "Done minus docs". Задача остаётся IN_PROGRESS до выполнения всех применимых пунктов.
+Применимость по типу: **К** (Код — все 11) / **Д** (Документ — DoD 3,4,5,7,8,10) / **И** (Инфраструктура — DoD 2..11 кроме 6).
+Автопроверка: `s0-validate /dod-check [K|D|I] [STAGE] [PR]`.
 
-| # | Условие |
-|---|---------|
-| 1 | Complexity ≤10, SRP |
-| 2 | Unit-тесты, покрытие ≥80% изменённого кода |
-| 3 | Code review: 0 BLOCKER и MAJOR |
-| 4 | README/API-spec/docstring обновлены |
-| 5 | CHANGELOG.md обновлён |
-| 6 | DEV-*-update-notes-PR[N].md создан |
-| 7 | Нет S1/S2 багов без митигации |
-| 8 | Секреты не в коде, не в логах, не в артефактах |
-| 9 | NFR проверены (latency, error rate, memory) |
-| 10 | Артефакт передан следующему агенту |
-| 11 | Тесты форматов: test_env_format.py / test_db_format.py / test_api_format.py |
+| # | Условие | Тип | Проверка |
+|---|---------|-----|---------|
+| 1 | Complexity ≤10, SRP | К | 🤖 частично |
+| 2 | Unit-тесты, покрытие ≥80% изменённого кода | К, И | 🤖 авто |
+| 3 | Code review: 0 BLOCKER и MAJOR | К, Д, И | 👤 вручную |
+| 4 | README/API-spec/docstring обновлены | К, Д, И | 👤 вручную |
+| 5 | CHANGELOG.md обновлён | К, Д, И | 🤖 авто |
+| 6 | DEV-*-update-notes-PR[N].md создан | К | 🤖 авто |
+| 7 | Нет S1/S2 багов без митигации | К, Д, И | 👤 вручную |
+| 8 | Секреты не в коде, не в логах, не в артефактах | К, Д, И | 🤖 авто |
+| 9 | NFR проверены (latency, error rate, memory) | К, И | 👤 вручную |
+| 10 | Артефакт записан в outputs/ текущего этапа | К, Д, И | 🤖 авто |
+| 11 | Тесты форматов: test_env/db/api_format.py | К, И | 🤖 авто |
+
+Осознанный пропуск DoD → фиксировать в `tracking/tech-debt.md` (блокирует sprint-close при просрочке).
 
 ### NFR дефолты
 
@@ -491,4 +505,4 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v1.5.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*
