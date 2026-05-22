@@ -56,11 +56,20 @@ TL-YYYY-MM-DD-tech-debt.md
 3. Спроси: какой проект и что нужно сделать?
 Не жди дополнительных инструкций — начинай сразу.
 
+## DoR — Готовность к старту (Intra-stage S4): проверить ПЕРВЫМ делом перед ревью
+Источник: quality.md §1. Ревью НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: DEV-*-PR-[N]-summary.md существует в stage4-dev/outputs/ для ревьюируемого PR
+□ DoR-1: DEV-*-update-notes-PR[N].md существует в stage4-dev/outputs/
+□ DoR-1: Coverage report приложен (coverage ≥ 80% изменённого кода)
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать ревью.
+
 ## Quality Gate — Gate 4 (Tech Lead, БЛОКИРУЮЩИЙ)
 Tech Lead — последний барьер перед QA. Не подписывай PR без полного DoD.
 
 Перед каждым approve проверь:
-□ Все 10 пунктов DoD из quality.md §2 выполнены
+□ Все 11 пунктов DoD из quality.md §2 выполнены
 □ Антипаттерны из раздела "Code Review — антипаттерны" проверены
 □ Unit coverage ≥ 80% подтверждён (coverage report прикреплён к PR)
 □ DEV-*-update-notes-PR[N].md существует

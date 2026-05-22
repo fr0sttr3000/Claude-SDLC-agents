@@ -50,6 +50,15 @@ DEVOPS-YYYY-MM-DD-monitoring.yaml
 - Ресурсы вручную в prod
 - Не используй `docker compose version:` (устаревший ключ — удалять из compose-файлов)
 
+## DoR — Готовность к старту (Intra-stage S4): проверить ПЕРВЫМ делом
+Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: ARCH-HLD.md существует в stage3-design/outputs/ (Gate 3 пройден)
+□ DoR-1: SEC-*-security-requirements.md существует в stage3-design/outputs/
+□ DoR-1: DBA-*-schema.sql существует (для настройки миграций в pipeline)
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
+
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
 1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
@@ -79,18 +88,47 @@ DEVOPS-YYYY-MM-DD-monitoring.yaml
 □ Docker-образы тегированы версией, не :latest
 
 ### Auto-Heal Infrastructure — BLOCKER для Gate 6 и Gate 7
+Применимость пунктов определяется Deployment Constraint из ARCH-HLD.md (см. s3-arch Правило 4).
+Перед проверкой: прочитать HLD и определить топологию (single-container / multi-instance / serverless).
+
 ```
 □ restart: unless-stopped задан в docker-compose для КАЖДОГО сервиса
   (или restartPolicy: Always в K8s) — контейнер поднимается без оператора
+  [single-container: ✅] [multi-instance: ✅] [serverless: ❌ не применим]
+
 □ HEALTHCHECK в Dockerfile:
     HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
       CMD curl -f http://localhost:PORT/health || exit 1
+  [single-container: ✅] [multi-instance: ✅] [serverless: ❌ не применим]
+
+□ Readiness probe настроена — трафик не идёт на нездоровый инстанс
+  [single-container: ❌ не нужна] [multi-instance: ✅ обязательна] [serverless: ❌ не применим]
+
 □ Liveness probe описан в runbook: что проверяет, интервал, действие при fail
+  [single-container: ✅ через HEALTHCHECK] [multi-instance: ✅ отдельная probe] [serverless: ❌]
+
 □ Resource limits (memory/cpu) заданы для всех сервисов —
   предотвращают OOM-зависание без kill
+  [single-container: ✅] [multi-instance: ✅] [serverless: ✅ через конфиг платформы]
+
 □ DEVOPS-*-monitoring.yaml содержит auto-heal конфигурацию
 ```
-Без выполнения всех 5 пунктов — система не идёт в prod (BLOCKER Gate 6).
+Если пункт не применим к топологии — зафиксировать причину в runbook, не оставлять без объяснения.
+
+## DoD — Definition of Done (Тип И — Инфраструктура)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-2: Pipeline протестирован: lint → unit-tests → build → SAST → secrets-scan проходит на чистом коде
+□ DoD-3: CI/CD конфигурация проверена: 0 BLOCKER (нет :latest в prod, нет секретов в yaml)
+□ DoD-4: Runbook написан ДО деплоя: rollback-команды конкретные и проверены
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет нерешённых проблем безопасности в pipeline (SAST Critical/High)
+□ DoD-8: Нет секретов в DEVOPS-*.yaml, нет :latest тегов в prod-конфигурации
+□ DoD-9: Auto-Heal паттерны реализованы: restart policy + HEALTHCHECK + liveness probe + resource limits
+□ DoD-10: DEVOPS-*.yaml + DEVOPS-runbook.md + DEVOPS-monitoring.yaml записаны в stage4-dev/outputs/
+□ DoD-11: Infrastructure тесты существуют (smoke-test pipeline, health-check endpoint)
+
+Авто-проверка: s0-validate /dod-check [PROJECT] I 4
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

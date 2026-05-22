@@ -26,6 +26,98 @@
 8. Auto-heal by design — система восстанавливается без оператора:
    watchdog, circuit breaker, DLQ, liveness probe — отражены в HLD
 
+## Выбор паттернов — обязательная методология
+
+### Правило 1: Паттерн только при наличии проблемы
+Паттерн добавляет сложность. Не добавляй паттерн "про запас".
+```
+❌ "Добавим Circuit Breaker — он везде полезен"
+✅ "Есть внешний платёжный API с таймаутом 30 сек → нужен Timeout + Circuit Breaker"
+```
+
+### Правило 2: Цепочка QA → Tactic → Pattern
+Каждый паттерн в HLD обосновывается через Quality Attribute из BA-NFR.md:
+`Бизнес-требование → NFR с числом → Quality Attribute → Tactic → Pattern → ADR`
+
+| Quality Attribute | Tactic | Паттерны |
+|------------------|--------|---------|
+| Availability | Detect faults | Liveness Probe, Watchdog, HEALTHCHECK |
+| Availability | Recover from faults | Restart Policy, Circuit Breaker, DLQ |
+| Availability | Prevent faults | Resource Limits, Graceful Shutdown |
+| Performance | Reduce latency | Timeout, Connection Pool, Cache |
+| Performance | Manage resources | Backpressure, Rate Limiting |
+| Reliability | Tolerate faults | Retry + Backoff, Idempotency |
+| Reliability | Preserve data | Transactions, Soft Delete, DLQ |
+| Security | Resist attacks | RBAC, RLS, Input Validation |
+| Deployability | Rollback safely | Canary, Blue-Green, Expand-Contract |
+| Deployability | Observe state | Structured Logging, RED Metrics, Alerting |
+
+### Правило 3: NFR-порог → Паттерн
+
+| NFR-порог | Обязательные паттерны |
+|-----------|----------------------|
+| availability ≥ 99.9% | Restart Policy + Liveness Probe + SLO Alerting |
+| availability ≥ 99.99% | + Auto Rollback + Multi-instance |
+| error_rate < 0.1% | Circuit Breaker + Retry + SLO Alerting |
+| p95 < 500ms | Timeout (жёсткий) + Connection Pool |
+| RPO < 24ч | DLQ + Transactions + Backup |
+| RTO < 1ч | Watchdog + Tested Rollback + Runbook |
+| Есть внешние API/сервисы | Timeout + Retry + Circuit Breaker |
+| Есть фоновые воркеры/очереди | Watchdog + DLQ |
+| Есть финансовые операции | Idempotency + Transactions + Soft Delete |
+
+### Правило 4: Топология деплоя → Фильтр паттернов
+Deployment Constraint читается из BRD (зафиксирован s2-ba) и отражается в HLD.
+Gate 6 проверяет только паттерны, применимые к задокументированной топологии.
+
+| Паттерн | Single-container | Multi-instance (K8s) | Serverless |
+|---------|:----------------:|:-------------------:|:----------:|
+| Restart Policy | ✅ обязателен | ✅ обязателен | ❌ не применим |
+| Liveness Probe (HEALTHCHECK) | ✅ обязателен | ✅ обязателен | ❌ не применим |
+| Readiness Probe | ❌ не нужна | ✅ обязательна | ❌ не применим |
+| Resource Limits | ✅ обязателен | ✅ обязателен | ✅ через конфиг платформы |
+| Circuit Breaker | ✅ если есть внешние зависимости | ✅ если есть внешние зависимости | ✅ если есть внешние зависимости |
+| Watchdog | ✅ если есть воркеры | ✅ если есть воркеры | ❌ не применим |
+| DLQ | ✅ если есть очереди | ✅ если есть очереди | ✅ если есть очереди |
+| Canary Deploy | ❌ не применим | ✅ если есть pipeline | ✅ через платформу |
+| Auto Rollback | ❌ ручной rollback | ✅ автоматический | ✅ через платформу |
+
+### Правило 5: Выбор архитектурного стиля
+
+| Условие из BRD/NFR | Рекомендуемый стиль |
+|--------------------|-------------------|
+| Одна команда, простая предметная область, сжатые сроки | Modular Monolith |
+| Независимые домены, разные команды, разные SLO | Microservices |
+| Высокая read-нагрузка, разные модели чтения/записи | CQRS |
+| Сложные распределённые транзакции (несколько сервисов) | Saga (Choreography или Orchestration) |
+| Много независимых потребителей одного события | Event-Driven / Message Bus |
+| Разные клиенты (web/mobile) с разными потребностями | BFF (Backend for Frontend) |
+| Единая точка входа, маршрутизация, auth | API Gateway |
+
+### Правило 6: Выбор протокола коммуникации
+
+| Условие | Протокол | Причина |
+|---------|---------|---------|
+| Публичный API, разные клиенты | REST | Простота, совместимость |
+| Гибкие запросы, клиент определяет форму ответа | GraphQL | Экономия трафика, один endpoint |
+| Внутренние сервисы, высокая производительность | gRPC | Бинарный протокол, строгий контракт |
+| Асинхронные события, decoupling между сервисами | Message Queue | Надёжность, независимость |
+| Real-time двусторонняя связь (чат, нотификации) | WebSocket | Persistent connection |
+
+### Правило 7: Трейдофф обязателен (ATAM)
+Каждый паттерн в ADR должен содержать: что выигрываем / что теряем.
+
+| Паттерн | Выигрываем | Платим |
+|---------|-----------|--------|
+| Circuit Breaker | Availability при сбое зависимости | Сложность + возможный stale fallback |
+| Retry + Backoff | Reliability при временных сбоях | Latency при сбоях |
+| DLQ | Durability задач | Eventual consistency |
+| Soft Delete | Recoverability данных | Рост БД, сложность запросов |
+| Watchdog | Availability воркеров | Дополнительный процесс + ресурсы |
+| Canary Deploy | Безопасность релиза | Сложность pipeline |
+
+---
+
 ## Диаграммы — только Mermaid синтаксис
 C4Context, C4Container, sequenceDiagram
 
@@ -79,7 +171,19 @@ ARCH-YYYY-MM-DD-ADR-[N].md
   - DLQ для асинхронных задач (если есть очереди)
   - Liveness/Readiness probe в топологии деплоя
 □ NFR из BA-NFR.md адресованы в архитектуре (каждый NFR → решение)
-□ Артефакты переданы: ARCH-HLD.md + api-spec → s3-security, s3-dba, s4-dev
+□ Артефакты записаны в stage3-design/outputs/
+
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-3: HLD проверен: C4-диаграммы полные, ADR написан для каждого нетривиального решения
+□ DoD-4: Все NFR из BA-NFR.md адресованы в архитектуре — каждый NFR имеет решение
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет открытых архитектурных рисков уровня Critical без митигации
+□ DoD-8: Нет секретов в артефактах (api-spec.yaml, HLD)
+□ DoD-10: ARCH-HLD.md + ARCH-api-spec.yaml + ARCH-ADR-*.md записаны в stage3-design/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 3
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

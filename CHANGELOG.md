@@ -1,5 +1,5 @@
 ---
-date: 2026-05-10
+date: 2026-05-23
 tags: [docs, changelog]
 ---
 
@@ -10,6 +10,49 @@ tags: [docs, changelog]
 ---
 
 ## [Unreleased]
+
+---
+
+## [1.6.0] — 2026-05-23
+
+### Added
+
+#### Методология выбора архитектурных паттернов (s3-arch) — 7 правил
+- **Правило 1**: паттерн только при наличии проблемы — запрещено добавлять "про запас"
+- **Правило 2**: цепочка QA → Tactic → Pattern — каждый паттерн проходит путь через Quality Attribute из NFR (таблица 10 QA → 30+ паттернов)
+- **Правило 3**: NFR-порог → Паттерн — таблица: availability, error_rate, RPO, RTO, наличие внешних API → обязательный набор паттернов
+- **Правило 4**: топология деплоя → фильтр паттернов — single-container / multi-instance / serverless × 9 паттернов
+- **Правило 5**: выбор архитектурного стиля — условие из BRD → Monolith / Microservices / CQRS / Saga / Event-Driven / BFF / API Gateway
+- **Правило 6**: выбор протокола — условие → REST / GraphQL / gRPC / Message Queue / WebSocket с обоснованием
+- **Правило 7**: трейдофф обязателен (ATAM) — таблица "выигрываем / платим" для 6 паттернов; без трейдоффа ADR не засчитывается
+
+#### Методология выбора контролей безопасности (s3-security)
+- **STRIDE → Security Control**: каждой угрозе — конкретная контрмера (Spoofing→Auth, Tampering→TLS+HMAC, Repudiation→AuditLog, InfoDisclosure→Encryption+RLS, DoS→RateLimit+CB, EoP→RBAC+DenyByDefault)
+- **DREAD score → действие**: Critical(>8) блокирует Gate 3; High(6-8) контрмера до Gate 3; Medium → митигация в спринте; Low → ADR
+- **Выбор механизма аутентификации**: OAuth2 / mTLS / JWT / MFA — по условию из BRD
+
+#### Методология выбора технологии хранения (s3-dba)
+- **Характеристики данных → Технология**: PostgreSQL (default) / Redis (кэш) / MongoDB (только с ADR) / FTS / TimescaleDB — с условием "когда НЕ использовать"
+- **NFR → Паттерн доступа**: CQRS+ReadReplica / Event Sourcing / Partitioning / ConnectionPool+Cache / Expand-Contract / RLS (мультитенантность)
+
+#### Deployment Constraint — новая обязательная категория NFR (s2-ba)
+- Категория "Deployment" добавлена в список NFR: `DC-1: Deployment Constraint = single-container | multi-instance | serverless`
+- Фиксируется в `BA-NFR.md` до начала `s3-arch`; определяет применимость паттернов в Gate 6
+- Добавлен в Quality Gate checklist s2-ba; если не указано явно — уточнять у стейкхолдера
+
+#### Topology-Aware Auto-Heal (s4-devops + quality.md §5.5)
+- Все пункты Auto-Heal чеклиста помечены `[SC]` / `[MI]` / `[SL]` по топологии
+- Readiness Probe: применима только для `[MI]` (multi-instance)
+- Circuit Breaker / Watchdog / DLQ: добавлены условия применимости (только если есть deps/воркеры/очереди)
+- Неприменимый пункт ≠ BLOCKER, но требует документирования причины в runbook
+- `quality.md §8` — три новых запрета: паттерн без QA-обоснования, паттерн "про запас", отсутствие Deployment Constraint
+
+### Fixed
+
+#### Изоляция агентов — 3 нарушения в s3-dba (внесённые в этом цикле)
+- `s3-dba:25` `"согласованием s3-arch"` → `"ARCH-ADR в stage3-design/outputs/"`
+- `s3-dba:33` `"s3-arch проектирует, s3-dba реализует"` → `"если ARCH-HLD.md содержит CQRS"`
+- `s3-dba:109` `"согласования с s3-security"` → `"из SEC-*-threat-model.md"`
 
 ---
 
@@ -247,7 +290,8 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.2.0...v1.3.0

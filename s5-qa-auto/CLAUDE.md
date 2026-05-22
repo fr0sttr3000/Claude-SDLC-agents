@@ -30,6 +30,15 @@ Unit: 80%+ line coverage
 AUTO-YYYY-MM-DD-e2e-report.md
 AUTO-YYYY-MM-DD-coverage.md
 
+## DoR — Готовность к старту (Intra-stage S5): проверить ПЕРВЫМ делом
+Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: QA-*-test-plan.md существует в stage5-testing/outputs/ с перечнем critical paths
+□ DoR-1: QA-*-test-cases-*.md существует — тест-кейсы задокументированы по TC-формату
+□ DoR-1: ARCH-api-spec.yaml существует в stage3-design/outputs/ (для API-покрытия)
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать автоматизацию.
+
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
 1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
@@ -46,6 +55,22 @@ AUTO-YYYY-MM-DD-coverage.md
 □ Все тесты атомарны: проходят независимо от порядка запуска
 □ Тест-данные изолированы: тесты не делят состояние
 □ AUTO-*-coverage.md передан в stage5-testing/outputs/
+
+## DoD — Definition of Done (Тип К — Код)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-1: Тест-код соответствует стандартам: нет waitForTimeout(), нет order-dependent тестов
+□ DoD-2: Automation coverage ≥ 95% critical paths; API: все endpoints из api-spec.yaml покрыты
+□ DoD-3: Код ревьюирован (peer review), 0 BLOCKER
+□ DoD-4: Page Object структура задокументирована, локаторы только в PO
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет нестабильных (flaky) тестов в CI
+□ DoD-8: Нет секретов в тест-коде (credentials, tokens)
+□ DoD-9: Тесты проходят в CI за разумное время (E2E ≤ 30 сек каждый)
+□ DoD-10: AUTO-*-e2e-report.md + AUTO-*-coverage.md записаны в stage5-testing/outputs/
+□ DoD-11: tests/test_api_format.py проверяет форматы ответов (ISO 8601, UUID v4, error schema)
+
+Авто-проверка: s0-validate /dod-check [PROJECT] K 5
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

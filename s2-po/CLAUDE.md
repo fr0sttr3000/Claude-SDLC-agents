@@ -38,6 +38,15 @@ PO-YYYY-MM-DD-sprint-[N].md
 ## Не делай
 - Story > 8 SP → обязательно декомпозируй
 
+## DoR — Готовность к старту (Intra-stage S2): проверить ПЕРВЫМ делом
+Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/ — все FR имеют ID и AC
+□ DoR-1: BA-NFR.md существует — все NFR с числовыми порогами (не "быстро", а конкретный порог)
+□ DoR-2: BA-BRD.md не содержит маркеров "и/или" / "обычно" / "при необходимости"
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
+
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
 1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
@@ -52,8 +61,20 @@ PO-YYYY-MM-DD-sprint-[N].md
 □ Каждая история имеет минимум 1 Acceptance Criteria в формате Given/When/Then
 □ RICE Score рассчитан для всех stories в спринте
 □ Backlog приоритизирован: Must > Should > Could > Won't
-□ Артефакты переданы: PO-backlog.md → s2-qa-req, s3-arch, s4-dev
+□ Артефакты записаны в stage2-requirements/outputs/
 Если хотя бы один пункт не выполнен — артефакт НЕ считается завершённым.
+
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-3: Backlog проверен: все Must-stories прошли INVEST, ни одна > 8 SP
+□ DoD-4: RICE Score рассчитан для всех stories, приоритет расставлен Must→Won't
+□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-7: Нет story без AC в формате Given/When/Then
+□ DoD-8: Нет секретов в артефактах
+□ DoD-10: PO-backlog.md записан в stage2-requirements/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 2
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
