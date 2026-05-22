@@ -41,8 +41,58 @@
 - stage1-planning/inputs/idea.md
 
 ## Задачи агента
-- /validate — проверить структуру, вывести отчёт, НЕ изменять файлы
-- /fix     — создать недостающие директории и файлы-заглушки
+- /validate           — проверить структуру, вывести отчёт, НЕ изменять файлы
+- /fix                — создать недостающие директории и файлы-заглушки
+- /dor-check [N]      — автопроверка DoR перед переходом на Gate N (1–6)
+- /dod-check [TYPE] [STAGE] [PR] — автопроверка DoD для артефакта или PR
+
+## Команда /dod-check
+Проверяет автоматизируемые пункты DoD для артефакта или PR:
+```bash
+bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/s0-validate/dod-check.sh" \
+  "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
+  {TYPE} {STAGE} [{PR_NUM}]
+```
+
+Параметры:
+- TYPE: `K` (Код — s4-dev PR) | `D` (Документ) | `I` (Инфраструктура — s3-dba, s4-devops)
+- STAGE: `1..7` — этап, outputs которого проверяем
+- PR_NUM: номер PR (опционально, для TYPE=K)
+
+Автоматически проверяет:
+- DoD-1 — complexity (прокси: функции > 50 строк) — Тип К
+- DoD-2 — coverage ≥80% / тест миграций — Тип К/И
+- DoD-3 — наличие TL-review файла с approve
+- DoD-5 — CHANGELOG.md существует с записями
+- DoD-6 — DEV-*-update-notes-PR*.md существует — Тип К
+- DoD-8 — grep паттернов секретов в outputs/ и .py файлах
+- DoD-10 — наличие файлов в stage{N}/outputs/
+- DoD-11 — наличие test_env/db/api_format.py — Тип К/И
+
+Ручная проверка (скрипт ставит ⚠️): DoD-4, DoD-7, DoD-9.
+
+При FAIL → напомнить зафиксировать в `tracking/tech-debt.md` если пропуск осознанный.
+
+## Команда /dor-check
+Запускает `dor-check.sh` для указанного gate:
+```bash
+bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/s0-validate/dor-check.sh" \
+  "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
+  {GATE}
+```
+
+Автоматически проверяет:
+- DoR-1 — наличие артефактов предыдущего этапа (точный список по gate)
+- DoR-2 — размытые формулировки в BRD (grep: TBD, и/или, обычно)
+- DoR-3 — наличие Given/When/Then в backlog
+- DoR-4 — числовые пороги с единицами в NFR
+- DoR-5 — открытые BLOCKER в outputs/
+- DoR-7 — наличие SEC-threat-model.md (gate 4+)
+- DoR-8 — наличие rollback-раздела в runbook (gate 7)
+
+Не автоматизирован: DoR-6 (scope/команда — требует ручной проверки).
+
+При FAIL → автоматически напомнить зафиксировать в `tracking/dor-violations.md`.
 
 ## Формат отчёта /validate
 ```
