@@ -14,6 +14,31 @@
   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
 Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/
 
+## Выбор технологии хранения
+
+### Характеристики данных → Технология
+
+| Условие из BRD/NFR | Технология | Когда НЕ использовать |
+|--------------------|-----------|----------------------|
+| Реляционные данные, ACID транзакции, сложные связи | **PostgreSQL** | Нет причин отказываться — default |
+| Кэш, сессии, счётчики, pub/sub, временные данные | **Redis** | Не использовать как основное хранилище |
+| Документы с гибкой схемой, без сложных JOIN | **MongoDB** | Только при наличии ARCH-ADR в stage3-design/outputs/ с обоснованием |
+| Полнотекстовый поиск по большим объёмам | **PostgreSQL FTS** или Elasticsearch | FTS достаточно до 10M+ документов |
+| Временные ряды, метрики, телеметрия | **TimescaleDB** / Victoria Metrics | Не хранить метрики в основной БД |
+
+### NFR → Паттерн доступа к данным
+
+| NFR / Условие | Паттерн | Что реализует |
+|--------------|---------|--------------|
+| read >> write, разные модели для чтения/записи | CQRS + Read Replica | Применять только если ARCH-HLD.md содержит CQRS в топологии |
+| Нужна полная история изменений сущностей | Event Sourcing | Отдельная events-таблица, текущий state = проекция |
+| Таблица > 10M строк, партиционирование по дате | Table Partitioning | PARTITION BY RANGE(created_at) |
+| Высокая read-нагрузка, снизить нагрузку на БД | Connection Pool + Cache | pgBouncer + Redis |
+| Zero-downtime изменение схемы | Expand-Contract | Только миграции с downgrade() |
+| Мультитенантность (данные разных клиентов) | RLS (Row-Level Security) | Политики на уровне БД, не приложения |
+
+---
+
 ## Стандарты схемы БД
 - PK: UUID v4
 - Timestamps: created_at, updated_at, deleted_at (soft delete)
@@ -81,7 +106,16 @@ DBA-YYYY-MM-DD-migration-runbook.md
 
 ## Не делай
 - Миграции без down-скрипта
-- Хранение PII без согласования с s3-security
+- Хранение PII без учёта требований из SEC-*-threat-model.md
+
+## DoR — Готовность к старту (Intra-stage S3): проверить ПЕРВЫМ делом
+Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: ARCH-HLD.md существует в stage3-design/outputs/ с описанием стратегии данных
+□ DoR-1: RBAC-*-schema.sql существует в stage3-design/outputs/ (для интеграции таблиц RBAC)
+□ DoR-1: SEC-*-threat-model.md существует (для учёта требований PII и шифрования)
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
 
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
@@ -109,6 +143,21 @@ DBA-YYYY-MM-DD-migration-runbook.md
 □ Каждый VARCHAR: указан лимит N (не голый VARCHAR без размера)
 □ Каждый CHECK constraint задокументирован с причиной ограничения
 □ Все числовые поля с бизнес-ограничениями: CHECK constraint добавлен
+
+## DoD — Definition of Done (Тип И — Инфраструктура)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-2: Миграция протестирована: alembic upgrade head → downgrade -1 → upgrade head на чистой БД
+□ DoD-3: Схема проверена: 0 BLOCKER (FLOAT/REAL в деньгах, TIMESTAMP без TZ, VARCHAR без лимита)
+□ DoD-4: Каждое JSONB-поле документировано с примером, каждый ENUM — с путём изменения
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет нерешённых PII-данных без шифрования согласно threat-model
+□ DoD-8: Нет секретов (connection strings, паролей) в SQL-артефактах
+□ DoD-9: NFR по производительности БД адресованы (индексы, партиционирование)
+□ DoD-10: DBA-*-schema.sql + DBA-*-schema.dbml + DBA-*-migration-runbook.md записаны в stage3-design/outputs/
+□ DoD-11: tests/test_db_format.py создан с проверками TIMESTAMPTZ, UUID, NUMERIC
+
+Авто-проверка: s0-validate /dod-check [PROJECT] I 3
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

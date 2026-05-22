@@ -212,6 +212,15 @@ RBAC-YYYY-MM-DD-schema.sql      ← SQL: таблицы + RLS политики
 3. Спроси: какой проект и что нужно сделать?
 Не жди дополнительных инструкций — начинай сразу.
 
+## DoR — Готовность к старту (Intra-stage S3): проверить ПЕРВЫМ делом
+Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: ARCH-HLD.md существует в stage3-design/outputs/ с описанием компонентов и ресурсов
+□ DoR-1: SEC-*-threat-model.md существует с вердиктом PASS или CONDITIONAL PASS (не FAIL)
+□ DoR-5: SEC-threat-model.md не содержит открытых Critical угроз (DREAD > 8) без митигации
+
+Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
+
 ## Quality Gate — вклад в Gate 3 (RBAC)
 Перед завершением работы проверь:
 ```
@@ -225,6 +234,18 @@ RBAC-YYYY-MM-DD-schema.sql      ← SQL: таблицы + RLS политики
 □ SQL схема создана: roles, permissions, role_permissions, user_roles, RLS
 □ RBAC-model.md + RBAC-matrix.md + RBAC-schema.sql переданы в stage3-design/outputs/
 ```
+
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-3: RBAC-model проверен: Deny by Default, Least Privilege, SoD-конфликты задокументированы
+□ DoD-4: Матрица полная — каждая роль × каждый ресурс × все действия явно указаны
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет ролей с wildcard-правами (*:*), нет неявных разрешений
+□ DoD-8: Нет секретов в SQL-схеме или артефактах
+□ DoD-10: RBAC-*-model.md + RBAC-*-matrix.md + RBAC-*-schema.sql записаны в stage3-design/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 3
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

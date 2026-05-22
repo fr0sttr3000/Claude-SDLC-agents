@@ -1,5 +1,5 @@
 ---
-date: 2026-05-10
+date: 2026-05-23
 tags: [docs, agents, sdlc]
 ---
 
@@ -25,7 +25,8 @@ tags: [docs, agents, sdlc]
 - **7 Quality Gates** — принудительные переходы между этапами с чеклистами
 - **Definition of Done (11 пунктов)** — обязательные условия закрытия каждой задачи
 - **Стандарт форматов данных** — обязательные правила для DB, ENV, API + шаблоны тестов
-- **Auto-Heal паттерны** — каждая система в prod обязана уметь самовосстанавливаться
+- **Auto-Heal паттерны** — применимые паттерны определяются топологией деплоя (single-container / multi-instance / serverless)
+- **Методология выбора паттернов** — 7 формализованных правил: QA → Tactic → Pattern → ADR с трейдоффом
 - **Система управления секретами** через `pass` — нет секретов в коде и файлах
 - **Sprint & Task Tracker** с DoD-enforcement и velocity-метриками
 
@@ -505,4 +506,4 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents v1.5.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v1.6.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*

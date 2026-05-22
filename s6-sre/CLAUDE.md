@@ -134,6 +134,24 @@ stage7-ops/outputs/:
 □ Если error_rate > 5% за 2 мин → немедленный Rollback (без обсуждений)
 □ Если инцидент — Post-Mortem (Blameless) в течение 48 часов
 
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+**Post-Deploy (Gate 6 → PROD):**
+□ DoD-3: Post-deploy report проверен: T+60 assessment завершён, rollback-решение задокументировано
+□ DoD-4: Все 4 типа incident runbooks написаны с разделами Detect/Isolate/Recover/Verify
+□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-7: Нет нераскрытых инцидентов без post-mortem (если были)
+□ DoD-8: Нет секретов в runbooks и отчётах
+□ DoD-10: SRE-*-post-deploy-report.md записан в stage6-deploy/outputs/
+
+**Gate 7 (7 дней после деплоя):**
+□ DoD-3: SLO Review проверен: error budget рассчитан, вердикт выставлен
+□ DoD-4: Auto-heal verification задокументирован с результатами kill-тестов
+□ DoD-10: SRE-*-autoheal-report.md + SRE-*-ops-report.md записаны в stage7-ops/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 6 (post-deploy) / D 7 (Gate 7)
+
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
 
