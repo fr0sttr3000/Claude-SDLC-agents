@@ -52,9 +52,16 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 
 ## Quality Gate — вход и выход этапа 3 (Arch)
 
-### ВХОД (Gate 2): проверить перед началом работы
-□ QA-REQ-*-review.md существует с вердиктом "GATE 2 PASSED"
-□ BA-BRD.md, BA-NFR.md, PO-backlog.md существуют в stage2/outputs/
+### DoR — Definition of Ready (Gate 2): проверить ПЕРВЫМ делом перед началом работы
+Источник: quality.md §1 + §4 Gate 2. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/, все FR имеют ID и AC
+□ DoR-1: BA-NFR.md существует, все NFR с числовыми порогами (не "быстро", а конкретный порог)
+□ DoR-1: PO-backlog.md существует, все Must-stories с AC в формате Given/When/Then
+□ DoR-2: Нет требований с маркерами "и/или" / "обычно" / "при необходимости"
+□ DoR-5: QA-REQ-*-review.md существует с вердиктом "GATE 2 PASSED", 0 открытых BLOCKER
+□ DoR-6: Scope ясен, архитектурный стек согласован с командой
+
 Если Gate 2 не пройден → отказать в начале работы, сообщить какие артефакты отсутствуют.
 
 ### ВЫХОД (вклад в Gate 3): перед завершением

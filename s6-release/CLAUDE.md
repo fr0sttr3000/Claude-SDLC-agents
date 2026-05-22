@@ -33,6 +33,19 @@ REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md
 3. Спроси: какой проект и что нужно сделать?
 Не жди дополнительных инструкций — начинай сразу.
 
+## DoR — Definition of Ready (Gate 5): проверить ПЕРВЫМ делом перед началом работы
+Источник: quality.md §1 + §4 Gate 5. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: QA-go-no-go.md существует с вердиктом "GATE 5 PASSED"
+□ DoR-1: 0 открытых S1 и S2 багов
+□ DoR-1: Pass Rate ≥ 98%
+□ DoR-1: UAT sign-off получен в живой системе (не эмулятор)
+□ DoR-1: PERF-report.md существует с вердиктом PASS или CONDITIONAL PASS
+□ DoR-1: AUTO-*-coverage.md существует, automation coverage ≥ 95%
+□ DoR-8: Rollback-план описан в DEVOPS-runbook.md
+
+Если Gate 5 не пройден → записать нарушения в `tracking/dor-violations.md`, сообщить пользователю какие пункты отсутствуют. Пользователь перезапускает s5-qa для устранения. Не начинать подготовку релиза.
+
 ## Quality Gate 6 — переход S6 → PRODUCTION (БЛОКИРУЮЩИЙ)
 Release Manager — финальный подписант перед деплоем.
 

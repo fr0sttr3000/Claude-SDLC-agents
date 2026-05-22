@@ -57,7 +57,9 @@ tags: [overview, sdlc, architecture]
 │   ├── _standards/        ← Стандарты компании (доступны всем агентам)
 │   │   ├── company.md     ← Стек, роли, методология
 │   │   ├── quality.md     ← DoD, DoR, Gates, NFR, Auto-Heal (читать перед каждой задачей)
-│   │   └── data-formats.md ← Форматы DB/ENV/API, тесты форматов (читать перед каждой задачей)
+│   │   ├── data-formats.md ← Форматы DB/ENV/API, тесты форматов (читать перед каждой задачей)
+│   │   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
+│   │   └── tech-debt-template.md      ← Шаблон журнала технического долга
 │   ├── sdlc.sh            ← Главный лаунчер (SDLC-цикл + необязательные шаги)
 │   ├── localrun.sh        ← Local Run лаунчер (GitHub-проекты)
 │   ├── s0-kickoff/        ← Project Kickoff — онбординг нового проекта / обновление беклога
@@ -149,6 +151,8 @@ tags: [overview, sdlc, architecture]
             ├── backlog.md
             ├── current-sprint.md
             ├── cycle-summary.md
+            ├── dor-violations.md  ← журнал возвратов по DoR (создаётся s0-tracker)
+            ├── tech-debt.md       ← журнал техдолга (создаётся s0-tracker)
             └── sprints/
                 ├── sprint-01.md
                 └── sprint-02.md
@@ -280,23 +284,26 @@ PRODUCTION ──[Gate 7]──► Следующий релиз (через 7 �
 
 ## Definition of Done (DoD) — 11 обязательных пунктов
 
-Каждая задача (PR) считается завершённой только при выполнении всех 11:
+DoD **бинарен**: нет "Done minus docs" или "почти Done". Задача остаётся IN_PROGRESS до выполнения всех применимых пунктов.
+Применимость зависит от типа артефакта: **Тип К** (Код — все 11), **Тип Д** (Документ — 6 пунктов), **Тип И** (Инфраструктура — 9 пунктов).
+Автопроверка: `s0-validate /dod-check [K|D|I] [STAGE] [PR]`.
 
-| # | Условие |
-|---|---------|
-| 1 | Код соответствует стандартам (complexity ≤10, SRP) |
-| 2 | Unit-тесты написаны, покрытие ≥80% изменённого кода |
-| 3 | Code review пройден: 0 открытых BLOCKER и MAJOR |
-| 4 | README/API-spec/docstring обновлены |
-| 5 | CHANGELOG.md обновлён (запись в [Unreleased]) |
-| 6 | DEV-*-update-notes-PR[N].md создан |
-| 7 | Нет известных S1/S2 багов без митигации |
-| 8 | Секреты не в коде, не в логах, не в артефактах |
-| 9 | NFR проверены (latency, error rate, memory) |
-| 10 | Артефакт передан следующему агенту (файл в outputs/) |
-| 11 | Тесты форматов написаны и проходят (test_env_format.py / test_db_format.py / test_api_format.py — если применимо) |
+| # | Условие | Кто проверяет | Проверка |
+|---|---------|--------------|---------|
+| 1 | Код соответствует стандартам (complexity ≤10, SRP) | s4-techlead | 🤖 частично |
+| 2 | Unit-тесты написаны, покрытие ≥80% изменённого кода | s4-techlead | 🤖 авто |
+| 3 | Code review пройден: 0 открытых BLOCKER и MAJOR | s4-techlead | 👤 вручную |
+| 4 | README/API-spec/docstring обновлены | Агент-получатель | 👤 вручную |
+| 5 | CHANGELOG.md обновлён | s4-techlead | 🤖 авто |
+| 6 | DEV-*-update-notes-PR[N].md создан | s4-techlead | 🤖 авто |
+| 7 | Нет известных S1/S2 багов без митигации | s5-qa | 👤 вручную |
+| 8 | Секреты не в коде, не в логах, не в артефактах | s4-techlead | 🤖 авто |
+| 9 | NFR проверены (latency, error rate, memory) | s5-perf/s5-qa | 👤 вручную |
+| 10 | Артефакт записан в outputs/ текущего этапа | Агент-получатель | 🤖 авто |
+| 11 | Тесты форматов написаны и проходят (если применимо) | s4-techlead | 🤖 авто |
 
 Velocity s0-tracker считает только по задачам с полным DoD.
+Осознанный пропуск DoD → фиксируется как Tech Debt в `tracking/tech-debt.md` (блокирует sprint-close при просрочке).
 
 ---
 
@@ -380,6 +387,8 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 | `company.md` | `_agents/_standards/company.md` | s1-pm, s1-pmo, s1-finance, s3-arch |
 | `quality.md` | `_agents/_standards/quality.md` | Все агенты |
 | `data-formats.md` | `_agents/_standards/data-formats.md` | s2-ba, s3-dba, s4-dev, s5-qa-auto |
+| `dor-violations-template.md` | `_agents/_standards/dor-violations-template.md` | s0-tracker (создаёт tracking/dor-violations.md) |
+| `tech-debt-template.md` | `_agents/_standards/tech-debt-template.md` | s0-tracker (создаёт tracking/tech-debt.md) |
 
 ### NFR-дефолты (применять если не указано в BRD)
 
@@ -415,10 +424,16 @@ tracking/
 ├── backlog.md          ← все задачи со статусами
 ├── current-sprint.md   ← активный спринт + live-доска
 ├── cycle-summary.md    ← итоговый отчёт (создаётся /report)
+├── dor-violations.md   ← журнал возвратов по DoR (создаётся /sprint-init)
+├── tech-debt.md        ← журнал техдолга (создаётся /sprint-init)
 └── sprints/
     ├── sprint-01.md    ← цель, задачи, итог
     └── sprint-02.md
 ```
+
+`/sprint-init` создаёт `dor-violations.md` и `tech-debt.md` при первом запуске.
+`/sprint-close` блокируется при наличии просроченных Tech Debt записей.
+`/sprint-init` показывает сводку по открытому техдолгу; >3 открытых TD блокируют следующий спринт.
 
 ### Структура задачи
 
@@ -471,7 +486,7 @@ s0-tracker автоматически добавляет при `/sprint-init`:
 
 ### s0-validate — Structure Validator
 
-Проверяет и восстанавливает структуру SDLC-проектов. После последнего обновления также валидирует наличие **quality-артефактов** для завершённых этапов.
+Проверяет и восстанавливает структуру SDLC-проектов. Также автоматически проверяет DoR (готовность к старту этапа) и DoD (критерии завершения задачи).
 
 ```bash
 # Проверить один проект (только отчёт, без изменений)
@@ -479,12 +494,28 @@ cd _agents/s0-validate && claude /validate my-project
 
 # Починить все проекты (создать недостающие директории и заглушки)
 cd _agents/s0-validate && claude /fix all
+
+# Проверить DoR перед переходом на Gate N (автоматически)
+cd _agents/s0-validate && claude "/dor-check my-project 3"
+
+# Проверить DoD для артефакта или PR (автоматически)
+cd _agents/s0-validate && claude "/dod-check my-project K 4 42"
 ```
+
+`/dor-check <PROJECT> <GATE>` — проверяет DoR-1..8 перед переходом на Gate 1–6:
+- DoR-1: артефакты предыдущего этапа, DoR-2: нет размытых формулировок, DoR-3: Given/When/Then
+- DoR-4: числовые пороги в NFR, DoR-5: 0 открытых BLOCKER, DoR-7: threat-model (gate 4+)
+- DoR-8: rollback в runbook (gate 7)
+
+`/dod-check <PROJECT> <K|D|I> <STAGE> [PR]` — проверяет DoD-1..11 по типу артефакта:
+- Тип К (Код): DoD-1 complexity, DoD-2 coverage ≥80%, DoD-3 TL-review, DoD-5 CHANGELOG, DoD-6 update-notes, DoD-8 secrets, DoD-10 outputs, DoD-11 format-tests
+- Тип Д (Документ): DoD-3,4,5,7,8,10
+- Тип И (Инфраструктура): DoD-2 migration test, DoD-3..5, DoD-8..11
 
 Проверяет наличие:
 - `Dashboard.md`, `stage1..stage7` с `inputs/` и `outputs/`
 - `stage1-planning/inputs/idea.md`
-- Quality-артефактов для завершённых этапов: QA-REQ review, SEC threat model, TL reviews, QA go-no-go, PERF report, REL checklist + release notes
+- Quality-артефактов для завершённых этапов: QA-REQ review, SEC threat model, RBAC model+matrix, TL reviews, QA go-no-go, PERF report, REL checklist + release notes
 
 ### s0-github — GitHub Sync
 
@@ -507,6 +538,9 @@ cd _agents/s0-kickoff && claude "/refresh my-project"
 
 # Авто-определение режима (new vs refresh)
 cd _agents/s0-kickoff && claude "/start my-project"
+
+# Change Request — изменение требований в середине этапа
+cd _agents/s0-kickoff && claude "/cr my-project"
 ```
 
 Режим **NEW**: 4 блока интервью (Продукт → Бизнес → Техника → Приоритеты).
@@ -514,6 +548,10 @@ cd _agents/s0-kickoff && claude "/start my-project"
 
 Режим **REFRESH**: меню из 5 разделов (Видение / Беклог / Приоритеты / NFR / Scope Out).
 Выход: `PM-input-refresh-*.md` и/или `BA-input-refresh-*.md` → передаёт s1-pm / s2-ba / s2-po.
+
+Режим **CR** (Change Request): 4-блочное интервью (что изменилось / конкретно до-после / причина / срочность).
+Выход: `stage{N}/inputs/CR-YYYY-MM-DD-[N]-input.md` + запись в `tracking/dor-violations.md`.
+После CR — пользователь вручную перезапускает затронутых агентов.
 
 Через sdlc.sh: главное меню `0) Kickoff`.
 
@@ -637,4 +675,4 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
 
 ---
 
-*Обновлено: 2026-05-10. Скрипты перемещены из `_bin/` в `_agents/`. Добавлен стандарт `data-formats.md`. DoD расширен до 11 пунктов.*
+*Обновлено: 2026-05-22. v1.5.0: Добавлен DoR (7 практик, auto-check), DoD улучшен (8 практик, типы К/Д/И, бинарность). Новые скрипты: dor-check.sh, dod-check.sh. Шаблоны: dor-violations-template.md, tech-debt-template.md. s0-kickoff: режим /cr. s0-tracker: Tech Debt tracking. Исправлены 8 нарушений изоляции агентов.*
