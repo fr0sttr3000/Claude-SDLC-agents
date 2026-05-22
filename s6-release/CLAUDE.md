@@ -60,6 +60,18 @@ Release Manager — финальный подписант перед депло�
 
 Без этого Gate — деплой не разрешён. Никаких исключений даже под давлением дедлайна.
 
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-3: Release checklist проверен: все пункты Go/No-Go закрыты, 0 открытых BLOCKER
+□ DoD-4: Release Notes содержат все изменения спринта, upgrade notes для ops-команды
+□ DoD-5: docs/CHANGELOG.md обновлён: версия закрыта, дата проставлена
+□ DoD-7: 0 открытых S1/S2 багов без митигации
+□ DoD-8: Нет секретов в release notes, checklist и артефактах
+□ DoD-10: REL-*-checklist.md + REL-*-release-notes-v*.md записаны в stage6-deploy/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 6
+
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
 

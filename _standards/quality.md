@@ -308,34 +308,42 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 Auto-heal — способность системы обнаруживать неисправность и восстанавливаться без ручного вмешательства.
 Цикл: **Detect → Isolate → Recover → Verify**
 
+> **Применимость паттернов зависит от топологии деплоя.**
+> Deployment Constraint фиксируется в BA-NFR.md (s2-ba) и отражается в ARCH-HLD.md (s3-arch).
+> Пункты ниже помечены: [SC] = single-container / [MI] = multi-instance / [SL] = serverless.
+> Неприменимый пункт = не BLOCKER, но причина должна быть задокументирована в runbook.
+
 #### Уровень инфраструктуры (s4-devops, stage4)
 ```
-□ restart: unless-stopped (Docker) или restartPolicy: Always (K8s) — контейнер
-  перезапускается при падении без участия оператора
-□ HEALTHCHECK в Dockerfile: периодическая проверка живости процесса
-□ Resource limits (memory/cpu) — предотвращают зависание из-за OOM без kill
-□ Liveness probe → автоматический restart при сбое (не ждать оператора)
-□ Readiness probe → трафик не идёт на нездоровый инстанс
+□ [SC,MI] restart: unless-stopped (Docker) или restartPolicy: Always (K8s) —
+  контейнер перезапускается при падении без участия оператора
+□ [SC,MI] HEALTHCHECK в Dockerfile: периодическая проверка живости процесса
+□ [SC,MI,SL] Resource limits (memory/cpu) — предотвращают зависание из-за OOM без kill
+□ [SC,MI] Liveness probe → автоматический restart при сбое (не ждать оператора)
+□ [MI] Readiness probe → трафик не идёт на нездоровый инстанс
 ```
 
 #### Уровень приложения (s4-dev, stage4)
 ```
-□ Circuit breaker: при N ошибках за T сек — открыть цепь, вернуть fallback
+□ [SC,MI,SL] Circuit breaker: при N ошибках за T сек — открыть цепь, вернуть fallback
   (порог по умолчанию: 5 ошибок за 30 сек, восстановление через 60 сек)
-□ Watchdog-процесс: периодически проверяет критичные подсистемы,
+  Применяется только если есть внешние зависимости (API, БД, очереди)
+□ [SC,MI] Watchdog-процесс: периодически проверяет критичные подсистемы,
   перезапускает зависшие воркеры/очереди
-□ Dead letter queue: упавшие задачи — в DLQ, не теряются, обрабатываются
+  Применяется только если есть фоновые воркеры/очереди
+□ [SC,MI,SL] Dead letter queue: упавшие задачи — в DLQ, не теряются, обрабатываются
   при восстановлении
-□ Retry с backoff: временные сбои внешних зависимостей не роняют систему
+  Применяется только если есть асинхронная обработка задач
+□ [SC,MI,SL] Retry с backoff: временные сбои внешних зависимостей не роняют систему
 ```
 
 #### Уровень мониторинга (s6-sre, stage7)
 ```
-□ Alert → Auto-action: алерт не только уведомляет, но и запускает
+□ [SC,MI,SL] Alert → Auto-action: алерт не только уведомляет, но и запускает
   автоматическое действие (restart, scale-out, failover)
-□ SLO breach → автоматический rollback (если настроен canary/blue-green)
-□ Error budget exhausted → автоматическая заморозка деплоев
-□ Watchdog heartbeat: процесс пишет метку каждые N минут;
+□ [MI,SL] SLO breach → автоматический rollback (если настроен canary/blue-green)
+□ [SC,MI,SL] Error budget exhausted → автоматическая заморозка деплоев
+□ [SC,MI] Watchdog heartbeat: процесс пишет метку каждые N минут;
   отсутствие метки → алерт + автоперезапуск
 ```
 
@@ -388,8 +396,11 @@ Auto-heal — способность системы обнаруживать н�
 ✗ Закрытие задачи без DoD (все 11 пунктов)
 ✗ Critical/High уязвимости в релизе
 ✗ Нефункциональные тесты в prod-ветке
-✗ Система в prod без auto-heal (restart policy, liveness probe, watchdog)
+✗ Система в prod без auto-heal (применимого к её топологии деплоя)
 ✗ Система в prod без алертов на SLO breach
+✗ Архитектурный паттерн без обоснования через Quality Attribute и NFR
+✗ Паттерн добавлен "про запас" без привязки к конкретной проблеме из BRD/NFR
+✗ Deployment Constraint не зафиксирован в BA-NFR.md
 ✗ Следующий релиз без закрытого Gate 7 предыдущего
 
 # Запреты форматов данных (data-formats.md)

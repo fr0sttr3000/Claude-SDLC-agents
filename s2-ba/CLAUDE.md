@@ -28,7 +28,19 @@ OI  = открытый вопрос [OPEN ISSUE]
 "и/или", "обычно", "как правило", "при необходимости", "соответствующий"
 
 ## NFR категории (заполняй все)
-Performance / Scalability / Availability / Security / Usability / Maintainability / Compliance / Portability
+Performance / Scalability / Availability / Security / Usability / Maintainability / Compliance / Portability / **Deployment**
+
+### Deployment Constraint (обязательная категория NFR)
+Фиксирует топологию деплоя — определяет применимость архитектурных паттернов в s3-arch и Gate 6.
+
+| Значение | Описание |
+|---------|---------|
+| `single-container` | Один Docker-контейнер, нет оркестратора |
+| `multi-instance` | Kubernetes / Docker Swarm, несколько реплик |
+| `serverless` | Lambda / Cloud Run / функции |
+
+Если не указано явно в бизнес-требованиях → уточнить у стейкхолдера. Не додумывать.
+Фиксировать в BA-NFR.md как: `DC-1: Deployment Constraint = single-container`
 
 ## Требования к конфигурации (env-переменные)
 
@@ -68,6 +80,16 @@ BA-YYYY-MM-DD-RTM.md
 - Не пиши user stories (это s2-po)
 - Не принимай архитектурные решения (это s3-arch)
 
+## DoR — Definition of Ready (Gate 1): проверить ПЕРВЫМ делом перед началом работы
+Источник: quality.md §1 + §4 Gate 1. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: PM-*-feasibility.md существует в stage1-planning/outputs/ с вердиктом Go или Conditional Go
+□ DoR-1: PMO-*-charter.md существует в stage1-planning/outputs/ (Project Charter подписан)
+□ DoR-1: FIN-*-business-case.md существует в stage1-planning/outputs/ (Business Case с NPV/ROI)
+□ DoR-6: Scope In / Scope Out явно определён в Feasibility Study
+
+Если Gate 1 не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
+
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
 1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
@@ -83,7 +105,8 @@ BA-YYYY-MM-DD-RTM.md
 □ Нет требований с маркерами: "и/или" / "обычно" / "при необходимости"
 □ Открытые вопросы задокументированы как [OPEN ISSUE] с владельцем
 □ DoR-4 выполнен: NFR задокументированы с числовыми порогами
-□ Артефакты переданы: BA-BRD.md + BA-NFR.md → s2-po, s2-qa-req, s3-arch
+□ Deployment Constraint зафиксирован в BA-NFR.md (single-container / multi-instance / serverless)
+□ Артефакты записаны в stage2-requirements/outputs/
 
 # Валидация форматов (data-formats.md §5 s2-ba)
 □ Все env-переменные задокументированы: имя, тип, формат, дефолт, обязательность
@@ -95,6 +118,18 @@ BA-YYYY-MM-DD-RTM.md
 □ Финансовые поля: явно "NUMERIC(p,s)" — не "число с плавающей точкой"
 
 Если хотя бы один пункт не выполнен — артефакт НЕ считается завершённым.
+
+## DoD — Definition of Done (Тип Д — Документ)
+Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
+
+□ DoD-3: BRD проверен: 0 BLOCKER замечаний (нет маркеров плохих требований, все FR с AC)
+□ DoD-4: RTM создан — каждое требование трассируется к бизнес-цели
+□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-7: Нет нерешённых [OPEN ISSUE] уровня BLOCKER без владельца и срока
+□ DoD-8: Нет секретов (пароли, токены, API-ключи) в артефактах
+□ DoD-10: BA-BRD.md + BA-NFR.md + BA-RTM.md записаны в stage2-requirements/outputs/
+
+Авто-проверка: s0-validate /dod-check [PROJECT] D 2
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

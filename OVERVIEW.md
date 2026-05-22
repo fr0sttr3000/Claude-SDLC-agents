@@ -1,5 +1,5 @@
 ---
-date: 2026-05-10
+date: 2026-05-23
 tags: [overview, sdlc, architecture]
 ---
 
@@ -411,7 +411,22 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 - Health checks: `/health` (liveness) + `/ready` (readiness)
 - Graceful shutdown (до 30 сек)
 - Structured JSON logging с correlation_id (RED-метрики)
-- **Auto-Heal** (BLOCKER — без этого нет prod): restart policy + HEALTHCHECK + liveness probe + watchdog + circuit breaker
+- **Auto-Heal** (BLOCKER — без этого нет prod): применимые паттерны определяются топологией деплоя из `ARCH-HLD.md`
+
+### Методология выбора паттернов (quality.md §5 + s3-arch)
+
+Каждый паттерн обосновывается через цепочку:
+`Бизнес-требование → NFR → Quality Attribute → Tactic → Pattern → ADR`
+
+Паттерн без обоснования через NFR — запрещён (добавление "про запас" = BLOCKER).
+
+**Deployment Constraint** (фиксируется в `BA-NFR.md` агентом `s2-ba`):
+
+| Топология | Ключевые паттерны | Неприменимо |
+|-----------|------------------|------------|
+| `single-container` | Restart Policy, HEALTHCHECK, Resource Limits | Readiness Probe, Canary |
+| `multi-instance` | Все паттерны | — |
+| `serverless` | Resource Limits, Circuit Breaker, DLQ | Restart Policy, Watchdog |
 
 ---
 
@@ -675,4 +690,4 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
 
 ---
 
-*Обновлено: 2026-05-22. v1.5.0: Добавлен DoR (7 практик, auto-check), DoD улучшен (8 практик, типы К/Д/И, бинарность). Новые скрипты: dor-check.sh, dod-check.sh. Шаблоны: dor-violations-template.md, tech-debt-template.md. s0-kickoff: режим /cr. s0-tracker: Tech Debt tracking. Исправлены 8 нарушений изоляции агентов.*
+*Обновлено: 2026-05-23. v1.6.0: Методология выбора паттернов (7 правил в s3-arch), выбор контролей безопасности (STRIDE→Control, DREAD→Action в s3-security), выбор технологии хранения (s3-dba). Deployment Constraint как обязательная NFR-категория (s2-ba). Topology-aware Auto-Heal (s4-devops, quality.md §5.5). Исправлены 3 нарушения изоляции в s3-dba.*
