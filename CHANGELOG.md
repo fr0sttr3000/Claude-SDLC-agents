@@ -13,6 +13,47 @@ tags: [docs, changelog]
 
 ---
 
+## [1.5.0] — 2026-05-22
+
+### Added
+
+#### DoR — полная реализация 7 лучших практик
+- **`quality.md §1`** полностью переработан: бинарность, колонки "Кто обеспечивает / Кто проверяет / Этап / Проверка", дедлайны готовности, правило возврата (4 шага), таблица сброса DoR при Change Request
+- **DoR добавлен в 4 агента** (ранее отсутствовал): `s3-arch` (Gate 2, 6 пунктов), `s5-qa` (Gate 4, 7 пунктов), `s6-release` (Gate 5, 7 пунктов), `s6-sre` (Gate 6 + Gate 7, 11 пунктов)
+- **`_standards/dor-violations-template.md`** — шаблон журнала нарушений DoR с форматом записи (дата, агент, нарушенные пункты, статус, дата устранения)
+- **`s0-kickoff /cr`** — новый режим Change Request: структурированное интервью, Impact Analysis, сброс затронутых DoR-пунктов, CR-файл в inputs/, запись в dor-violations.md
+- **`s0-validate /dor-check [N]`** — автоматическая проверка DoR перед переходом на Gate N
+- **`dor-check.sh`** — bash-скрипт автопроверки: DoR-1 (файлы), DoR-2 (маркеры), DoR-3 (Given/When/Then), DoR-4 (числа в NFR), DoR-5 (BLOCKER grep), DoR-7 (threat model), DoR-8 (rollback)
+
+#### DoD — полная реализация 8 лучших практик
+- **`quality.md §2`** полностью переработан: бинарность, колонки "Кто обеспечивает / Кто проверяет / Проверка", матрица применимости по 3 типам артефактов, связь DoD-10 → DoR-1, правило технического долга
+- **Типы артефактов DoD**: Тип К (Код, все 11 пунктов), Тип Д (Документ, 6 пунктов), Тип И (Инфраструктура, 9 пунктов)
+- **Связь DoD → DoR**: DoD-10 выполнен = DoR-1 следующего этапа выполнен автоматически (таблица по всем 6 переходам)
+- **Технический долг**: правило фиксации осознанных пропусков DoD, блокировки при > 3 открытых TD
+- **`_standards/tech-debt-template.md`** — шаблон журнала техдолга с форматом TD-записи (причина, кто одобрил, план устранения, дедлайн)
+- **`s0-validate /dod-check [TYPE] [STAGE] [PR]`** — автоматическая проверка DoD по типу артефакта
+- **`dod-check.sh`** — bash-скрипт: DoD-1 (complexity прокси), DoD-2 (coverage report / тест миграций), DoD-3 (TL-review файл), DoD-5 (CHANGELOG), DoD-6 (update notes), DoD-8 (secrets grep), DoD-10 (outputs/), DoD-11 (тесты форматов)
+
+#### s0-tracker — контроль техдолга и возвратов DoR
+- Инициализация `dor-violations.md` и `tech-debt.md` при первом `/sprint-init`
+- При `/sprint-close`: блокировка если есть просроченные TD
+- При `/sprint-init`: сводка открытых TD
+- При `> 3` открытых TD: блокировка старта следующего спринта
+
+### Fixed
+
+#### Изоляция агентов — 8 нарушений принципа устранено
+Все формулировки прямой межагентной коммуникации заменены на файловую передачу данных через `tracking/`:
+- `quality.md §1` — "Вернуть список агенту-поставщику" → "Записать в dor-violations.md"
+- `quality.md §2` — "Артефакт передан следующему агенту" → "Артефакт записан в outputs/"
+- `s5-qa` — "вернуть задачу в s4-dev" → "зафиксировать в dor-violations.md, пользователь перезапускает"
+- `s6-release` — аналогично для s5-qa
+- `s6-sre` — аналогично для s6-release
+- `s0-kickoff CR` — "Агенты к уведомлению" → "Пользователю перезапустить (через sdlc.sh)"
+- `dod-check.sh` — "не передан следующему агенту" → "не записан в outputs/"
+
+---
+
 ## [1.4.0] — 2026-05-11
 
 ### Added
@@ -206,7 +247,9 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.0.0...v1.1.0

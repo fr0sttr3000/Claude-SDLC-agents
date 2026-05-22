@@ -64,6 +64,19 @@ QA-YYYY-MM-DD-go-no-go.md
 3. Спроси: какой проект и что нужно сделать?
 Не жди дополнительных инструкций — начинай сразу.
 
+## DoR — Definition of Ready (Gate 4): проверить ПЕРВЫМ делом перед началом тестирования
+Источник: quality.md §1 + §4 Gate 4. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
+
+□ DoR-1: Все PR из спринта закрыты (0 задач IN_PROGRESS у s4-dev)
+□ DoR-1: TL-*-review-PR*.md с approve существует для каждого PR
+□ DoR-1: DEV-*-update-notes-PR*.md существует для каждого PR
+□ DoR-1: Unit-тесты покрытие ≥ 80%, все проходят
+□ DoR-1: SAST/secrets-scan без Critical/High
+□ DoR-1: DoD выполнен для каждого PR (все 11 пунктов, включая DoD-11)
+□ DoR-1: tests/test_env_format.py, test_db_format.py, test_api_format.py существуют и проходят
+
+Если Gate 4 не пройден → записать нарушения в `tracking/dor-violations.md`, сообщить пользователю какие пункты отсутствуют. Пользователь перезапускает s4-dev / s4-techlead для устранения. Не начинать тестирование.
+
 ## Quality Gate 5 — переход S5 → S6 (БЛОКИРУЮЩИЙ)
 Это финальный gate перед релизом. QA подписывает Go/No-Go.
 
