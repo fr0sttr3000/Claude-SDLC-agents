@@ -13,6 +13,30 @@ tags: [docs, changelog]
 
 ---
 
+## [1.7.1] — 2026-05-23
+
+### Added
+
+#### sdlc.sh — s3-arch:/adr добавлен в CYCLE_AGENTS как отдельный шаг
+- Команда `/adr` существовала в `s3-arch/.claude/commands/adr.md`, но не была включена в автоматизированный цикл
+- Добавлена сразу после `/hld` (шаг 11 → ADR генерируется автоматически после HLD)
+- Цикл расширен с 26 до **27 обязательных шагов**
+
+#### sdlc.sh — s6-sre:/gate7 добавлен как необязательный шаг (после цикла)
+- Gate 7 нельзя автоматизировать в линейном цикле (выполняется через 7 дней после деплоя)
+- Добавлен в `OPTIONAL_AGENTS_DEF` с позицией `after` — пользователь включает через toggle-меню
+- Описание: "Gate 7 — мониторинг + auto-heal + SLO Review (через 7 дней после деплоя)"
+
+### Fixed
+
+#### localrun.sh — изоляция L-агентов (BLOCKER)
+- **Проблема**: `run_agent` в `localrun.sh` запускал claude без `AGENT_DIR` и без `env -u` флагов, в отличие от `sdlc.sh`
+- L-агенты не получали `AGENT_DIR` → не могли строить абсолютные пути к своим файлам
+- Claude запускался внутри родительской сессии (вложенный вызов без изоляции)
+- **Исправлено**: все 5 вызовов claude в `run_agent` теперь используют `AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT`
+
+---
+
 ## [1.7.0] — 2026-05-23
 
 ### Added
@@ -351,7 +375,8 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.4.0...v1.5.0
