@@ -6,7 +6,7 @@ tags: [overview, sdlc, architecture]
 # SDLC Agent System — Полный обзор
 
 > Автоматизированная система управления жизненным циклом разработки (SDLC)
-> на базе Claude Code. 26 специализированных AI-агентов покрывают весь цикл
+> на базе Claude Code. 27 специализированных AI-агентов покрывают весь цикл
 > от идеи до деплоя и ведения задач в спринтах.
 
 ---
@@ -160,7 +160,7 @@ tags: [overview, sdlc, architecture]
 
 ---
 
-## SDLC-цикл — 24 шага + необязательные
+## SDLC-цикл — 27 шагов + необязательные
 
 Полный автоматизированный цикл запускается через `_agents/sdlc.sh → пункт 2`.
 Перед стартом цикла предлагается выбор необязательных шагов (тоглы включения/выключения):
@@ -168,6 +168,7 @@ tags: [overview, sdlc, architecture]
 - `s0-secrets` до цикла — настроить секреты
 - `s0-tracker /sprint-init` до цикла — инициализировать спринт
 - `s0-validate /validate` после цикла — проверить артефакты
+- `s6-sre /gate7` после цикла — Gate 7: мониторинг + auto-heal + SLO Review (через 7 дней после деплоя)
 
 ```
 Этап 0: Онбординг / Инфраструктура
@@ -196,49 +197,51 @@ tags: [overview, sdlc, architecture]
 
 Этап 3: Дизайн
   ─────────────────────────────────────────────────────────────────
-  Шаг 10  s3-arch /hld                  High-Level Design + ADR
-  Шаг 11  s3-security /threat-model     Threat Model (STRIDE/DREAD/OWASP)
-  Шаг 12  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
-  Шаг 13  s3-dba /schema                DB Schema (читает RBAC-schema.sql)
+  Шаг 10  s3-arch /hld                  High-Level Design
+  Шаг 11  s3-arch /adr                  Architecture Decision Records (≥3 варианта, ATAM трейдофф)
+  Шаг 12  s3-security /threat-model     Threat Model (STRIDE/DREAD/OWASP)
+  Шаг 13  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
+  Шаг 14  s3-dba /schema                DB Schema (читает RBAC-schema.sql)
                                          ── Quality Gate 3: s4-dev ждёт PASSED ──►
 
 Этап 4: Разработка
   ─────────────────────────────────────────────────────────────────
-  Шаг 14  s4-dev /dev-report            Dev Report + PR Summary
-  Шаг 15  s4-dev /update-notes          Update Notes (обязательно после каждого PR)
-  Шаг 16  s4-techlead /review           Code Review (DoD: все 11 пунктов)
+  Шаг 15  s4-dev /dev-report            Dev Report + PR Summary
+  Шаг 16  s4-dev /update-notes          Update Notes (обязательно после каждого PR)
+  Шаг 17  s4-techlead /review           Code Review (DoD: все 11 пунктов)
                                          → Gate 4: TL-*-review-PR*.md для каждого PR
-  Шаг 17  s4-devops /pipeline           CI/CD Pipeline (lint→test→build→SAST→secrets-scan)
-  Шаг 18  s4-devops /runbook            Runbook деплоя + rollback-процедура
+  Шаг 18  s4-devops /pipeline           CI/CD Pipeline (lint→test→build→SAST→secrets-scan)
+  Шаг 19  s4-devops /runbook            Runbook деплоя + rollback-процедура
                                          ── Quality Gate 4: s5-qa ждёт coverage≥80% ──►
 
 Этап 5: Тестирование
   ─────────────────────────────────────────────────────────────────
-  Шаг 19  s5-qa /test-plan              Test Plan + тест-кейсы (IEEE 829)
-  Шаг 20  s5-qa-auto /e2e-report        Automation Report (coverage ≥95%)
-  Шаг 21  s5-perf /load-test            Load Tests (smoke/load/stress/soak) + вердикт
-  Шаг 22  s5-qa /go-no-go              Go/No-Go → Gate 5 PASSED/FAILED
+  Шаг 20  s5-qa /test-plan              Test Plan + тест-кейсы (IEEE 829)
+  Шаг 21  s5-qa-auto /e2e-report        Automation Report (coverage ≥95%)
+  Шаг 22  s5-perf /load-test            Load Tests (smoke/load/stress/soak) + вердикт
+  Шаг 23  s5-qa /go-no-go              Go/No-Go → Gate 5 PASSED/FAILED
                                          ── Quality Gate 5: s6-release ждёт PASSED ──►
 
 Этап 6: Деплой
   ─────────────────────────────────────────────────────────────────
-  Шаг 23  s6-release /release-checklist  Release Checklist + Gate 6
-  Шаг 24  s6-release /release-notes      Release Notes v[X.Y.Z]
-  Шаг 25  s6-sre /post-deploy            Post-Deploy Report (T+0..T+60)
+  Шаг 24  s6-release /release-checklist  Release Checklist + Gate 6
+  Шаг 25  s6-release /release-notes      Release Notes v[X.Y.Z]
+  Шаг 26  s6-sre /post-deploy            Post-Deploy Report (T+0..T+60)
                                           + Post-Mortem если был инцидент
-
-Этап 7: Эксплуатация (ОБЯЗАТЕЛЬНЫЙ — через 7 дней после деплоя)
-  ─────────────────────────────────────────────────────────────────
-  Шаг 26  s6-sre /gate7                  Monitoring Dashboard: RED + SLO + Error Budget
-                                          Auto-Heal verification: kill → restart < 30 сек
-                                          Incident Runbooks (4 типа)
-                                          SLO Review → SRE-*-ops-report.md
-                                          ── Quality Gate 7 закрыт → следующий релиз разблокирован ──►
 
 Финальные шаги (всегда выполняются)
   ─────────────────────────────────────────────────────────────────
   Шаг 27  s0-tracker /report     Отчёт цикла: план vs факт ◄ ПРЕДПОСЛЕДНИЙ
   Шаг 28  s0-github /push        Push артефактов в GitHub   ◄ ПОСЛЕДНИЙ
+
+Этап 7: Эксплуатация (необязательный в цикле — запускается через 7 дней после деплоя)
+  ─────────────────────────────────────────────────────────────────
+  [opt]  s6-sre /gate7                   Monitoring Dashboard: RED + SLO + Error Budget
+                                          Auto-Heal verification: kill → restart < 30 сек
+                                          Incident Runbooks (4 типа)
+                                          SLO Review → SRE-*-ops-report.md
+                                          ── Quality Gate 7 закрыт → следующий релиз разблокирован ──►
+  Включается через toggle-меню sdlc.sh перед стартом цикла (позиция: после цикла)
 ```
 
 ---
