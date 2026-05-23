@@ -374,6 +374,8 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 
 Правило передачи: каждый агент читает артефакты предыдущего через **абсолютный путь**. История диалога не передаётся.
 
+> **Единый файл ограничений** `tracking/PMO-constraints.md` создаётся s1-pmo из `PM-feasibility.md → Handoff` и читается ПЕРВЫМ агентами s2-ba, s3-arch, s3-security, s4-devops — содержит scope, budget, operational tier, topology, critical_risks, open_issues.
+
 > **Необязательные шаги** (s0-validate, s0-secrets, s0-tracker /sprint-init) вставляются до или после основного потока — выбираются пользователем в меню sdlc.sh перед стартом цикла.
 
 ---
@@ -558,8 +560,12 @@ cd _agents/s0-kickoff && claude "/start my-project"
 cd _agents/s0-kickoff && claude "/cr my-project"
 ```
 
-Режим **NEW**: 4 блока интервью (Продукт → Бизнес → Техника → Приоритеты).
-Выход: `idea.md` (заполненный) + `PM-input-interview-YYYY-MM-DD.md`.
+Режим **NEW**: 5 блоков интервью, 26 вопросов (Проблема+Продукт → Бизнес → Техника → Приоритеты → Неизвестное).
+- Блок 1: проблема-первая (As-Is → To-Be → продукт), правило 5 Whys
+- Блок 3: topology, recovery, alert channel, monitoring expectation, delivery scope, existing monitoring
+- Блок 4: North Star (Q4.1), kill criteria (Q4.2)
+- Блок 5: known unknowns + stoppers
+Выход: `idea.md` (заполненный со всеми полями) + `PM-input-interview-YYYY-MM-DD.md`.
 
 Режим **REFRESH**: меню из 5 разделов (Видение / Беклог / Приоритеты / NFR / Scope Out).
 Выход: `PM-input-refresh-*.md` и/или `BA-input-refresh-*.md` → передаёт s1-pm / s2-ba / s2-po.
@@ -690,4 +696,4 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
 
 ---
 
-*Обновлено: 2026-05-23. v1.6.0: Методология выбора паттернов (7 правил в s3-arch), выбор контролей безопасности (STRIDE→Control, DREAD→Action в s3-security), выбор технологии хранения (s3-dba). Deployment Constraint как обязательная NFR-категория (s2-ba). Topology-aware Auto-Heal (s4-devops, quality.md §5.5). Исправлены 3 нарушения изоляции в s3-dba.*
+*Обновлено: 2026-05-23. v1.7.0: s0-kickoff расширен до 5 блоков/26 вопросов (Operational Tier, kill criteria, known unknowns). s1-pm: Operational Tier Selection matrix (Tier 0–3), Veto Protocol, parametric flags, Handoff YAML. PMO-constraints.md как единый файл ограничений (читается первым в s2-ba, s3-arch, s3-security, s4-devops). Исправлены 9 нарушений изоляции (переименованы Handoff ключи).*
