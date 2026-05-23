@@ -50,6 +50,7 @@ declare -a OPTIONAL_AGENTS_DEF=(
   "s0-secrets|Настрой секреты для проекта|before|Настройка секретов через pass"
   "s0-tracker|/sprint-init|before|Инициализировать спринт перед циклом"
   "s0-validate|/validate|after|Проверить артефакты после завершения цикла"
+  "s6-sre|/gate7|after|Gate 7 — мониторинг + auto-heal + SLO Review (через 7 дней после деплоя)"
 )
 
 # глобальные массивы — заполняются configure_optional_steps
@@ -68,6 +69,7 @@ declare -a CYCLE_AGENTS=(
   "s2-po:/stories"
   "s2-qa-req:/testability-review"
   "s3-arch:/hld"
+  "s3-arch:/adr"
   "s3-security:/threat-model"
   "s3-rbac:/rbac-model"
   "s3-dba:/schema"

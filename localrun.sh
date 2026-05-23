@@ -176,10 +176,10 @@ run_agent() {
       echo -e "${Y}Для выхода: /exit или Ctrl+C${N}"
       echo
       echo -e "${M}── Агент инициирует диалог... ──────────────────────${N}"
-      (cd "$agent_dir" && claude "начни сессию")
+      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
       echo
       echo -e "${M}── Продолжение диалога ─────────────────────────────${N}"
-      (cd "$agent_dir" && claude --continue)
+      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
       echo
       echo -e "${G}✓ Сессия завершена${N}"
       ;;
@@ -187,13 +187,13 @@ run_agent() {
       if [[ -n "$claude_arg" ]]; then
         echo -e "${C}Запускаю: ${W}claude \"$claude_arg\"${N}"
         echo
-        (cd "$agent_dir" && claude "$claude_arg")
+        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "$claude_arg")
       else
         echo -e "${C}Открываю диалог с агентом...${N}"
         echo
-        (cd "$agent_dir" && claude "начни сессию")
+        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
         echo
-        (cd "$agent_dir" && claude --continue)
+        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
       fi
       echo
       echo -e "${G}✓ Агент завершил работу${N}"
