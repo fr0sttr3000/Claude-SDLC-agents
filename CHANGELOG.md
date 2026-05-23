@@ -13,6 +13,67 @@ tags: [docs, changelog]
 
 ---
 
+## [1.7.0] — 2026-05-23
+
+### Added
+
+#### s0-kickoff — расширение интервью до 5 блоков, 26 вопросов (было 4 блока, 19 вопросов)
+- **Блок 1 переориентирован на проблему**: Q1.2=pain point → Q1.3=As-Is → Q1.4=To-Be → Q1.5=продукт (было наоборот)
+- **Правило 5 Whys**: если ответ на Q1.2 звучит как симптом — задавать "почему?" до корневой причины
+- **Блок 3 расширен** до 11 вопросов: добавлены Q3.6 (топология деплоя), Q3.7 (ожидание восстановления), Q3.7b (канал алертов — условный), Q3.8 (мониторинг), Q3.9 (delivery scope), Q3.10 (существующий мониторинг — условный)
+- **Блок 4 расширен**: добавлены Q4.1 (критерии успеха → North Star), Q4.2 (kill criteria — когда проект надо остановить)
+- **Блок 5 "Неизвестное"** (новый): Q5.1 (что не знаем), Q5.2 (что может остановить проект)
+- **idea.md шаблон** обновлён: добавлены поля As-Is, To-Be, Deployment Constraint, Recovery Expectation, Alert Channel, Monitoring Expectation, Existing Monitoring, Delivery Scope, Kill Criteria, Критерии успеха, Неизвестное, Риски и стопперы
+
+#### s1-pm — Operational Tier Selection и Veto Protocol
+- **Таблица использования полей idea.md**: 11 полей → где применяются в Feasibility/Vision (явное правило: данные стейкхолдера приоритетнее предположений)
+- **Operational Tier Selection** (матрица Tier 0–3):
+  - Topology × Recovery → базовый тир
+  - Описание каждого тира (что включено, для чего подходит)
+  - Корректировка по Q3.8 (Monitoring), Q3.9 (Delivery Scope), Q3.10 (Existing Monitoring)
+  - Валидация противоречий: 4 противоречия с сообщениями стейкхолдеру
+- **Протокол Вето** (Stakeholder Gate): презентация плана → чекпоинт после каждой секции → veto/edit/stop/restart — агент адаптирует ВЕРДИКТ при пропуске секций
+- **Параметрические флаги**: skip:legal/finance/operational/technical, budget:N, mode:auto, scope:minimal
+- **DoR обновлён**: добавлены проверки Q3.6/Q3.7/Q3.8/Q3.9 в idea.md
+
+#### s1-pm/feasibility.md — полная переработка slash-команды
+- 4-шаговая структура: разбор аргументов → чтение входных данных → презентация плана с вето → создание артефакта
+- Чекпоинт-протокол после каждой секции (Technical/Economic/Operational/Legal/Риски/Вердикт)
+- **`## → Handoff`** — структурированный YAML в конце артефакта:
+  - `decisions`: verdict, operational_tier, deployment_topology, delivery_scope, alert_channel, existing_monitoring
+  - `inherited_nfr`: список NFR-требований для перевода в BA-NFR.md
+  - `architectural_constraints`: ограничения для проектирования HLD
+  - `infrastructure_constraints`: требования для реализации DevOps
+  - `open_issues`, `skipped_sections`
+
+#### s1-pmo — PMO-constraints.md как обязательный выход
+- Новый обязательный артефакт: `tracking/PMO-constraints.md` (без даты в имени, перезаписывается)
+- Формат файла: scope, budget, operational, critical_risks, open_issues, mandatory_standards
+- Правило: читать `PM-Feasibility → Handoff` ПЕРВЫМ до основного текста
+- DoD обновлён: добавлена проверка tracking/PMO-constraints.md
+
+#### Единый файл ограничений — PMO-constraints.md читается всеми downstream агентами первым
+- **s2-ba**: PMO-constraints.md → первый в списке чтения; `Handoff → inherited_nfr` → каждый пункт = NFR с числовым порогом
+- **s3-arch**: PMO-constraints.md → первый; `architectural_constraints` → учесть при проектировании HLD
+- **s3-security**: PMO-constraints.md → первый; `critical_risks` → помечать `[PMO-RISK-N]` в Threat Model
+- **s4-devops**: PMO-constraints.md → первый; DoR проверяет что все OI с `blocker_for: s4-devops` закрыты
+
+### Fixed
+
+#### Изоляция агентов — 9 нарушений устранено
+Ключи Handoff YAML содержали имена агентов — s1-pm знал об их существовании:
+- `nfr_for_s2ba` → `inherited_nfr` (semantic, agent-agnostic)
+- `constraints_for_s3arch` → `architectural_constraints`
+- `constraints_for_s4devops` → `infrastructure_constraints`
+- Комментарий `# s2-ba обязан...` → нейтральный
+- Комментарий `# s3-arch учитывает...` → нейтральный
+- Комментарий `# s4-devops реализует...` → нейтральный
+- HTML-комментарий «читается следующими агентами» → удалён
+- `owner: "s2-ba / s3-arch"` в open_issues → `owner: "роль / стейкхолдер"`
+- `s1-pmo`: «Читай от s1-pm» → «Читай PM-Feasibility:»
+
+---
+
 ## [1.6.0] — 2026-05-23
 
 ### Added
@@ -290,7 +351,8 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.3.0...v1.4.0

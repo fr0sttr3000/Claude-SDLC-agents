@@ -8,9 +8,13 @@
 /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+Читай — в следующем порядке:
+  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+     → Прочитай ПЕРВЫМ: critical_risks содержат риски для Threat Model (помечай [PMO-RISK-N]).
+  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PMO-*-risk-register.md
+     → Используй как входной список рисков: Critical + High → включить в STRIDE-анализ.
+  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  4. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
 Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/
 
 ## STRIDE Методология

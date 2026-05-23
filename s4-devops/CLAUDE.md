@@ -8,9 +8,12 @@
 /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
+Читай — в следующем порядке:
+  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+     → Прочитай ПЕРВЫМ: operational.tier, topology, delivery_scope, alert_channel, existing_monitoring.
+     → infrastructure_constraints определяют что именно реализовывать.
+  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
 Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/
 
 ## CI/CD Pipeline
@@ -53,6 +56,9 @@ DEVOPS-YYYY-MM-DD-monitoring.yaml
 ## DoR — Готовность к старту (Intra-stage S4): проверить ПЕРВЫМ делом
 Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
+□ DoR-0: tracking/PMO-constraints.md существует — прочитать ДО всего остального
+□ DoR-0: PMO-constraints.md.operational.tier определён (не пустой)
+□ DoR-0: PMO-constraints.md.open_issues — все OI с blocker_for: s4-devops закрыты или имеют решение
 □ DoR-1: ARCH-HLD.md существует в stage3-design/outputs/ (Gate 3 пройден)
 □ DoR-1: SEC-*-security-requirements.md существует в stage3-design/outputs/
 □ DoR-1: DBA-*-schema.sql существует (для настройки миграций в pipeline)
