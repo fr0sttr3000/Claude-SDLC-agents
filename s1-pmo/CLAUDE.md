@@ -11,17 +11,20 @@
 
 ## Пути файлов
 Входные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/
-Также читай outputs от s1-pm: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-*.md
+Читай PM-Feasibility: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-*.md
+  → Найди секцию `## → Handoff` и прочитай её ПЕРВОЙ до основного текста
 Выходные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
+Пиши constraints: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
 
 ## Задачи этого агента
 - Project Charter (10 разделов)
 - WBS (Work Breakdown Structure)
-- Risk Register (≥20 рисков по PMBOK)
+- Risk Register (≥10 рисков по PMBOK)
 - RACI Matrix
 - Communication Plan
 - Project Schedule (вехи)
 - Stakeholder Register
+- **PMO-constraints.md** — единый файл ограничений для всех downstream агентов (ОБЯЗАТЕЛЬНО)
 
 ## Формат Risk Register
 | ID | Категория | Описание | P(1-5) | I(1-5) | Score | Стратегия | Владелец | Срок |
@@ -45,11 +48,66 @@ PMO-YYYY-MM-DD-charter.md
 PMO-YYYY-MM-DD-risk-register.md
 PMO-YYYY-MM-DD-raci.md
 PMO-YYYY-MM-DD-schedule.md
+tracking/PMO-constraints.md  ← без даты в имени, перезаписывается при обновлении
+
+## Формат PMO-constraints.md
+
+Этот файл читается ВСЕМИ downstream агентами (s2-ba, s3-arch, s3-security, s4-devops) в первую очередь.
+Не является задачей для агентов — является набором ограничений проекта.
+
+```markdown
+# PMO-constraints — {PROJECT}
+
+```yaml
+# Обновлён: {ДАТА}
+# Источник: PMO-charter.md + PM-feasibility.md → Handoff
+
+scope:
+  in:
+    - "{FR-группа или функциональный блок}"
+  out:
+    - "{что явно исключено из MVP}"
+
+budget:
+  total: {число} [DATA]
+  currency: "{RUB / USD / EUR}"
+  mvp_deadline: "{YYYY-MM-DD}" [DATA]
+  approval_threshold: {бюджет × 1.1} # решения дороже требуют согласования
+
+operational:
+  tier: {0 / 1 / 2 / 3}
+  topology: "{single-container / single-host docker-compose / multi-instance / serverless}"
+  delivery_scope: "{code-only / code+docker / code+deploy+monitoring}"
+  alert_channel: "{Telegram / Email / Slack / [OPEN ISSUE OI-?]}"
+  existing_monitoring: "{none / external:{сервис} / self-hosted / unknown}"
+
+critical_risks:
+  # Только Critical (Score 20-25) и High (Score 15-19) из Risk Register
+  - id: "RISK-{N}"
+    description: "{краткое описание}"
+    owner: "{роль}"
+    mitigation_deadline: "{дата}"
+    blocker_for: "{Gate N / агент}"
+
+open_issues:
+  # Нерешённые вопросы из PM-feasibility → Handoff
+  - id: "OI-{N}"
+    topic: "{тема}"
+    owner: "{s2-ba / s3-arch / стейкхолдер}"
+    blocker_for: "{что блокирует}"
+    status: "OPEN"
+
+mandatory_standards:
+  # Дополнительные требования этого проекта поверх company.md
+  - "{например: все сервисы обязаны экспортировать /health если Tier ≥ 1}"
+```
+```
 
 ## Не делай
 - Не принимай Go/No-Go решение (это s1-pm)
 - Не описывай техническую реализацию
 - Не приоритизируй фичи (это s2-po)
+- Не назначай задачи конкретным агентам напрямую — только фиксируй ограничения
 
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
@@ -85,6 +143,7 @@ PMO-YYYY-MM-DD-schedule.md
 □ DoD-7: Нет нерешённых рисков уровня Critical без митигации
 □ DoD-8: Нет секретов в артефактах
 □ DoD-10: PMO-*.md записан в stage1-planning/outputs/
+□ DoD-10: tracking/PMO-constraints.md создан и содержит все обязательные секции
 
 Авто-проверка: s0-validate /dod-check [PROJECT] D 1
 

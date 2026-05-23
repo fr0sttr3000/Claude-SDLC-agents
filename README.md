@@ -273,15 +273,16 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
 | `/cr` | Change Request — изменение требований в середине этапа | `cd s0-kickoff && claude "/cr my-project"` |
 
-**Режим `/new` — 4 блока интервью:**
-1. **Продукт** — идея, проблема, аудитория, конкуренты, уникальность
+**Режим `/new` — 5 блоков интервью, 26 вопросов:**
+1. **Проблема и продукт** — pain point, As-Is, To-Be, описание продукта, аудитория, конкуренты, уникальность
 2. **Бизнес** — модель, бюджет, ROI, команда, срок MVP
-3. **Техника** — стек, масштаб (RPS/DAU), доступность, compliance, интеграции
-4. **Приоритеты** — стейкхолдеры, Scope Out, must-have для MVP
+3. **Техника** — стек, масштаб, compliance, интеграции + **topology, recovery expectation, alert channel, monitoring expectation, delivery scope, existing monitoring**
+4. **Приоритеты** — стейкхолдеры, Scope Out, must-have, критерии успеха (→North Star), kill criteria
+5. **Неизвестное** — что неизвестно, что может остановить проект
 
-Вопросы задаются последовательно, по одному. После каждого блока — резюме и подтверждение.
+Вопросы задаются последовательно, по одному. Правило 5 Whys при ответах типа «симптом». После каждого блока — резюме и подтверждение.
 
-Выход: заполненный `idea.md` + `PM-input-interview-YYYY-MM-DD.md` → передаёт `s1-pm`.
+Выход: заполненный `idea.md` (со всеми полями Operational Tier) + `PM-input-interview-YYYY-MM-DD.md` → передаёт `s1-pm`.
 
 **Режим `/refresh` — обновление существующего проекта:**
 
@@ -506,4 +507,4 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents v1.6.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v1.7.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*

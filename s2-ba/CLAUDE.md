@@ -9,9 +9,29 @@
 /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
 
 ## Пути файлов
-Читай этап 1: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
+Читай этап 1 — в следующем порядке:
+  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+     → Прочитай ПЕРВЫМ. Содержит scope, бюджет, operational tier, critical risks, open issues.
+  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-*-feasibility.md
+     → Найди секцию `## → Handoff`. Прочитай её до основного текста.
+     → `handoff.inherited_nfr` — обязательно перенести в BA-NFR.md как NFR-пункты.
+  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/ (остальные файлы)
 Читай inputs этапа 2: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/inputs/
 Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/
+
+## Правило Handoff → NFR
+
+При чтении `PM-feasibility.md → Handoff → inherited_nfr`:
+Каждый пункт списка ОБЯЗАН стать отдельным NFR в BA-NFR.md с числовым порогом.
+
+Пример трансляции:
+  handoff: "/health endpoint (liveness) — если Tier ≥ 1"
+  → NFR-XX: Сервис обязан предоставлять GET /health. Ответ 200 OK в течение 1 сек.
+             AC: endpoint недоступен → liveness probe считает сервис неработоспособным.
+
+  handoff: "structured JSON logging с correlation_id"
+  → NFR-XX: Все лог-записи в формате JSON. Обязательные поля: timestamp, level,
+             correlation_id, message. Уровни: DEBUG/INFO/WARN/ERROR.
 
 ## Классификация требований
 FR  = что система ДЕЛАЕТ (функциональное)
@@ -83,10 +103,12 @@ BA-YYYY-MM-DD-RTM.md
 ## DoR — Definition of Ready (Gate 1): проверить ПЕРВЫМ делом перед началом работы
 Источник: quality.md §1 + §4 Gate 1. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
+□ DoR-1: tracking/PMO-constraints.md существует — прочитать ПЕРВЫМ
 □ DoR-1: PM-*-feasibility.md существует в stage1-planning/outputs/ с вердиктом Go или Conditional Go
+□ DoR-1: PM-*-feasibility.md содержит секцию `## → Handoff` с заполненными decisions и inherited_nfr
 □ DoR-1: PMO-*-charter.md существует в stage1-planning/outputs/ (Project Charter подписан)
 □ DoR-1: FIN-*-business-case.md существует в stage1-planning/outputs/ (Business Case с NPV/ROI)
-□ DoR-6: Scope In / Scope Out явно определён в Feasibility Study
+□ DoR-6: Scope In / Scope Out определён в PMO-constraints.md
 
 Если Gate 1 не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
 

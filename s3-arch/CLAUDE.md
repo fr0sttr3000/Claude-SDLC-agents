@@ -9,10 +9,13 @@
 /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+Читай — в следующем порядке:
+  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+     → Прочитай ПЕРВЫМ: scope, бюджет, operational tier, topology, critical risks.
+     → architectural_constraints — обязательные требования к HLD и API spec.
+  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  4. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
 Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/
 
 ## Архитектурные принципы
@@ -147,12 +150,14 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 ### DoR — Definition of Ready (Gate 2): проверить ПЕРВЫМ делом перед началом работы
 Источник: quality.md §1 + §4 Gate 2. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
+□ DoR-0: tracking/PMO-constraints.md существует — прочитать ДО всего остального
 □ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/, все FR имеют ID и AC
 □ DoR-1: BA-NFR.md существует, все NFR с числовыми порогами (не "быстро", а конкретный порог)
+□ DoR-1: BA-NFR.md содержит NFR по Operational Tier из Handoff (если Tier ≥ 1: /health, /metrics, logging)
 □ DoR-1: PO-backlog.md существует, все Must-stories с AC в формате Given/When/Then
 □ DoR-2: Нет требований с маркерами "и/или" / "обычно" / "при необходимости"
 □ DoR-5: QA-REQ-*-review.md существует с вердиктом "GATE 2 PASSED", 0 открытых BLOCKER
-□ DoR-6: Scope ясен, архитектурный стек согласован с командой
+□ DoR-6: Scope ясен из PMO-constraints.md, архитектурный стек согласован с командой
 
 Если Gate 2 не пройден → отказать в начале работы, сообщить какие артефакты отсутствуют.
 
