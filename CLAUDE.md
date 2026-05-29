@@ -7,14 +7,19 @@
 
 ## Структура vault
 ```
-_agents/        ← 27 специализированных агентов (CLAUDE.md + .claude/commands/)
-  _standards/   ← Стандарты компании (читать перед каждой задачей)
-  sdlc.sh       ← Главный лаунчер (полный SDLC-цикл)
-  localrun.sh   ← Лаунчер Local Run (GitHub-проекты)
-_secrets/       ← Документация по управлению секретами (pass)
-projects/       ← Артефакты проектов (inputs/outputs по этапам + tracking/)
-Local_Run/      ← Заметки по локальным проектам с GitHub
-OVERVIEW.md     ← Полный обзор системы
+_agents/
+  _standards/       ← Стандарты компании (читать перед каждой задачей)
+  _tools/           ← Утилиты для всех циклов (s0-github, s0-secrets)
+  cycle1-dev/       ← Цикл 1: Разработка (19 агентов: s0-kickoff/tracker/validate, s1-s5, l1-l4)
+  cycle2-deploy/    ← Цикл 2: Деплой (s4-devops, s6-release)
+  cycle3-ops/       ← Цикл 3: Эксплуатация (s6-sre)
+  plans/            ← Планы развития системы агентов
+  sdlc.sh           ← Главный лаунчер (полный SDLC-цикл)
+  localrun.sh       ← Лаунчер Local Run (GitHub-проекты)
+_secrets/           ← Документация по управлению секретами (pass)
+projects/           ← Артефакты проектов (inputs/outputs по этапам + tracking/)
+Local_Run/          ← Заметки по локальным проектам с GitHub
+OVERVIEW.md         ← Полный обзор системы
 ```
 
 ## Структура проекта в projects/

@@ -1,8 +1,9 @@
 # Стандарты компании
 
 > ⚠️ **Безопасность:** не вставляй сюда реальные ключи, токены и пароли.
-> Все секреты храни в `_secrets/env.sh` (папка исключена из git).
-> Здесь только ссылки: "ключ хранится в _secrets/env.sh → SOME_API_KEY"
+> Все секреты хранятся ТОЛЬКО в `pass`. См. принцип: [[plans/principles#Управление секретами через pass]]
+
+> **Принципы разработки** (SDD, TDD, Shift Left, Quality Gates и др.) — в [[plans/principles]]. Здесь только контекст компании/проекта.
 
 ## [ЗАПОЛНИ ЭТО]
 
@@ -16,10 +17,6 @@
 - Cloud: [AWS/GCP/Azure]
 - CI/CD: [GitHub Actions/GitLab CI]
 - Monitoring: [Datadog/Grafana/Prometheus]
-
-### Методология разработки
-[Scrum/Kanban/SAFe] — спринты [1/2] недели
-Velocity: [N] story points/sprint
 
 ### Ставки сотрудников (для финансовых расчётов)
 - Junior Dev: [X] руб/час
