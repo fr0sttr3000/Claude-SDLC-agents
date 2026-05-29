@@ -133,12 +133,24 @@ menu_clone() {
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
 }
 
+# ─── поиск директории агента ──────────────────────────────────────────────────
+find_agent_dir() {
+  local agent="$1"
+  local dir
+  for subdir in cycle1-dev cycle2-deploy cycle3-ops _tools; do
+    dir="$AGENTS/$subdir/$agent"
+    [[ -d "$dir" ]] && echo "$dir" && return
+  done
+  echo ""
+}
+
 # ─── запуск одного L-агента ───────────────────────────────────────────────────
 run_agent() {
   local agent="$1"
   local project="$2"
   local task="$3"
-  local agent_dir="$AGENTS/$agent"
+  local agent_dir
+  agent_dir=$(find_agent_dir "$agent")
 
   local claude_arg
   if [[ "$task" == /* ]]; then
