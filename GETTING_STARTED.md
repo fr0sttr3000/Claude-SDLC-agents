@@ -89,15 +89,24 @@ bash sdlc.sh
 Claude/
 ├── _agents/                ← этот репозиторий
 │   ├── sdlc.sh             ← главный лаунчер (запускай отсюда)
+│   ├── localrun.sh         ← лаунчер Local Run
 │   ├── _standards/         ← стандарты (читаются всеми агентами)
-│   ├── s0-kickoff/         ← онбординг новых проектов
-│   ├── s0-*/               ← инфраструктура
-│   ├── s1-*/               ← этап 1: планирование
-│   ├── s2-*/               ← этап 2: требования
-│   ├── s3-*/               ← этап 3: дизайн
-│   ├── s4-*/               ← этап 4: разработка
-│   ├── s5-*/               ← этап 5: тестирование
-│   └── s6-*/               ← этап 6/7: деплой и эксплуатация
+│   ├── _tools/             ← утилиты для всех циклов (s0-github, s0-secrets)
+│   ├── plans/              ← планы развития системы
+│   │   ├── principles.md   ← принципы разработки
+│   │   └── roadmap.md      ← roadmap изменений
+│   ├── cycle1-dev/         ← Цикл 1: Разработка
+│   │   ├── s0-kickoff/     ← онбординг новых проектов
+│   │   ├── s0-tracker/     ← трекинг спринтов и задач
+│   │   ├── s0-validate/    ← валидация структуры
+│   │   ├── s1-*/           ← этап 1: планирование
+│   │   ├── s2-*/           ← этап 2: требования
+│   │   ├── s3-*/           ← этап 3: дизайн
+│   │   ├── s4-*/           ← этап 4: разработка
+│   │   ├── s5-*/           ← этап 5: тестирование
+│   │   └── l*/             ← Local Run (оснастка разработчика)
+│   ├── cycle2-deploy/      ← Цикл 2: Деплой (s4-devops, s6-release)
+│   └── cycle3-ops/         ← Цикл 3: Эксплуатация (s6-sre)
 │
 └── projects/               ← создаётся при добавлении проектов
     └── {PROJECT}/
@@ -107,6 +116,8 @@ Claude/
         ├── stage2-requirements/...
         └── tracking/                  ← спринты и задачи
 ```
+
+> Подробнее об архитектуре — [[README#Архитектура]] · Принципы — [[plans/principles]]
 
 ---
 
@@ -214,7 +225,7 @@ stage1-planning/inputs/
 ### Запуск Kickoff напрямую (без лаунчера)
 
 ```bash
-cd _agents/s0-kickoff
+cd _agents/cycle1-dev/s0-kickoff
 
 # Новый проект
 claude "/new my-project"
@@ -374,6 +385,10 @@ stage2-requirements/inputs/
 
 ## 9. Кастомизация под свой стек
 
+### Ознакомься с принципами системы
+
+Перед стартом прочитай [`plans/principles.md`](plans/principles.md) — принципы разработки (SDD, TDD, Shift Left, Quality Gates и др.).
+
 ### Заполни стандарты компании
 
 ```bash
@@ -383,9 +398,10 @@ nano _agents/_standards/company.md
 
 Укажи:
 - Технологический стек (Python, Go, TypeScript, etc.)
-- Роли в команде
-- Методология (Scrum, Kanban)
+- Роли в команде и ставки (для финансовых расчётов)
 - Compliance-требования (если есть)
+
+> Методология разработки — в [`plans/principles.md`](plans/principles.md), не в `company.md`.
 
 ### Настрой NFR-дефолты
 
@@ -407,7 +423,7 @@ nano _agents/_standards/company.md
 ### Прямой запуск агента (без лаунчера)
 
 ```bash
-cd _agents/s1-pm
+cd _agents/cycle1-dev/s1-pm
 claude "начни сессию"                        # интерактивный режим
 claude "/feasibility проект: my-app"         # slash-команда
 claude --continue                            # продолжить последний диалог
@@ -431,8 +447,8 @@ bash sdlc.sh → 1) один агент → выбрать → выбрать п
 bash sdlc.sh → 6) валидация → /validate
 
 # Прямой запуск агента
-cd _agents/s0-kickoff && claude "/new my-project"
-cd _agents/s1-pm && claude "/feasibility my-project"
+cd _agents/cycle1-dev/s0-kickoff && claude "/new my-project"
+cd _agents/cycle1-dev/s1-pm && claude "/feasibility my-project"
 ```
 
 ---

@@ -324,7 +324,7 @@ Q1.1: {вопрос} → {ответ}
   + stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
 
 Следующий шаг:
-  cd _agents/s1-pm && claude "/feasibility проект: {PROJECT}"
+  cd _agents/cycle1-dev/s1-pm && claude "/feasibility проект: {PROJECT}"
   или запусти s1-pm через sdlc.sh → Запустить один агент → s1-pm
 ```
 

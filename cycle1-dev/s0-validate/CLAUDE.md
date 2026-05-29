@@ -49,7 +49,7 @@
 ## Команда /dod-check
 Проверяет автоматизируемые пункты DoD для артефакта или PR:
 ```bash
-bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/s0-validate/dod-check.sh" \
+bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/cycle1-dev/s0-validate/dod-check.sh" \
   "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
   {TYPE} {STAGE} [{PR_NUM}]
 ```
@@ -76,7 +76,7 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/s0-validate/dod
 ## Команда /dor-check
 Запускает `dor-check.sh` для указанного gate:
 ```bash
-bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/s0-validate/dor-check.sh" \
+bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/cycle1-dev/s0-validate/dor-check.sh" \
   "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
   {GATE}
 ```
