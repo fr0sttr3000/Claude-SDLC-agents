@@ -51,43 +51,51 @@ tags: [overview, sdlc, architecture]
 ├── CLAUDE.md              ← Глобальный контекст (читается агентами)
 ├── OVERVIEW.md            ← Этот файл — полный обзор системы
 │
-├── _agents/               ← 27 агентов + стандарты
+├── _agents/               ← агенты + стандарты + планы
 │   ├── README.md          ← Операционное руководство
 │   ├── CLAUDE.md          ← Глобальный контекст агентов (quality gates, правила)
-│   ├── _standards/        ← Стандарты компании (доступны всем агентам)
-│   │   ├── company.md     ← Стек, роли, методология
+│   ├── _standards/        ← Стандарты (доступны всем агентам)
+│   │   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
 │   │   ├── quality.md     ← DoD, DoR, Gates, NFR, Auto-Heal (читать перед каждой задачей)
 │   │   ├── data-formats.md ← Форматы DB/ENV/API, тесты форматов (читать перед каждой задачей)
 │   │   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
 │   │   └── tech-debt-template.md      ← Шаблон журнала технического долга
+│   ├── _tools/            ← Утилиты для всех циклов
+│   │   ├── s0-github/     ← GitHub Sync
+│   │   └── s0-secrets/    ← Secrets Manager
+│   ├── plans/             ← Планы развития системы
+│   │   ├── principles.md  ← Принципы (SDD, TDD, Shift Left, Markdown-first и др.)
+│   │   └── roadmap.md     ← Roadmap и запланированные изменения
 │   ├── sdlc.sh            ← Главный лаунчер (SDLC-цикл + необязательные шаги)
 │   ├── localrun.sh        ← Local Run лаунчер (GitHub-проекты)
-│   ├── s0-kickoff/        ← Project Kickoff — онбординг нового проекта / обновление беклога
-│   ├── s0-secrets/        ← Secrets Manager
-│   ├── s0-github/         ← GitHub Sync
-│   ├── s0-validate/       ← Structure Validator + Quality Artifacts Validator
-│   ├── s0-tracker/        ← Sprint & Task Tracker (DoD enforcement)
-│   ├── l1-analyze/        ← Local: анализ проекта
-│   ├── l2-setup/          ← Local: настройка окружения
-│   ├── l3-build/          ← Local: сборка
-│   ├── l4-run/            ← Local: запуск
-│   ├── s1-pm/             ← Product Manager
-│   ├── s1-pmo/            ← Project Manager / PMO
-│   ├── s1-finance/        ← Finance Analyst
-│   ├── s2-ba/             ← Business Analyst
-│   ├── s2-po/             ← Product Owner
-│   ├── s2-qa-req/         ← QA (требования) — Gate 2
-│   ├── s3-arch/           ← Solution Architect — Gate 3
-│   ├── s3-security/       ← Security Engineer
-│   ├── s3-dba/            ← DBA
-│   ├── s4-dev/            ← Backend Developer
-│   ├── s4-techlead/       ← Tech Lead — Gate 4
-│   ├── s4-devops/         ← DevOps Engineer
-│   ├── s5-qa/             ← QA Engineer — Gate 5
-│   ├── s5-qa-auto/        ← QA Automation
-│   ├── s5-perf/           ← Performance Engineer
-│   ├── s6-release/        ← Release Manager — Gate 6
-│   └── s6-sre/            ← SRE
+│   ├── cycle1-dev/        ← Цикл 1: Разработка
+│   │   ├── s0-kickoff/    ← Project Kickoff — онбординг нового проекта / обновление беклога
+│   │   ├── s0-validate/   ← Structure Validator + Quality Artifacts Validator
+│   │   ├── s0-tracker/    ← Sprint & Task Tracker (DoD enforcement)
+│   │   ├── l1-analyze/    ← Local Run: анализ проекта
+│   │   ├── l2-setup/      ← Local Run: настройка окружения
+│   │   ├── l3-build/      ← Local Run: сборка
+│   │   ├── l4-run/        ← Local Run: запуск
+│   │   ├── s1-pm/         ← Product Manager
+│   │   ├── s1-pmo/        ← Project Manager / PMO
+│   │   ├── s1-finance/    ← Finance Analyst
+│   │   ├── s2-ba/         ← Business Analyst
+│   │   ├── s2-po/         ← Product Owner
+│   │   ├── s2-qa-req/     ← QA (требования) — Gate 2
+│   │   ├── s3-arch/       ← Solution Architect — Gate 3
+│   │   ├── s3-security/   ← Security Engineer
+│   │   ├── s3-rbac/       ← RBAC Designer
+│   │   ├── s3-dba/        ← DBA
+│   │   ├── s4-dev/        ← Backend Developer
+│   │   ├── s4-techlead/   ← Tech Lead — Gate 4
+│   │   ├── s5-qa/         ← QA Engineer — Gate 5
+│   │   ├── s5-qa-auto/    ← QA Automation
+│   │   └── s5-perf/       ← Performance Engineer
+│   ├── cycle2-deploy/     ← Цикл 2: Деплой (разрабатывается)
+│   │   ├── s4-devops/     ← DevOps Engineer
+│   │   └── s6-release/    ← Release Manager
+│   └── cycle3-ops/        ← Цикл 3: Эксплуатация (разрабатывается)
+│       └── s6-sre/        ← SRE
 │
 ├── _secrets/
 │   └── README.md          ← Документация по pass
@@ -510,16 +518,16 @@ s0-tracker автоматически добавляет при `/sprint-init`:
 
 ```bash
 # Проверить один проект (только отчёт, без изменений)
-cd _agents/s0-validate && claude /validate my-project
+cd _agents/cycle1-dev/s0-validate && claude /validate my-project
 
 # Починить все проекты (создать недостающие директории и заглушки)
-cd _agents/s0-validate && claude /fix all
+cd _agents/cycle1-dev/s0-validate && claude /fix all
 
 # Проверить DoR перед переходом на Gate N (автоматически)
-cd _agents/s0-validate && claude "/dor-check my-project 3"
+cd _agents/cycle1-dev/s0-validate && claude "/dor-check my-project 3"
 
 # Проверить DoD для артефакта или PR (автоматически)
-cd _agents/s0-validate && claude "/dod-check my-project K 4 42"
+cd _agents/cycle1-dev/s0-validate && claude "/dod-check my-project K 4 42"
 ```
 
 `/dor-check <PROJECT> <GATE>` — проверяет DoR-1..8 перед переходом на Gate 1–6:
@@ -540,9 +548,9 @@ cd _agents/s0-validate && claude "/dod-check my-project K 4 42"
 ### s0-github — GitHub Sync
 
 ```bash
-cd _agents/s0-github && claude /init my-project   # первичная инициализация
-cd _agents/s0-github && claude /push my-project   # шаг 22 цикла
-cd _agents/s0-github && claude /sync my-project   # синхронизация
+cd _agents/_tools/s0-github && claude /init my-project   # первичная инициализация
+cd _agents/_tools/s0-github && claude /push my-project   # шаг 22 цикла
+cd _agents/_tools/s0-github && claude /sync my-project   # синхронизация
 ```
 
 Ветки SDLC: `main`, `stage/planning`, `stage/requirements`, `stage/design`, `stage/development`, `stage/testing`, `stage/deploy`.
@@ -551,16 +559,16 @@ cd _agents/s0-github && claude /sync my-project   # синхронизация
 
 ```bash
 # Новый проект — провести интервью с нуля (4 блока вопросов)
-cd _agents/s0-kickoff && claude "/new my-project"
+cd _agents/cycle1-dev/s0-kickoff && claude "/new my-project"
 
 # Обновить существующий проект — беклог, видение, NFR
-cd _agents/s0-kickoff && claude "/refresh my-project"
+cd _agents/cycle1-dev/s0-kickoff && claude "/refresh my-project"
 
 # Авто-определение режима (new vs refresh)
-cd _agents/s0-kickoff && claude "/start my-project"
+cd _agents/cycle1-dev/s0-kickoff && claude "/start my-project"
 
 # Change Request — изменение требований в середине этапа
-cd _agents/s0-kickoff && claude "/cr my-project"
+cd _agents/cycle1-dev/s0-kickoff && claude "/cr my-project"
 ```
 
 Режим **NEW**: 5 блоков интервью, 26 вопросов (Проблема+Продукт → Бизнес → Техника → Приоритеты → Неизвестное).
@@ -584,8 +592,8 @@ cd _agents/s0-kickoff && claude "/cr my-project"
 ### s0-secrets — Secrets Manager
 
 ```bash
-cd _agents/s0-secrets && claude /add my-project api-key
-cd _agents/s0-secrets && claude /env my-project
+cd _agents/_tools/s0-secrets && claude /add my-project api-key
+cd _agents/_tools/s0-secrets && claude /env my-project
 ```
 
 ---
@@ -623,7 +631,7 @@ cd _agents/s0-secrets && claude /env my-project
 Каждый агент читает **только свой** `CLAUDE.md` при запуске из своей папки:
 
 ```bash
-cd "_agents/s1-pm"    # claude читает _agents/s1-pm/CLAUDE.md
+cd "_agents/cycle1-dev/s1-pm"    # claude читает _agents/cycle1-dev/s1-pm/CLAUDE.md
 claude /feasibility my-project
 ```
 
@@ -673,15 +681,6 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
 # 7. После цикла: cycle-summary.md + release-notes + ветка в GitHub
 ```
 
----
-
-## Активные проекты
-
-| Проект | Тип | Статус |
-|--------|-----|--------|
-| `FamilyPlannerBot` | Telegram-бот (Python, aiogram, PostgreSQL) | v1.2.0, Sprint 3 CLOSED → Sprint 4 в планировании |
-| `Telegram-private-bot` | Telegram-бот | Этап 1 (idea.md заполнен) |
-| `_example-project` | Шаблон | Только структура директорий |
 
 ---
 

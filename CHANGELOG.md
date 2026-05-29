@@ -13,6 +13,26 @@ tags: [docs, changelog]
 
 ---
 
+## [2.000.000] — 2026-05-29
+
+### Added
+- `plans/principles.md` — принципы проекта (3 цикла, SDD, TDD, Shift Left, Markdown-first, Obsidian, Secrets via pass, Quality Gates только вверх, DoR/DoD, Трассируемость)
+- `plans/roadmap.md` — roadmap изменений системы
+- `cycle1-dev/s0-tracker/CLAUDE.md` — добавлен DoD (sprint-close, task-done, report)
+- `find_agent_dir()` в `sdlc.sh` и `localrun.sh` — поиск агентов в подпапках циклов
+
+### Changed
+- Архитектура: монолитный SDLC разделён на 3 цикла (Dev / Deploy / Ops)
+- Директории агентов реструктурированы: `cycle1-dev/`, `cycle2-deploy/`, `cycle3-ops/`, `_tools/`, `plans/`
+- `_standards/company.md` — удалена методология разработки (перенесена в `plans/principles.md`), исправлена ссылка на секреты
+- Обновлена документация: `CLAUDE.md`, `README.md`, `OVERVIEW.md`, `GETTING_STARTED.md` (новая структура, перекрёстные ссылки)
+
+### Fixed
+- `cycle1-dev/s0-validate/CLAUDE.md` — исправлены абсолютные пути к `dod-check.sh` и `dor-check.sh`
+- `cycle1-dev/s0-kickoff/CLAUDE.md` — исправлен путь к `s1-pm`
+
+---
+
 ## [1.7.1] — 2026-05-23
 
 ### Added
