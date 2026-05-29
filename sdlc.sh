@@ -198,11 +198,22 @@ DASH
 #   interactive    — claude                  →  открывается REPL-диалог
 #
 # Возврат: 0 — OK, 1 — ошибка, 2 — выход из цикла
+find_agent_dir() {
+  local agent="$1"
+  local dir
+  for subdir in cycle1-dev cycle2-deploy cycle3-ops _tools; do
+    dir="$AGENTS/$subdir/$agent"
+    [[ -d "$dir" ]] && echo "$dir" && return
+  done
+  echo ""
+}
+
 run_agent() {
   local agent="$1"
   local project="$2"
   local task="$3"
-  local agent_dir="$AGENTS/$agent"
+  local agent_dir
+  agent_dir=$(find_agent_dir "$agent")
 
   if [[ ! -d "$agent_dir" ]]; then
     echo -e "${R}Агент '$agent' не найден${N}"; return 1
@@ -315,7 +326,8 @@ menu_single_agent() {
   pick_project || return
 
   # slash-команды агента
-  local cmd_dir="$AGENTS/$agent/.claude/commands"
+  local cmd_dir
+  cmd_dir="$(find_agent_dir "$agent")/.claude/commands"
   local task
   if [[ -d "$cmd_dir" ]] && compgen -G "$cmd_dir/*.md" > /dev/null 2>&1; then
     echo

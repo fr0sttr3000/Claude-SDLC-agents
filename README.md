@@ -41,19 +41,36 @@ _agents/
 ├── _standards/        ← Стандарты (читаются всеми агентами)
 │   ├── quality.md     ← DoD, DoR, Quality Gates, NFR, Auto-Heal
 │   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
-│   ├── company.md     ← Стек, роли, методология
+│   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
 │   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
 │   └── tech-debt-template.md      ← Шаблон журнала технического долга
-│
-├── s0-*/              ← Инфраструктура (kickoff, secrets, github, validate, tracker)
-├── s1-*/              ← Этап 1: Планирование (pm, pmo, finance)
-├── s2-*/              ← Этап 2: Требования (ba, po, qa-req)
-├── s3-*/              ← Этап 3: Дизайн (arch, security, dba)
-├── s4-*/              ← Этап 4: Разработка (dev, techlead, devops)
-├── s5-*/              ← Этап 5: Тестирование (qa, qa-auto, perf)
-├── s6-*/              ← Этап 6/7: Деплой и Эксплуатация (release, sre)
-└── l*/                ← Local Run (analyze, setup, build, run)
+├── _tools/            ← Утилиты для всех циклов
+│   ├── s0-github/     ← GitHub Sync
+│   └── s0-secrets/    ← Secrets Manager
+├── plans/             ← Планы развития системы
+│   ├── principles.md  ← Принципы проекта (SDD, TDD, Shift Left и др.)
+│   └── roadmap.md     ← Roadmap и запланированные изменения
+├── cycle1-dev/        ← Цикл 1: Разработка (19 агентов)
+│   ├── s0-kickoff/    ← Project Kickoff
+│   ├── s0-tracker/    ← Sprint & Task Tracker
+│   ├── s0-validate/   ← Structure Validator
+│   ├── s1-*/          ← Этап 1: Планирование (pm, pmo, finance)
+│   ├── s2-*/          ← Этап 2: Требования (ba, po, qa-req)
+│   ├── s3-*/          ← Этап 3: Дизайн (arch, security, rbac, dba)
+│   ├── s4-*/          ← Этап 4: Разработка (dev, techlead)
+│   ├── s5-*/          ← Этап 5: Тестирование (qa, qa-auto, perf)
+│   └── l*/            ← Local Run — оснастка разработчика (analyze, setup, build, run)
+├── cycle2-deploy/     ← Цикл 2: Деплой (разрабатывается)
+│   ├── s4-devops/     ← DevOps Engineer
+│   └── s6-release/    ← Release Manager
+└── cycle3-ops/        ← Цикл 3: Эксплуатация (разрабатывается)
+    └── s6-sre/        ← SRE
 ```
+
+Каждый агент — отдельная папка с `CLAUDE.md` (роль, правила, стандарты) и `.claude/commands/` (slash-команды).
+
+> **Принципы системы** (3 цикла, SDD, TDD, Shift Left, Markdown-first и др.) — [[plans/principles]]
+> **Roadmap изменений** — [[plans/roadmap]]
 
 Каждый агент — отдельная папка с `CLAUDE.md` (роль, правила, стандарты) и `.claude/commands/` (slash-команды).
 
@@ -88,20 +105,22 @@ _agents/
 Этап 4: Разработка ──[Gate 4]──►
   s4-dev      → код, PR Summary, Update Notes
   s4-techlead → Code Review (блокирует Gate 4)
-  s4-devops   → CI/CD, Runbook, Monitoring
 
 Этап 5: Тестирование ──[Gate 5]──►
   s5-qa      → Test Plan, Go/No-Go (блокирует Gate 5)
   s5-qa-auto → E2E/API тесты (coverage ≥95%)
   s5-perf    → Load Tests
 
-Этап 6: Деплой ──[Gate 6]──► PRODUCTION ──[Gate 7, T+7 дней]──►
-  s6-release → Release Checklist, Release Notes
-  s6-sre     → Post-Deploy Report, Monitoring, Auto-Heal verify, SLO Review
-
-Финальные шаги (обязательные)
+Финальные шаги Цикла 1 (обязательные)
   s0-tracker /report → отчёт план vs факт
   s0-github  /push   → push артефактов в GitHub
+
+─── Цикл 2: Деплой (разрабатывается) ───────────────────────────
+  s4-devops  → CI/CD, Runbook, Monitoring (деплой в реальную среду)
+  s6-release → Release Checklist, Release Notes
+
+─── Цикл 3: Эксплуатация (разрабатывается) ─────────────────────
+  s6-sre     → Post-Deploy Report, Monitoring, Auto-Heal, SLO Review
 ```
 
 ---
@@ -271,7 +290,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `/new` | Новый проект, пустые входные данные | `sdlc.sh → 0) Kickoff → 1)` |
 | `/refresh` | Обновить беклог / видение / NFR | `sdlc.sh → 0) Kickoff → 2)` |
 | `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
-| `/cr` | Change Request — изменение требований в середине этапа | `cd s0-kickoff && claude "/cr my-project"` |
+| `/cr` | Change Request — изменение требований в середине этапа | `cd cycle1-dev/s0-kickoff && claude "/cr my-project"` |
 
 **Режим `/new` — 5 блоков интервью, 26 вопросов:**
 1. **Проблема и продукт** — pain point, As-Is, To-Be, описание продукта, аудитория, конкуренты, уникальность
@@ -354,7 +373,6 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 |-------|------|--------------|
 | `s4-dev` | Backend Developer — код, PR Summary, Update Notes | `/dev-report`, `/update-notes` |
 | `s4-techlead` | Tech Lead — Code Review (DoD) → **Gate 4** | `/review` |
-| `s4-devops` | DevOps Engineer — CI/CD, Runbook, Monitoring | `/pipeline`, `/runbook` |
 
 ### Этап 5 — Тестирование
 
@@ -364,12 +382,18 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `s5-qa-auto` | QA Automation — E2E/API тесты (coverage ≥95%) | `/e2e-report` |
 | `s5-perf` | Performance Engineer — Load Tests | `/load-test` |
 
-### Этап 6/7 — Деплой и Эксплуатация
+### Цикл 2 — Деплой *(разрабатывается)*
 
 | Агент | Роль | Slash-команды |
 |-------|------|--------------|
-| `s6-release` | Release Manager — Checklist → Gate 6, Release Notes | `/release-checklist`, `/release-notes` |
-| `s6-sre` | SRE — Post-Deploy + Monitoring + Auto-Heal verify + SLO Review → **Gate 7** | `/post-deploy`, `/gate7` |
+| `s4-devops` | DevOps Engineer — CI/CD, Runbook, Monitoring, деплой | `/pipeline`, `/runbook` |
+| `s6-release` | Release Manager — Checklist, Release Notes | `/release-checklist`, `/release-notes` |
+
+### Цикл 3 — Эксплуатация *(разрабатывается)*
+
+| Агент | Роль | Slash-команды |
+|-------|------|--------------|
+| `s6-sre` | SRE — Post-Deploy, Monitoring, Auto-Heal, SLO Review | `/post-deploy`, `/gate7` |
 
 ---
 
@@ -423,7 +447,7 @@ DoD **бинарен** — нет "Done minus docs". Задача остаётс
 
 ```bash
 # Добавить секрет
-cd s0-secrets && claude /add my-project api-key
+cd _tools/s0-secrets && claude /add my-project api-key
 
 # Использовать секрет
 export TOKEN=$(pass sdlc/projects/my-project/api-key)
@@ -437,7 +461,7 @@ export TOKEN=$(pass sdlc/projects/my-project/api-key)
 
 ```bash
 # Перейди в папку агента
-cd s1-pm
+cd cycle1-dev/s1-pm
 
 # Slash-команда (task-режим — выполнит и завершится)
 claude /feasibility my-project
@@ -456,7 +480,7 @@ claude --continue
 
 ```bash
 # Агент читает артефакт предыдущего через абсолютный путь
-cd s2-ba
+cd cycle1-dev/s2-ba
 claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
 ```
 
@@ -485,7 +509,7 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ## Советы
 
-- Перед первым запуском заполни `_standards/company.md` — стек, роли, методология
+- Перед первым запуском заполни `_standards/company.md` — стек, роли, compliance (методология — в `plans/principles.md`)
 - Quality Gates проверяются агентом следующего этапа автоматически
 - `s0-validate /fix` — быстро создать недостающую структуру проекта
 - `/model claude-opus-4-7` — переключить модель внутри сессии для сложных задач
@@ -497,9 +521,11 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 | Файл | Назначение |
 |------|-----------|
-| `_standards/company.md` | Стек компании, роли, compliance |
+| `_standards/company.md` | Стек компании, роли, compliance (заполни под свой проект) |
 | `_standards/quality.md` | NFR-дефолты, пороги gates, паттерны надёжности |
 | `_standards/data-formats.md` | Правила форматов DB/ENV/API, шаблоны тестов |
+| `plans/principles.md` | Принципы разработки (SDD, TDD, Shift Left и др.) |
+| `plans/roadmap.md` | Roadmap и запланированные изменения системы |
 | `{agent}/CLAUDE.md` | Роль, правила, стандарты конкретного агента |
 | `sdlc.sh` → `OPTIONAL_AGENTS_DEF` | Список необязательных шагов цикла |
 
@@ -507,4 +533,4 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents v1.7.0 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v2.000.000 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*
