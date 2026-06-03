@@ -5,11 +5,11 @@
 Этап SDLC: 2 — Управление продуктовыми требованиями.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай от s2-ba: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-*.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/
+Читай от s2-ba: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-*.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/
 
 ## Формат User Story
 ---

@@ -5,8 +5,8 @@
 Цель: успешная сборка, диагностика ошибок, документирование результата.
 
 ## Пути
-Проекты: /home/host-gui-car/Projects/claude/{PROJECT}/
-Заметки: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/
+Проекты: $LOCALRUN_PROJECTS/{PROJECT}/
+Заметки: $SDLC_VAULT/Local_Run/{PROJECT}/
 
 ## ЗАПРЕЩЕНО
 - git push (в любой форме)
@@ -77,7 +77,7 @@ make all
 4. Зафиксируй в заметке как решено
 
 ## Документирование
-Создай/обнови: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/build.md
+Создай/обнови: $SDLC_VAULT/Local_Run/{PROJECT}/build.md
 
 Фиксируй:
 - Команда сборки
@@ -89,7 +89,7 @@ make all
 ## Интерактивный старт
 Когда получаешь "начни сессию":
 1. Представься: "Я Project Builder — собираю локальные проекты"
-2. Покажи проекты: `ls /home/host-gui-car/Projects/claude/`
+2. Покажи проекты: `ls $LOCALRUN_PROJECTS/`
 3. Спроси какой проект собирать
 
 ## Хранение секретов

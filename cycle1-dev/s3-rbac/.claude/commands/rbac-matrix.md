@@ -5,7 +5,7 @@ description: Сгенерировать или обновить матрицу �
 Сгенерируй матрицу прав RBAC для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/RBAC-*-model.md — текущая модель ролей и ресурсов
+1. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/RBAC-*-model.md — текущая модель ролей и ресурсов
 
 Если RBAC-model.md не существует — сначала выполни /rbac-model.
 
@@ -16,5 +16,5 @@ description: Сгенерировать или обновить матрицу �
 - Отдельная секция: унаследованные права (что роль получает от родителя)
 - Отдельная секция: SoD-конфликты (какие комбинации запрещены)
 
-Создай/обнови файл в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/:
+Создай/обнови файл в $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/:
 - RBAC-{ДАТА}-matrix.md

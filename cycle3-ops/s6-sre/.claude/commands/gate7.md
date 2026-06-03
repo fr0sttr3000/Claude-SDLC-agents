@@ -5,11 +5,11 @@ description: Gate 7 — SLO Review, Auto-Heal проверка, Incident Runbook
 Выполни Gate 7 для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage6-deploy/outputs/SRE-*-post-deploy-report.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-monitoring.yaml (если существует)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/SRE-*-post-deploy-report.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-monitoring.yaml (если существует)
 
-Создай файлы в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage7-ops/outputs/:
+Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage7-ops/outputs/:
 - SRE-[дата]-autoheal-report.md
 - SRE-[дата]-ops-report.md
 - SRE-runbook-service-down.md

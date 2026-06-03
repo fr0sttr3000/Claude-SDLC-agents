@@ -7,7 +7,7 @@ description: Полный отчёт SDLC-цикла — план vs факт п
 Шаги:
 
 1. Собери данные из tracking/:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/
 
    - Прочитай все sprint-NN.md (в порядке возрастания)
    - Прочитай backlog.md
@@ -20,7 +20,7 @@ description: Полный отчёт SDLC-цикла — план vs факт п
    - Если файлов нет — отметить как [ПЛАН НЕДОСТУПЕН]
 
 3. Сформируй отчёт и сохрани в:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/cycle-summary.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/cycle-summary.md
 
    Структура отчёта:
    ```markdown

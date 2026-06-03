@@ -1,11 +1,16 @@
 #!/bin/bash
 # SDLC Interactive Agent Launcher
 
-export PATH="/home/host-gui-car/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
-VAULT="/home/host-gui-car/Documents/Obsidian Vault/Claude"
-AGENTS="$VAULT/_agents"
+# Пути вычисляются от расположения скрипта — переносимо между окружениями
+AGENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VAULT="$(dirname "$AGENTS")"
 PROJECTS="$VAULT/projects"
+
+# Экспортируем пути в окружение — агенты используют их в CLAUDE.md
+# вместо захардкоженных абсолютных путей (по образцу AGENT_DIR)
+export SDLC_VAULT="$VAULT"
 
 # ─── цвета ────────────────────────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[0;33m'
@@ -42,7 +47,7 @@ declare -A AGENT_DESC=(
   [s6-sre]="SRE — Post-Deploy, Post-Mortem"
 )
 
-# ─── необязательные шаги (можно добавить в цикл) ─────────────────────────────
+# ─── необязательные шаги (можно добавить в Цикл 1) ───────────────────────────
 # Формат: "агент|задача|позиция|описание"
 # позиция: before — до основного цикла, after — после основного цикла
 declare -a OPTIONAL_AGENTS_DEF=(
@@ -50,15 +55,15 @@ declare -a OPTIONAL_AGENTS_DEF=(
   "s0-secrets|Настрой секреты для проекта|before|Настройка секретов через pass"
   "s0-tracker|/sprint-init|before|Инициализировать спринт перед циклом"
   "s0-validate|/validate|after|Проверить артефакты после завершения цикла"
-  "s6-sre|/gate7|after|Gate 7 — мониторинг + auto-heal + SLO Review (через 7 дней после деплоя)"
 )
 
 # глобальные массивы — заполняются configure_optional_steps
 OPTIONAL_BEFORE=()
 OPTIONAL_AFTER=()
 
-# ─── полный цикл: агент:задача ────────────────────────────────────────────────
-declare -a CYCLE_AGENTS=(
+# ─── Цикл 1 — Разработка (агент:задача) ───────────────────────────────────────
+# Только агенты cycle1-dev/ + сквозные _tools. Деплой/эксплуатация — Циклы 2/3.
+declare -a CYCLE1_AGENTS=(
   "s1-pm:/feasibility"
   "s1-pm:/vision"
   "s1-pmo:/charter"
@@ -75,17 +80,26 @@ declare -a CYCLE_AGENTS=(
   "s3-dba:/schema"
   "s4-dev:/dev-report"
   "s4-techlead:/review"
-  "s4-devops:/pipeline"
-  "s4-devops:/runbook"
   "s5-qa:/test-plan"
   "s5-qa-auto:/e2e-report"
   "s5-perf:/load-test"
   "s5-qa:/go-no-go"
-  "s6-release:/release-checklist"
-  "s6-release:/release-notes"
-  "s6-sre:/post-deploy"
   "s0-tracker:/report"
   "s0-github:/push"
+)
+
+# ─── Цикл 2 — Деплой (⏳ в разработке) ────────────────────────────────────────
+declare -a CYCLE2_AGENTS=(
+  "s4-devops:/pipeline"
+  "s4-devops:/runbook"
+  "s6-release:/release-checklist"
+  "s6-release:/release-notes"
+)
+
+# ─── Цикл 3 — Эксплуатация (⏳ в разработке) ──────────────────────────────────
+declare -a CYCLE3_AGENTS=(
+  "s6-sre:/post-deploy"
+  "s6-sre:/gate7"
 )
 
 header() {
@@ -111,11 +125,15 @@ pick_project() {
   done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
 
   echo -e "  ${Y}n)${N} Создать новый проект"
+  echo -e "  ${Y}b)${N} Назад"
   echo
-  read -rp "$(echo -e "${W}Выбери проект [1-${#proj_list[@]}/n]:${N} ")" choice
+  read -rp "$(echo -e "${W}Выбери проект [1-${#proj_list[@]}/n/b]:${N} ")" choice
 
-  if [[ "$choice" == "n" ]]; then
-    read -rp "$(echo -e "${W}Название нового проекта:${N} ")" PROJECT
+  if [[ "$choice" == "b" || "$choice" == "B" ]]; then
+    return 1
+  elif [[ "$choice" == "n" ]]; then
+    read -rp "$(echo -e "${W}Название нового проекта (Enter — отмена):${N} ")" PROJECT
+    [[ -z "$PROJECT" ]] && return 1
     create_project "$PROJECT"
   else
     PROJECT="${proj_list[$((choice-1))]}"
@@ -294,23 +312,35 @@ menu_single_agent() {
   echo -e "${W}── Запуск одного агента ──────────────────────────────${N}"
   echo
 
-  local -a stages=("0: Инфраструктура" "L: Local Run (GitHub проекты)" "1: Планирование" "2: Требования" "3: Дизайн"
-                   "4: Разработка" "5: Тестирование" "6: Деплой")
+  local -a stages=(
+    "Цикл 1 · S0 — Discovery & Tracking"
+    "Цикл 1 · S1 — Планирование"
+    "Цикл 1 · S2 — Требования"
+    "Цикл 1 · S3 — Дизайн"
+    "Цикл 1 · S4 — Разработка"
+    "Цикл 1 · S5 — Тестирование"
+    "Tools — общие утилиты (все циклы)"
+    "Local Run — оснастка разработчика"
+    "Цикл 2 — Деплой (⏳ в разработке)"
+    "Цикл 3 — Эксплуатация (⏳ в разработке)"
+  )
   local -a groups=(
-    "s0-kickoff s0-secrets s0-github s0-validate s0-tracker"
-    "l1-analyze l2-setup l3-build l4-run"
+    "s0-kickoff s0-tracker s0-validate"
     "s1-pm s1-pmo s1-finance"
     "s2-ba s2-po s2-qa-req"
     "s3-arch s3-security s3-rbac s3-dba"
-    "s4-dev s4-techlead s4-devops"
+    "s4-dev s4-techlead"
     "s5-qa s5-qa-auto s5-perf"
-    "s6-release s6-sre"
+    "s0-github s0-secrets"
+    "l1-analyze l2-setup l3-build l4-run"
+    "s4-devops s6-release"
+    "s6-sre"
   )
 
   local i=1
   local -a agent_list=()
   for s in "${!stages[@]}"; do
-    echo -e "${B}Этап ${stages[$s]}${N}"
+    echo -e "${B}${stages[$s]}${N}"
     for ag in ${groups[$s]}; do
       echo -e "  ${Y}$i)${N} ${W}$ag${N} — ${AGENT_DESC[$ag]}"
       agent_list+=("$ag")
@@ -319,7 +349,10 @@ menu_single_agent() {
     echo
   done
 
-  read -rp "$(echo -e "${W}Выбери агента [1-${#agent_list[@]}]:${N} ")" choice
+  echo -e "  ${Y}b)${N} Назад"
+  echo
+  read -rp "$(echo -e "${W}Выбери агента [1-${#agent_list[@]}/b]:${N} ")" choice
+  [[ "$choice" == "b" || "$choice" == "B" ]] && return
   local agent="${agent_list[$((choice-1))]}"
   if [[ -z "$agent" ]]; then echo -e "${R}Неверный выбор${N}"; sleep 1; return; fi
 
@@ -344,9 +377,11 @@ menu_single_agent() {
     done
     echo -e "  ${Y}$j)${N} Ввести произвольную задачу"
     echo -e "  ${Y}$((j+1)))${N} Открыть интерактивный режим сразу"
+    echo -e "  ${Y}b)${N} Назад"
     echo
-    read -rp "$(echo -e "${W}Выбери [1-$((j+1))]:${N} ")" cmd_choice
+    read -rp "$(echo -e "${W}Выбери [1-$((j+1))/b]:${N} ")" cmd_choice
 
+    [[ "$cmd_choice" == "b" || "$cmd_choice" == "B" ]] && return
     if [[ "$cmd_choice" -eq "$((j+1))" ]] 2>/dev/null; then
       # сразу в интерактив
       run_agent "$agent" "$PROJECT" ""
@@ -362,8 +397,10 @@ menu_single_agent() {
     echo
     echo -e "  ${Y}1)${N} Ввести задачу"
     echo -e "  ${Y}2)${N} Открыть интерактивный режим"
+    echo -e "  ${Y}b)${N} Назад"
     echo
-    read -rp "$(echo -e "${W}Выбери [1-2]:${N} ")" mode_choice
+    read -rp "$(echo -e "${W}Выбери [1-2/b]:${N} ")" mode_choice
+    [[ "$mode_choice" == "b" || "$mode_choice" == "B" ]] && return
     if [[ "$mode_choice" == "2" ]]; then
       run_agent "$agent" "$PROJECT" ""
       echo
@@ -439,12 +476,66 @@ configure_optional_steps() {
   done
 }
 
-# ─── полный цикл ──────────────────────────────────────────────────────────────
-menu_full_cycle() {
-  header
-  echo -e "${W}── Полный SDLC-цикл ──────────────────────────────────${N}"
+# ─── исполнение списка шагов цикла ────────────────────────────────────────────
+# Аргументы: $1 — заголовок цикла; далее RUN_CYCLE/RUN_OPTIONAL уже заполнены
+execute_cycle() {
+  local cycle_title="$1"
+  local total=${#RUN_CYCLE[@]}
+
+  local step=0 skipped=0 done_count=0 aborted=0
+  local -a step_log=()
+
+  for ((idx=0; idx<${#RUN_CYCLE[@]}; idx++)); do
+    ((step++))
+    local entry="${RUN_CYCLE[$idx]}"
+    local is_optional="${RUN_OPTIONAL[$idx]}"
+    local agent="${entry%%:*}"
+    local task="${entry#*:}"
+    local label="${agent} — ${AGENT_DESC[$agent]}"
+    local opt_tag=""
+    [[ "$is_optional" -eq 1 ]] && opt_tag=" ${C}[доп]${N}"
+
+    echo
+    echo -e "${B}━━━ $cycle_title — Шаг $step / $total ━━━━━━━━━━━━━━━━━━${N}${opt_tag}"
+
+    run_agent "$agent" "$PROJECT" "$task"
+    local rc=$?
+
+    if [[ $rc -eq 2 ]]; then
+      step_log+=("  ${Y}⏹${N}  $label${opt_tag}")
+      ((aborted++))
+      echo -e "${Y}Цикл прерван на шаге $step${N}"
+      break
+    elif [[ $rc -eq 3 ]]; then
+      step_log+=("  ${Y}⏭${N}  $label${opt_tag}")
+      ((skipped++))
+    else
+      step_log+=("  ${G}✓${N}  $label${opt_tag}")
+      ((done_count++))
+    fi
+  done
+
   echo
-  pick_project || return
+  echo -e "${G}╔══════════════════════════════════════════════════════╗${N}"
+  echo -e "${G}║${W}  Итог: $cycle_title — Проект: $PROJECT${N}"
+  echo -e "${G}╠══════════════════════════════════════════════════════╣${N}"
+  for line in "${step_log[@]}"; do
+    echo -e "${G}║${N}${line}"
+  done
+  echo -e "${G}╠══════════════════════════════════════════════════════╣${N}"
+  echo -e "${G}║${N}  ${G}✓${N} Выполнено: ${G}$done_count${N}   ${Y}⏭${N} Пропущено: ${Y}$skipped${N}   Всего: $step / $total"
+  echo -e "${G}╚══════════════════════════════════════════════════════╝${N}"
+  echo
+}
+
+# ─── Цикл 1 — Разработка ──────────────────────────────────────────────────────
+# Аргумент $1: "standalone" (по умолчанию) — спросить проект; "chained" — PROJECT уже выбран
+run_cycle1() {
+  local mode="${1:-standalone}"
+  header
+  echo -e "${W}── Цикл 1 — Разработка ───────────────────────────────${N}"
+  echo
+  [[ "$mode" == "standalone" ]] && { pick_project || return; }
 
   # выбор необязательных шагов
   configure_optional_steps
@@ -457,7 +548,7 @@ menu_full_cycle() {
     RUN_CYCLE+=("$entry")
     RUN_OPTIONAL+=(1)
   done
-  for entry in "${CYCLE_AGENTS[@]}"; do
+  for entry in "${CYCLE1_AGENTS[@]}"; do
     RUN_CYCLE+=("$entry")
     RUN_OPTIONAL+=(0)
   done
@@ -466,7 +557,7 @@ menu_full_cycle() {
     RUN_OPTIONAL+=(1)
   done
 
-  local mandatory_count=${#CYCLE_AGENTS[@]}
+  local mandatory_count=${#CYCLE1_AGENTS[@]}
   local optional_count=$(( ${#OPTIONAL_BEFORE[@]} + ${#OPTIONAL_AFTER[@]} ))
   local total=${#RUN_CYCLE[@]}
 
@@ -489,51 +580,87 @@ menu_full_cycle() {
   read -rp "$(echo -e "${W}Начать? [Enter / q]:${N} ")" go
   [[ "$go" == "q" || "$go" == "Q" ]] && return
 
-  local step=0 skipped=0 done_count=0 aborted=0
-  local -a step_log=()
+  execute_cycle "Цикл 1 — Разработка"
+  [[ "$mode" == "standalone" ]] && read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+}
 
-  for ((idx=0; idx<${#RUN_CYCLE[@]}; idx++)); do
-    ((step++))
-    local entry="${RUN_CYCLE[$idx]}"
-    local is_optional="${RUN_OPTIONAL[$idx]}"
-    local agent="${entry%%:*}"
-    local task="${entry#*:}"
-    local label="${agent} — ${AGENT_DESC[$agent]}"
-    local opt_tag=""
-    [[ "$is_optional" -eq 1 ]] && opt_tag=" ${C}[доп]${N}"
-
-    echo
-    echo -e "${B}━━━ Шаг $step / $total ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}${opt_tag}"
-
-    run_agent "$agent" "$PROJECT" "$task"
-    local rc=$?
-
-    if [[ $rc -eq 2 ]]; then
-      step_log+=("  ${Y}⏹${N}  $label${opt_tag}")
-      ((aborted++))
-      echo -e "${Y}Цикл прерван на шаге $step${N}"
-      break
-    elif [[ $rc -eq 3 ]]; then
-      step_log+=("  ${Y}⏭${N}  $label${opt_tag}")
-      ((skipped++))
-    else
-      step_log+=("  ${G}✓${N}  $label${opt_tag}")
-      ((done_count++))
-    fi
-  done
-
+# ─── Цикл 2 — Деплой (заглушка) ───────────────────────────────────────────────
+run_cycle2_stub() {
+  header
+  echo -e "${W}── Цикл 2 — Деплой ───────────────────────────────────${N}"
   echo
-  echo -e "${G}╔══════════════════════════════════════════════════════╗${N}"
-  echo -e "${G}║${W}  Итог цикла SDLC — Проект: $PROJECT${N}"
-  echo -e "${G}╠══════════════════════════════════════════════════════╣${N}"
-  for line in "${step_log[@]}"; do
-    echo -e "${G}║${N}${line}"
+  echo -e "  ${Y}⏳ Цикл в разработке.${N} Будет доступен в будущей версии."
+  echo
+  echo -e "  Назначение: деплой кода в реальную среду."
+  echo -e "  Запланированные агенты:"
+  local -a seen=()
+  for entry in "${CYCLE2_AGENTS[@]}"; do
+    local agent="${entry%%:*}"
+    [[ " ${seen[*]} " == *" $agent "* ]] && continue
+    seen+=("$agent")
+    echo -e "    ${C}•${N} $agent — ${AGENT_DESC[$agent]}"
   done
-  echo -e "${G}╠══════════════════════════════════════════════════════╣${N}"
-  echo -e "${G}║${N}  ${G}✓${N} Выполнено: ${G}$done_count${N}   ${Y}⏭${N} Пропущено: ${Y}$skipped${N}   Всего: $step / $total"
-  echo -e "${G}╚══════════════════════════════════════════════════════╝${N}"
+  echo
+  echo -e "  Подробнее: ${C}plans/roadmap.md → Разработка Цикла 2${N}"
   echo
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+}
+
+# ─── Цикл 3 — Эксплуатация (заглушка) ─────────────────────────────────────────
+run_cycle3_stub() {
+  header
+  echo -e "${W}── Цикл 3 — Эксплуатация ─────────────────────────────${N}"
+  echo
+  echo -e "  ${Y}⏳ Цикл в разработке.${N} Будет доступен в будущей версии."
+  echo
+  echo -e "  Назначение: эксплуатация задеплоенного кода в проде."
+  echo -e "  Запланированные агенты:"
+  local -a seen=()
+  for entry in "${CYCLE3_AGENTS[@]}"; do
+    local agent="${entry%%:*}"
+    [[ " ${seen[*]} " == *" $agent "* ]] && continue
+    seen+=("$agent")
+    echo -e "    ${C}•${N} $agent — ${AGENT_DESC[$agent]}"
+  done
+  echo
+  echo -e "  Подробнее: ${C}plans/roadmap.md → Разработка Цикла 3${N}"
+  echo
+  read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+}
+
+# ─── Все циклы подряд (1 → 2 → 3) ─────────────────────────────────────────────
+run_all_cycles() {
+  header
+  echo -e "${W}── Все циклы: Разработка → Деплой → Эксплуатация ─────${N}"
+  echo
+  pick_project || return
+  run_cycle1 chained
+  echo
+  read -rp "$(echo -e "${W}Цикл 1 завершён. Enter — перейти к Циклу 2...${N} ")" _
+  run_cycle2_stub
+  run_cycle3_stub
+}
+
+# ─── подменю выбора цикла ─────────────────────────────────────────────────────
+menu_cycle_select() {
+  header
+  echo -e "${W}── Что хотите сделать? ───────────────────────────────${N}"
+  echo
+  echo -e "  ${Y}1)${N} ${G}🔧 Разработка${N} (Цикл 1)        ${G}✓ готов${N}"
+  echo -e "  ${Y}2)${N} ${C}🚀 Деплой${N} (Цикл 2)            ${Y}⏳ в разработке${N}"
+  echo -e "  ${Y}3)${N} ${C}📊 Эксплуатация${N} (Цикл 3)      ${Y}⏳ в разработке${N}"
+  echo -e "  ${Y}4)${N} ${W}⚙️  Всё сразу${N} (1 → 2 → 3)"
+  echo -e "  ${Y}b)${N} Назад"
+  echo
+  read -rp "$(echo -e "${W}Выбери [1-4/b]:${N} ")" choice
+  case "$choice" in
+    1) run_cycle1 ;;
+    2) run_cycle2_stub ;;
+    3) run_cycle3_stub ;;
+    4) run_all_cycles ;;
+    b|B) return ;;
+    *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
+  esac
 }
 
 # ─── создание проекта ─────────────────────────────────────────────────────────
@@ -541,8 +668,8 @@ menu_new_project() {
   header
   echo -e "${W}── Новый проект ──────────────────────────────────────${N}"
   echo
-  read -rp "$(echo -e "${W}Название проекта:${N} ")" name
-  if [[ -z "$name" ]]; then echo -e "${R}Пустое имя${N}"; sleep 1; return; fi
+  read -rp "$(echo -e "${W}Название проекта (Enter — назад):${N} ")" name
+  if [[ -z "$name" ]]; then return; fi
   create_project "$name"
   echo
   echo -e "${C}Проект создан. Запустить интервью для заполнения входных данных? (s0-kickoff /new)${N}"
@@ -641,8 +768,8 @@ main_menu() {
   while true; do
     header
     echo -e "  ${Y}0)${N} ${G}Kickoff${N} — онбординг нового проекта / обновление беклога"
-    echo -e "  ${Y}1)${N} ${W}Запустить один агент${N}"
-    echo -e "  ${Y}2)${N} ${W}Полный SDLC-цикл${N} (все ${#CYCLE_AGENTS[@]} шагов)"
+    echo -e "  ${Y}1)${N} ${W}Запустить цикл${N} — разработка / деплой / эксплуатация / всё"
+    echo -e "  ${Y}2)${N} ${W}Запустить один агент${N}"
     echo -e "  ${Y}3)${N} Создать новый проект"
     echo -e "  ${Y}4)${N} Список проектов"
     echo -e "  ${Y}5)${N} ${C}Local Run${N} — проекты с GitHub (clone / build / run)"
@@ -652,8 +779,8 @@ main_menu() {
     read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
     case "$choice" in
       0) menu_kickoff ;;
-      1) menu_single_agent ;;
-      2) menu_full_cycle ;;
+      1) menu_cycle_select ;;
+      2) menu_single_agent ;;
       3) menu_new_project ;;
       4) menu_list_projects ;;
       5) bash "$AGENTS/localrun.sh" ;;

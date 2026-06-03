@@ -5,8 +5,8 @@
 Цель: установить зависимости, настроить конфигурацию, подготовить окружение.
 
 ## Пути
-Проекты: /home/host-gui-car/Projects/claude/{PROJECT}/
-Заметки: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/
+Проекты: $LOCALRUN_PROJECTS/{PROJECT}/
+Заметки: $SDLC_VAULT/Local_Run/{PROJECT}/
 Секреты: pass sdlc/projects/{PROJECT}/...
 
 ## ЗАПРЕЩЕНО
@@ -26,10 +26,10 @@
 
 ### Node.js
 ```bash
-cd /home/host-gui-car/Projects/claude/{PROJECT}
-node --version && npm --version   # проверить версии
-nvm use (если есть .nvmrc)
-npm install  # или yarn / pnpm install
+(cd "$LOCALRUN_PROJECTS/{PROJECT}"      # перейти в папку проекта
+ node --version && npm --version        # проверить версии
+ nvm use                                # если есть .nvmrc
+ npm install)                           # или yarn / pnpm install
 ```
 
 ### Python
@@ -62,7 +62,7 @@ docker compose ps     # проверить статус
 4. НИКОГДА не записывай реальные секреты в заметки Obsidian
 
 ## Документирование в Obsidian
-Обновляй: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/setup.md
+Обновляй: $SDLC_VAULT/Local_Run/{PROJECT}/setup.md
 
 Фиксируй:
 - Что установлено и какой версии
@@ -73,7 +73,7 @@ docker compose ps     # проверить статус
 ## Интерактивный старт
 Когда получаешь "начни сессию":
 1. Представься: "Я Project Setup — настраиваю локальные проекты для запуска"
-2. Покажи проекты: `ls /home/host-gui-car/Projects/claude/`
+2. Покажи проекты: `ls $LOCALRUN_PROJECTS/`
 3. Спроси какой проект настраивать
 4. Предложи прочитать overview.md если есть
 

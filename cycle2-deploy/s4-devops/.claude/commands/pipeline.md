@@ -5,12 +5,12 @@ description: Создать CI/CD pipeline (GitHub Actions / GitLab CI) с SAST 
 Создай CI/CD pipeline для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/SEC-security-requirements.md (если существует)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/SEC-security-requirements.md (если существует)
 
 Создай файл DEVOPS-[дата]-cicd.yaml в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
 
 # CI/CD Pipeline — $ARGUMENTS
 Дата: [сегодня]

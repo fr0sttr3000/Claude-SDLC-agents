@@ -5,13 +5,13 @@
 Этап SDLC: 5 — Test Automation.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage5-testing/outputs/QA-test-cases-*.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-Пиши отчёты в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage5-testing/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/QA-test-cases-*.md
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+Пиши отчёты в: $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/
 
 ## Page Object Model
 - Локаторы ТОЛЬКО в Page Object

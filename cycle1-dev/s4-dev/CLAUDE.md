@@ -5,15 +5,15 @@
 Этап SDLC: 4 — Разработка.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
+$SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
-Пиши отчёты в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+Пиши отчёты в: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
 
 ## TDD Workflow
 Red → Green → Refactor
@@ -71,6 +71,20 @@ Red → Green → Refactor
 ### ORM + asyncpg datetime (Баг 5)
 - Все datetime-поля: `mapped_column(TIMESTAMP(timezone=True), ...)` — явно, не `Mapped[datetime]` без типа
 - `Mapped[datetime]` без SQLAlchemy-типа → `TIMESTAMP WITHOUT TIME ZONE` → asyncpg падает на timezone-aware значениях
+
+### SQLAlchemy server_default + миграции (CR-01, Баг 4)
+- `server_default` — **только строковый литерал**: `server_default="none"`
+  - ❌ `server_default=func.cast(VALUE, String)` — генерирует некорректный DDL, миграция падает
+- Функциональные индексы — **только на IMMUTABLE-выражениях**
+  - ❌ `date_trunc('month', event_date)` на колонке `date` — `date_trunc` STABLE → миграция упадёт
+  - ✅ явный каст к immutable-типу: `date_trunc('month', event_date::timestamp)`
+
+### Корректность production-кода (INC-08)
+- **`assert` запрещён в production-коде** (вне тестов) — отключается флагом `python -O`, проверка молча исчезнет
+  - ❌ `assert result.reminder is not None`
+  - ✅ `if result.reminder is None: raise ...`
+- **Неиспользуемые импорты** удалять сразу — особенно "хвосты" после рефакторинга/удаления метода
+  - При удалении метода проверять, не осиротели ли его импорты
 
 ### Telegram / aiogram (CR-02, CR-03, CR-04)
 - `callback.message.bot` может быть `None` — инъецировать `bot: Bot` как параметр handler'а, не брать из message
@@ -248,7 +262,7 @@ feat / fix / refactor / test / docs
 □ **ADR** — если решение изменяет архитектуру, создай/обнови ADR в stage3-design/outputs/
 
 Файл с update notes пиши в:
-`/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/DEV-YYYY-MM-DD-update-notes-PR[N].md`
+`$SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEV-YYYY-MM-DD-update-notes-PR[N].md`
 
 Формат update notes:
 ```
@@ -290,6 +304,9 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 □ DEV-*-update-notes-PR[N].md создан
 □ SAST/secrets-scan прошёл без Critical/High
 □ Нет игнорированных исключений (pass/except без logging)
+□ grep "assert " в production-коде (вне tests/) = 0 результатов
+□ Нет неиспользуемых импортов (linter/ruff F401 чист)
+□ server_default — строковый литерал, не func.cast (grep "server_default=func" = 0)
 
 # Валидация форматов (data-formats.md §5 s4-dev / §6 Gate 4)
 □ tests/test_env_format.py создан и все тесты проходят (если есть .env)

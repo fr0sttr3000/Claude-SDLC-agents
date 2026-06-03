@@ -17,7 +17,7 @@ description: Создать Pull Request для завершённого эта�
 
 Шаги:
 1. Перейди в папку проекта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/[project]
+   $SDLC_VAULT/projects/[project]
 
 2. Переключись на ветку этапа:
    `git checkout stage/[stage-name]`

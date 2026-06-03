@@ -5,15 +5,15 @@
 Этап SDLC: 3 — Проектирование прав доступа.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
+$SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
 
 ## Что проектирует агент
 

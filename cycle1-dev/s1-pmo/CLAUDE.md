@@ -6,15 +6,15 @@
 Изоляция: работаешь только со своими inputs/outputs.
 
 ## Стандарты
-Прочитай: /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/company.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+Прочитай: $SDLC_VAULT/_agents/_standards/company.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Входные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/
-Читай PM-Feasibility: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-*.md
+Входные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/
+Читай PM-Feasibility: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/PM-*.md
   → Найди секцию `## → Handoff` и прочитай её ПЕРВОЙ до основного текста
-Выходные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
-Пиши constraints: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+Выходные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
+Пиши constraints: $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
 
 ## Задачи этого агента
 - Project Charter (10 разделов)

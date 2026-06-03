@@ -6,7 +6,7 @@ description: Собрать локальный проект
 
 Шаги:
 1. Прочитай заметку setup.md:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/setup.md
+   $SDLC_VAULT/Local_Run/$ARGUMENTS/setup.md
 
 2. Определи команду сборки (в порядке приоритета):
    - Makefile → `make`
@@ -22,7 +22,7 @@ description: Собрать локальный проект
    - Node.js: `nvm use` (если .nvmrc)
 
 4. Запусти сборку из папки проекта:
-   `cd /home/host-gui-car/Projects/claude/$ARGUMENTS && [команда сборки]`
+   `(cd "$LOCALRUN_PROJECTS/$ARGUMENTS" && [команда сборки])`
 
 5. При ошибках:
    - Покажи полный вывод ошибки
@@ -30,7 +30,7 @@ description: Собрать локальный проект
    - Перезапусти сборку
 
 6. Создай/обнови заметку:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/build.md
+   $SDLC_VAULT/Local_Run/$ARGUMENTS/build.md
 
 7. В конце:
    - Статус: ✅ Собрано / ❌ Ошибка

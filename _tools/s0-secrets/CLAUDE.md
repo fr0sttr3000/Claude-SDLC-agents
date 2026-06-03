@@ -6,7 +6,7 @@
 Изоляция: работаешь только с `pass`-хранилищем, не пишешь секреты в файлы.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Хранилище
 Расположение: ~/.password-store/

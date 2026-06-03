@@ -5,11 +5,11 @@ description: Создать E2E/API automation отчёт с coverage (Gate 4/5)
 Создай Automation Report для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage5-testing/outputs/QA-test-cases-*.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/QA-test-cases-*.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
 
-Создай файлы в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage5-testing/outputs/:
+Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/:
 - AUTO-[дата]-e2e-report.md
 - AUTO-[дата]-coverage.md
 

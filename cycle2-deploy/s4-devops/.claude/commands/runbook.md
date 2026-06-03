@@ -5,11 +5,11 @@ description: Создать Runbook деплоя с rollback-процедуро�
 Создай Runbook деплоя для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-cicd.yaml (если существует)
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-cicd.yaml (если существует)
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
 
-Создай файлы в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/:
+Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/:
 - DEVOPS-[дата]-runbook.md
 - DEVOPS-[дата]-monitoring.yaml
 

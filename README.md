@@ -1,5 +1,5 @@
 ---
-date: 2026-05-23
+date: 2026-06-03
 tags: [docs, agents, sdlc]
 ---
 
@@ -267,9 +267,9 @@ bash sdlc.sh
 
 ```
 sdlc.sh
-  → 3) Создать новый проект   ← создаёт структуру stage1..stage7
-  → 0) Kickoff                ← интервью: заполняет все входные данные
-  → 2) Полный SDLC-цикл       ← запускает 27 шагов
+  → 3) Создать новый проект        ← создаёт структуру stage1..stage7
+  → 0) Kickoff                     ← интервью: заполняет все входные данные
+  → 1) Запустить цикл → Разработка ← Цикл 1: 22 шага
 ```
 
 Или пошагово:
@@ -277,7 +277,7 @@ sdlc.sh
 ```bash
 bash sdlc.sh   # → 3) создай проект (вводи имя)
                # → соглашайся запустить Kickoff → проходи интервью
-               # → 2) полный SDLC-цикл
+               # → 1) Запустить цикл → 1) Разработка
 ```
 
 ### Kickoff — обязательный шаг перед первым циклом
@@ -533,4 +533,4 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 
 ---
 
-*Claude SDLC Agents v2.000.000 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v2.000.001 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*

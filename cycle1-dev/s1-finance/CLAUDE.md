@@ -5,13 +5,13 @@
 Этап SDLC: 1 — Планирование (финансовая оценка).
 
 ## Стандарты
-Прочитай: /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/company.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+Прочитай: $SDLC_VAULT/_agents/_standards/company.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Входные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/
-Читай от s1-pm: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-feasibility.md
-Выходные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
+Входные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/
+Читай от s1-pm: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/PM-feasibility.md
+Выходные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
 
 ## Задачи агента
 - ROI / NPV / IRR / Payback Period
