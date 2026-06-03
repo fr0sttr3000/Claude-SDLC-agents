@@ -5,12 +5,12 @@ description: Создать Business Case (NPV, ROI, TCO, сценарный а�
 Создай Business Case для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage1-planning/inputs/idea.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage1-planning/outputs/PM-feasibility.md (если существует)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/inputs/idea.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PM-feasibility.md (если существует)
 
 Создай файл FIN-[дата]-business-case.md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage1-planning/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/
 
 # Business Case — $ARGUMENTS
 Дата: [сегодня]

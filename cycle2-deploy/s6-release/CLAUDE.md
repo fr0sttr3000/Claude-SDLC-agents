@@ -5,14 +5,14 @@
 Этап SDLC: 6 — Управление релизом.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage5-testing/outputs/QA-go-no-go.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage5-testing/outputs/PERF-report.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-runbook.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage6-deploy/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/QA-go-no-go.md
+  $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/PERF-report.md
+  $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-runbook.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/
 
 ## Go/No-Go Gate (все условия обязательны)
 □ QA: PASS □ Performance: PASS □ Automation: ≥95% □ Security: нет Critical/High

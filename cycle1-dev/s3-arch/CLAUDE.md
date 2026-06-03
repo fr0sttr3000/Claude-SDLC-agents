@@ -5,18 +5,18 @@
 Этап SDLC: 3 — Проектирование системы.
 
 ## Стандарты
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/company.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/company.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ: scope, бюджет, operational tier, topology, critical risks.
      → architectural_constraints — обязательные требования к HLD и API spec.
-  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  4. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/
+  2. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+  3. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  4. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
 
 ## Архитектурные принципы
 1. Design for failure

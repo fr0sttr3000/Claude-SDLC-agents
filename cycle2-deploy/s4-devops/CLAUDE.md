@@ -5,16 +5,16 @@
 Этап SDLC: 4 — Infrastructure и автоматизация доставки.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ: operational.tier, topology, delivery_scope, alert_channel, existing_monitoring.
      → infrastructure_constraints определяют что именно реализовывать.
-  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/
+  2. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  3. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
 
 ## CI/CD Pipeline
 On PR: lint → unit-tests → build → SAST → secrets-scan

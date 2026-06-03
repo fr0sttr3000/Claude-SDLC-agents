@@ -3,9 +3,9 @@ description: Автоматически определить режим (нов�
 ---
 
 Прочитай:
-- /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage1-planning/inputs/idea.md
-- /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage1-planning/outputs/ (проверь наличие PM-*.md)
-- /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/Dashboard.md
+- $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/inputs/idea.md
+- $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/ (проверь наличие PM-*.md)
+- $SDLC_VAULT/projects/$ARGUMENTS/Dashboard.md
 
 Правила автоопределения (из CLAUDE.md раздел "Автоопределение режима"):
 - Нет PM-*.md в stage1-planning/outputs/ ИЛИ idea.md содержит "[Опиши продукт" → режим NEW

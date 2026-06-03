@@ -10,21 +10,21 @@
 - **REFRESH** — проект существует, нужно обновить видение / беклог / требования
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 ```
-Читай:   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/idea.md
-Читай:   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
-Читай:   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/Dashboard.md
+Читай:   $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md
+Читай:   $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
+Читай:   $SDLC_VAULT/projects/{PROJECT}/Dashboard.md
 
 Пиши (NEW):
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/idea.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md
+  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
 
 Пиши (REFRESH):
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md
+  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md
 ```
 
 ## Автоопределение режима

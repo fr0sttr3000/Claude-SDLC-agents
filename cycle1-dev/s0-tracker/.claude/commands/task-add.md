@@ -6,7 +6,7 @@ description: Добавить задачу в backlog проекта
 
 Шаги:
 1. Прочитай backlog.md для определения следующего ID:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/backlog.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/backlog.md
    Если файла нет — создай его с заголовком.
 
 2. Спроси пользователя (если данные не переданы в аргументах):

@@ -6,7 +6,7 @@ description: Начать новый спринт — выбрать задач�
 
 Шаги:
 1. Прочитай backlog:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/backlog.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/backlog.md
    Если файла нет — создай пустой backlog и сообщи пользователю о необходимости добавить задачи через /task-add.
 
 2. Определи номер нового спринта:
@@ -22,7 +22,7 @@ description: Начать новый спринт — выбрать задач�
    - Какие задачи включить (по ID или диапазону)
 
 5. Создай файл спринта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/sprints/sprint-NN.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/sprints/sprint-NN.md
    по формату из CLAUDE.md, заполнив выбранные задачи со статусом TODO.
 
 6. Обнови current-sprint.md — укажи номер активного спринта и скопируй таблицу задач.

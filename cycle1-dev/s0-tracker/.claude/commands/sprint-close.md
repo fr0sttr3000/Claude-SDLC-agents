@@ -6,7 +6,7 @@ description: Закрыть текущий спринт с итогами вып
 
 Шаги:
 1. Прочитай current-sprint.md:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/current-sprint.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/current-sprint.md
    Если активного спринта нет — сообщи и останови.
 
 2. Прочитай файл спринта (sprint-NN.md) и подсчитай:
@@ -49,6 +49,6 @@ description: Закрыть текущий спринт с итогами вып
 7. Очисти current-sprint.md (или запиши "Нет активного спринта").
 
 8. Сохрани в:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/sprints/sprint-NN.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/sprints/sprint-NN.md
 
 ОБЯЗАТЕЛЬНО: в конце вывести итоговый task board по формату из CLAUDE.md (показывая все задачи закрытого спринта с финальными статусами).

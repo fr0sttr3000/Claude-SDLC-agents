@@ -5,7 +5,7 @@ description: Проверить структуру SDLC-проекта (без �
 Проверь структуру SDLC-проекта $ARGUMENTS.
 
 Если $ARGUMENTS равен "all" — проверь все проекты в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/
+$SDLC_VAULT/projects/
 (пропускай папки и файлы начинающиеся с _)
 
 Для каждого проекта выполни проверку по полному списку из CLAUDE.md:

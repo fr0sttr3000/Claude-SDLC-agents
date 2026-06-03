@@ -6,7 +6,7 @@ description: Синхронизировать артефакты проекта 
 
 Шаги:
 1. Перейди в папку проекта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS
+   $SDLC_VAULT/projects/$ARGUMENTS
 
 2. Покажи текущий статус: `git status`
 

@@ -2,10 +2,18 @@
 # Local Run Interactive Launcher
 # Управление локальными проектами с GitHub — push ЗАПРЕЩЁН
 
-VAULT="/home/host-gui-car/Documents/Obsidian Vault/Claude"
-AGENTS="$VAULT/_agents"
+# Пути вычисляются от расположения скрипта — переносимо между окружениями
+AGENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VAULT="$(dirname "$AGENTS")"
 NOTES="$VAULT/Local_Run"
-PROJECTS="/home/host-gui-car/Projects/claude"
+
+# Конфигурация пути к локальным проектам.
+# Приоритет: env LOCALRUN_PROJECTS > config-файл > first-run wizard.
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sdlc-agents"
+CONFIG_FILE="$CONFIG_DIR/config"
+_env_localrun="${LOCALRUN_PROJECTS:-}"
+[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
+[[ -n "$_env_localrun" ]] && LOCALRUN_PROJECTS="$_env_localrun"
 
 # ─── цвета ────────────────────────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[0;33m'
@@ -51,7 +59,7 @@ project_status() {
 
 # ─── выбор локального проекта ─────────────────────────────────────────────────
 pick_local_project() {
-  echo -e "${C}Локальные проекты${N} (${Y}/home/host-gui-car/Projects/claude/${N}):"
+  echo -e "${C}Локальные проекты${N} (${Y}${PROJECTS}/${N}):"
   echo -e "${C}  Статус: ${G}●${N}=готово  ${R}○${N}=нет  (анализ / setup / build / run)"
   echo
   local i=1
@@ -73,8 +81,10 @@ pick_local_project() {
     return 1
   fi
 
+  echo -e "  ${Y}b)${N} Назад"
   echo
-  read -rp "$(echo -e "${W}Выбери проект [1-${#proj_list[@]}]:${N} ")" choice
+  read -rp "$(echo -e "${W}Выбери проект [1-${#proj_list[@]}/b]:${N} ")" choice
+  [[ "$choice" == "b" || "$choice" == "B" ]] && return 1
   LOCAL_PROJECT="${proj_list[$((choice-1))]}"
   if [[ -z "$LOCAL_PROJECT" ]]; then
     echo -e "${R}Неверный выбор${N}"; sleep 1; return 1
@@ -274,8 +284,10 @@ menu_single_agent() {
   echo -e "  ${Y}2)${N} ${W}l2-setup${N}   — ${AGENT_DESC[l2-setup]}"
   echo -e "  ${Y}3)${N} ${W}l3-build${N}   — ${AGENT_DESC[l3-build]}"
   echo -e "  ${Y}4)${N} ${W}l4-run${N}     — ${AGENT_DESC[l4-run]}"
+  echo -e "  ${Y}b)${N} Назад"
   echo
-  read -rp "$(echo -e "${W}Агент [1-4]:${N} ")" ac
+  read -rp "$(echo -e "${W}Агент [1-4/b]:${N} ")" ac
+  [[ "$ac" == "b" || "$ac" == "B" ]] && return
 
   local -a agents=(l1-analyze l2-setup l3-build l4-run)
   local agent="${agents[$((ac-1))]}"
@@ -299,8 +311,10 @@ menu_single_agent() {
     done
     echo -e "  ${Y}$j)${N} Ввести произвольную задачу"
     echo -e "  ${Y}$((j+1)))${N} Интерактивный режим"
+    echo -e "  ${Y}b)${N} Назад"
     echo
-    read -rp "$(echo -e "${W}Выбери [1-$((j+1))]:${N} ")" cc
+    read -rp "$(echo -e "${W}Выбери [1-$((j+1))/b]:${N} ")" cc
+    [[ "$cc" == "b" || "$cc" == "B" ]] && return
     if [[ "$cc" -eq "$((j+1))" ]] 2>/dev/null; then
       task=""
     elif [[ "$cc" -eq "$j" ]] 2>/dev/null; then
@@ -312,8 +326,10 @@ menu_single_agent() {
     echo
     echo -e "  ${Y}1)${N} Ввести задачу"
     echo -e "  ${Y}2)${N} Интерактивный режим"
+    echo -e "  ${Y}b)${N} Назад"
     echo
-    read -rp "$(echo -e "${W}[1/2]:${N} ")" mc
+    read -rp "$(echo -e "${W}[1/2/b]:${N} ")" mc
+    [[ "$mc" == "b" || "$mc" == "B" ]] && return
     if [[ "$mc" == "2" ]]; then task=""; else read -rp "$(echo -e "${W}Задача:${N} ")" task; fi
   fi
 
@@ -384,7 +400,7 @@ menu_update_notes() {
 menu_list_projects() {
   header
   echo -e "${W}── Локальные проекты ─────────────────────────────────${N}"
-  echo -e "  ${C}Код: /home/host-gui-car/Projects/claude/${N}"
+  echo -e "  ${C}Код: ${PROJECTS}/${N}"
   echo -e "  ${C}Заметки: Local_Run/${N}"
   echo
   printf "  %-28s  %s\n" "Проект" "▶ анализ  setup  build  run"
@@ -424,7 +440,7 @@ main_menu() {
     echo -e "  ${Y}5)${N} Список проектов"
     echo -e "  ${Y}q)${N} Выход"
     echo
-    echo -e "  ${R}⚠  git push ЗАПРЕЩЁН для всех проектов в /Projects/claude/${N}"
+    echo -e "  ${R}⚠  git push ЗАПРЕЩЁН для всех проектов в ${PROJECTS}/${N}"
     echo
     read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
     case "$choice" in
@@ -439,4 +455,28 @@ main_menu() {
   done
 }
 
+# ─── first-run wizard: спросить путь к локальным проектам ─────────────────────
+first_run_wizard() {
+  [[ -n "${LOCALRUN_PROJECTS:-}" ]] && return
+  header
+  echo -e "${W}── Первый запуск — настройка ─────────────────────────${N}"
+  echo
+  echo -e "Где хранятся твои локальные GitHub-проекты?"
+  echo -e "${C}Каталог, куда клонируются репозитории для локального запуска.${N}"
+  echo
+  read -rp "$(echo -e "${W}Путь [${HOME}/Projects/claude]:${N} ")" input
+  LOCALRUN_PROJECTS="${input:-$HOME/Projects/claude}"
+  mkdir -p "$CONFIG_DIR"
+  echo "LOCALRUN_PROJECTS=\"$LOCALRUN_PROJECTS\"" > "$CONFIG_FILE"
+  echo
+  echo -e "${G}✓ Сохранено в $CONFIG_FILE${N}"
+  echo -e "  Изменить позже: отредактируй файл или задай env ${W}LOCALRUN_PROJECTS${N}"
+  echo
+  read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+}
+
+first_run_wizard
+PROJECTS="$LOCALRUN_PROJECTS"
+export SDLC_VAULT="$VAULT"
+export LOCALRUN_PROJECTS
 main_menu

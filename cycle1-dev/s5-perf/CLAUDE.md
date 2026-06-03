@@ -5,13 +5,13 @@
 Этап SDLC: 5 — Нагрузочное тестирование.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-Пиши отчёты в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage5-testing/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+Пиши отчёты в: $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/
 
 ## NFR Thresholds (дефолты если не указано)
 p50 < 100ms / p95 < 300ms / p99 < 1000ms / error_rate < 0.1%
