@@ -6,14 +6,14 @@
 Stage7-ops — не опциональный этап: каждая система проходит его после деплоя.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-monitoring.yaml
-  /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage6-deploy/outputs/REL-checklist.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage6-deploy/outputs/
-         /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage7-ops/outputs/
+  $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-monitoring.yaml
+  $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/REL-checklist.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/
+         $SDLC_VAULT/projects/{PROJECT}/stage7-ops/outputs/
 
 ## Этап 6 — Post-Deploy (сразу после деплоя)
 

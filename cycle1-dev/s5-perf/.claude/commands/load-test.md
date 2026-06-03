@@ -5,11 +5,11 @@ description: Провести нагрузочное тестирование (s
 Проведи нагрузочное тестирование для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
 
-Создай файлы в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage5-testing/outputs/:
+Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/:
 - PERF-[дата]-report.md
 - PERF-[дата]-k6-load.js
 

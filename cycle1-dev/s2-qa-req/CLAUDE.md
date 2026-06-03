@@ -5,12 +5,12 @@
 Этап SDLC: 2 — Проверка качества требований ДО разработки.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/BA-*.md
-Читай: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/PO-*.md
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/
+Читай: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-*.md
+Читай: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-*.md
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/
 
 ## Testability Checklist
 □ Есть конкретный измеримый критерий успеха?

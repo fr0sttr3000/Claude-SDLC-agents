@@ -6,7 +6,7 @@ description: Показать текущую доску задач спринт�
 
 Шаги:
 1. Прочитай current-sprint.md:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/tracking/current-sprint.md
+   $SDLC_VAULT/projects/$ARGUMENTS/tracking/current-sprint.md
 
 2. Прочитай актуальный файл спринта (sprint-NN.md).
 

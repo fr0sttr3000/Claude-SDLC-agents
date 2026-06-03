@@ -6,10 +6,10 @@ description: Запустить локальный проект и провер�
 
 Шаги:
 1. Прочитай заметки проекта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/
+   $SDLC_VAULT/Local_Run/$ARGUMENTS/
 
 2. Загрузи переменные окружения если нужно:
-   `source /home/host-gui-car/Projects/claude/$ARGUMENTS/.env` (или через pass)
+   `source $LOCALRUN_PROJECTS/$ARGUMENTS/.env` (или через pass)
 
 3. Активируй окружение:
    - Python: `source venv/bin/activate`
@@ -18,7 +18,7 @@ description: Запустить локальный проект и провер�
 4. Определи команду запуска (из package.json scripts / Makefile / README)
 
 5. Запусти в dev-режиме:
-   `cd /home/host-gui-car/Projects/claude/$ARGUMENTS && [команда]`
+   `(cd "$LOCALRUN_PROJECTS/$ARGUMENTS" && [команда])`
 
 6. Smoke test — проверь что запустилось:
    - Найди порт из конфига или вывода
@@ -31,6 +31,6 @@ description: Запустить локальный проект и провер�
    - Исправь и перезапусти
 
 8. Создай/обнови заметку:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/run.md
+   $SDLC_VAULT/Local_Run/$ARGUMENTS/run.md
 
    Зафиксируй: команда, порты, URL, как остановить.

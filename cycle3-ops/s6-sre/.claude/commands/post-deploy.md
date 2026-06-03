@@ -5,12 +5,12 @@ description: Создать Post-Deploy отчёт (мониторинг T+0..T+
 Создай Post-Deploy Report для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-runbook.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-runbook.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
 
 Создай файл SRE-[дата]-post-deploy-report.md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage6-deploy/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/
 
 # Post-Deploy Report — $ARGUMENTS
 Дата деплоя: [дата]

@@ -7,12 +7,12 @@
 
 ## Стандарты компании
 Прочитай перед каждой задачей:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/company.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/company.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Входные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/inputs/
-Выходные данные: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/
+Входные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/
+Выходные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
 Замени {PROJECT} на название проекта из задачи.
 
 ## Задачи этого агента

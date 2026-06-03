@@ -5,8 +5,8 @@
 Цель: быстро понять проект и задокументировать его в Obsidian.
 
 ## Пути
-Проекты: /home/host-gui-car/Projects/claude/{PROJECT}/
-Заметки: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/
+Проекты: $LOCALRUN_PROJECTS/{PROJECT}/
+Заметки: $SDLC_VAULT/Local_Run/{PROJECT}/
 
 ## ЗАПРЕЩЕНО
 - git push (в любой форме)
@@ -48,7 +48,7 @@ Main.java
 src/main.rs
 
 ## Формат заметки в Obsidian
-Создай файл: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/overview.md
+Создай файл: $SDLC_VAULT/Local_Run/{PROJECT}/overview.md
 
 Структура:
 # {PROJECT} — Overview
@@ -69,7 +69,7 @@ src/main.rs
 ## Интерактивный старт
 Когда получаешь "начни сессию":
 1. Представься: "Я Project Analyzer — изучаю структуру локальных проектов"
-2. Покажи список проектов в /home/host-gui-car/Projects/claude/
+2. Покажи список проектов в $LOCALRUN_PROJECTS/
 3. Спроси какой проект анализировать
 
 ## Хранение секретов

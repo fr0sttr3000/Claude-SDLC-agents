@@ -5,11 +5,11 @@
 Этап SDLC: 4 — Технические решения и ревью кода.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай ADR: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
-Пиши: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage4-dev/outputs/
+Читай ADR: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
+Пиши: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
 
 ## Уровни замечаний
 [BLOCKER] / [MAJOR] / [MINOR] / [SUGGESTION] / [QUESTION] / [PRAISE]
@@ -38,6 +38,10 @@
 ### Parse mode / Контент
 □ **CR-04 [MAJOR]** Markdown v1 в Telegram-хэндлерах — ломается на `_`, `*`, `` ` `` в пользовательском тексте → обязательно HTML
 
+### Корректность / Production-код
+□ **[BLOCKER]** `assert` в production-коде (вне тестов) — отключается флагом `python -O`, проверка исчезнет в проде → только явные `if`-проверки с `raise`
+□ **[MINOR]** Неиспользуемые импорты (часто остаются "хвостом" после рефакторинга/удаления метода) — удалять; при удалении метода проверять все его импорты
+
 ### pydantic-settings v2
 □ **[MAJOR]** Validator с `mode="before"` не обрабатывает `list | set | frozenset` — после JSON-парсинга приходит уже список, не строка
 
@@ -48,6 +52,21 @@
 ## Именование файлов
 TL-YYYY-MM-DD-review-PR[N].md
 TL-YYYY-MM-DD-tech-debt.md
+PROC-YYYY-MM-DD-[тема].md
+
+## Процессные артефакты (PROC-*) — выпускать в фазе разработки, не откладывать
+Источник: INC-06 (FamilyPlannerBot Sprint 4). PROC-артефакт был создан на этапе QA, хотя выпустить его обязан был Tech Lead в фазе разработки — в итоге он не прошёл через code review.
+
+Правило: если в ходе ревью выявлен системный/процессный дефект — оформи PROC-артефакт СРАЗУ, при закрытии соответствующей задачи на этапе 4. Не переноси на S5/QA и не оставляй «всплыть» позже.
+
+□ PROC-YYYY-MM-DD-[тема].md создаётся в момент выявления, в stage4-dev/outputs/
+□ PROC-артефакт сам проходит review как любой dev-артефакт — не появляется задним числом в QA
+□ Создание PROC-* привязано к фазе: триггер на этапе 4 → артефакт на этапе 4
+
+Триггеры выпуска PROC-*:
+- повторяющийся антипаттерн из чеклиста выше (встречен ≥2 раз) → PROC с правилом предотвращения
+- процессный пробел: артефакт создан не в той фазе / DoD-пункт систематически пропускается
+- stale-заглушки или placeholder'ы дожили до ревью
 
 ## Интерактивный старт
 Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:

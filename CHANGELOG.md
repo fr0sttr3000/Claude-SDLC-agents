@@ -1,5 +1,5 @@
 ---
-date: 2026-05-23
+date: 2026-06-03
 tags: [docs, changelog]
 ---
 
@@ -10,6 +10,48 @@ tags: [docs, changelog]
 ---
 
 ## [Unreleased]
+
+---
+
+## [2.000.001] — 2026-06-01
+
+Багфикс-релиз поверх 2.000.000: переносимость путей, доведение лаунчера до модели 3 циклов, навигация «Назад» и правила из прод-инцидентов FamilyPlannerBot. Один большой багфикс — без новой функциональности для пользователя.
+
+### Fixed
+
+#### Переносимость — убраны захардкоженные абсолютные пути (BLOCKER)
+- `sdlc.sh` и `localrun.sh` вычисляют пути от расположения скрипта (`BASH_SOURCE`), `PATH` использует `$HOME` вместо `/home/host-gui-car`
+- Лаунчеры экспортируют `SDLC_VAULT` и `LOCALRUN_PROJECTS` в окружение агентов
+- Во всех `CLAUDE.md` и slash-командах агентов абсолютные пути заменены на `$SDLC_VAULT` / `$AGENT_DIR`
+- В документации (`CLAUDE.md`, `OVERVIEW.md`, `GETTING_STARTED.md`, `README.md`) пути заменены на env-переменные / `<vault-root>`
+- `CLAUDE.md` — добавлен раздел «Пути проекта (env-переменные)» с таблицей `AGENT_DIR` / `SDLC_VAULT` / `LOCALRUN_PROJECTS` и фолбэком при пустой переменной
+
+#### localrun.sh — настраиваемый путь к локальным проектам
+- Путь больше не захардкожен (`/home/host-gui-car/Projects/claude`)
+- Приоритет: env `LOCALRUN_PROJECTS` → config-файл `~/.config/sdlc-agents/config` → first-run wizard
+- При первом запуске мастер спрашивает каталог и сохраняет его в config
+
+#### sdlc.sh — лаунчер приведён к модели 3 циклов
+- `CYCLE_AGENTS` разделён на `CYCLE1_AGENTS` (22 шага), `CYCLE2_AGENTS`, `CYCLE3_AGENTS`
+- Из Цикла 1 убраны шаги Циклов 2/3 (`s4-devops`, `s6-release`, `s6-sre`); Цикл 1 завершается `s0-tracker:/report` + `s0-github:/push`
+- `gate7` убран из необязательных шагов (его место — Цикл 3)
+- Циклы 2/3 — заглушки «⏳ в разработке» с перечнем запланированных агентов
+
+#### Правила из прод-инцидентов FamilyPlannerBot
+- `CLAUDE.md` — раздел «Поведенческие правила агентов»: git не для отката (INC-02), запись файлов самостоятельно, не делегировать сабагентам (INC-03), «все» = полный вывод (INC-05), учёт deployment constraint (INC-07), верификация директории перед записью (INC-01)
+- `s4-dev/CLAUDE.md` — `assert` запрещён в production-коде (INC-08), удаление неиспользуемых импортов, `server_default` только строковый литерал (CR-01), функциональные индексы только на IMMUTABLE-выражениях; добавлены пункты DoD-чеклиста
+- `s4-techlead/CLAUDE.md` — `[BLOCKER]` на `assert` в проде и `[MINOR]` на неиспользуемые импорты; правило выпуска процессных артефактов `PROC-*` в фазе разработки (INC-06)
+
+### Changed
+
+#### Навигация и UX лаунчеров
+- В `sdlc.sh` и `localrun.sh` во все меню добавлен пункт `b) Назад`
+- Главное меню `sdlc.sh`: пункт 1 — «Запустить цикл» (подменю Разработка / Деплой / Эксплуатация / Всё сразу), пункт 2 — «Запустить один агент»
+- Меню одиночного запуска сгруппировано по циклам + Tools + Local Run
+- Пустой ввод имени проекта трактуется как отмена, а не ошибка
+
+#### Документация
+- `CHANGELOG.md`, `README.md`, `OVERVIEW.md`, `GETTING_STARTED.md`, `plans/roadmap.md` — синхронизированы с новой структурой меню (22 шага Цикла 1, новая нумерация пунктов), `CYCLE_AGENTS` → `CYCLE1_AGENTS`/`CYCLE2_AGENTS`
 
 ---
 
@@ -395,7 +437,9 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.001...HEAD
+[2.000.001]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.000...v2.000.001
+[2.000.000]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.1...v2.000.000
 [1.7.1]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.5.0...v1.6.0

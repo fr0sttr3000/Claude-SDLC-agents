@@ -4,7 +4,7 @@ description: Извлечь требования из транскриптов �
 
 Проанализируй интервью и извлеки требования для проекта $ARGUMENTS.
 
-Прочитай: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/inputs/
+Прочитай: $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/inputs/
 
 Для каждого документа извлеки:
 1. Явные требования
@@ -13,6 +13,6 @@ description: Извлечь требования из транскриптов �
 4. Противоречия
 5. Открытые вопросы [OI-N]
 
-Создай: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/BA-requirements-raw.md
+Создай: $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/BA-requirements-raw.md
 
 Формат: REQ-[N] | [Тип] | [Описание] | [Источник] | [MoSCoW]

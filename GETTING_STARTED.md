@@ -1,5 +1,5 @@
 ---
-date: 2026-05-10
+date: 2026-06-03
 tags: [docs, getting-started]
 ---
 
@@ -18,7 +18,7 @@ tags: [docs, getting-started]
 4. [Первый проект — пошагово](#4-первый-проект--пошагово)
 5. [Kickoff — ключевой шаг](#5-kickoff--ключевой-шаг)
 6. [Обновление существующего проекта](#6-обновление-существующего-проекта)
-7. [Полный SDLC-цикл](#7-полный-sdlc-цикл)
+7. [Цикл 1 — Разработка](#7-цикл-1--разработка)
 8. [Типичные ошибки](#8-типичные-ошибки)
 9. [Кастомизация под свой стек](#9-кастомизация-под-свой-стек)
 
@@ -158,20 +158,20 @@ bash sdlc.sh
 ### Шаг 4. Настрой секреты (если нужно)
 
 ```
-Главное меню → 1) Один агент → s0-secrets → /add
+Главное меню → 2) Один агент → s0-secrets → /add
 ```
 
 Все секреты (API ключи, токены, пароли БД) хранятся только в `pass`. Агенты берут секреты через `pass sdlc/projects/{PROJECT}/ключ`.
 
-### Шаг 5. Запусти полный SDLC-цикл
+### Шаг 5. Запусти Цикл 1 — Разработка
 
 ```
-Главное меню → 2) Полный SDLC-цикл → выбери проект
+Главное меню → 1) Запустить цикл → 1) Разработка (Цикл 1) → выбери проект
 ```
 
 Лаунчер спросит какие необязательные шаги включить (валидация структуры, инициализация спринта) — выбирай по потребности.
 
-Цикл пройдёт 24 шага последовательно. Каждый шаг — это отдельный агент, который читает артефакты предыдущего и создаёт свои.
+Цикл 1 пройдёт 22 шага последовательно. Каждый шаг — это отдельный агент, который читает артефакты предыдущего и создаёт свои. Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы, в разработке.
 
 ---
 
@@ -291,58 +291,53 @@ stage2-requirements/inputs/
 
 ---
 
-## 7. Полный SDLC-цикл
+## 7. Цикл 1 — Разработка
 
-### Структура цикла (24 шага)
+> Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы в реальной среде, в разработке. Цикл 1 производит код и всю документацию.
+
+### Структура Цикла 1 (22 шага)
 
 ```
-[Онбординг]  s0-kickoff         → idea.md + PM-input-interview.md
+[Онбординг]  s0-kickoff             → idea.md + PM-input-interview.md
 
 Этап 1: Планирование
-  Шаг  1   s1-pm /feasibility   → PM-feasibility.md (вердикт Go/No-Go)
-  Шаг  2   s1-pm /vision        → PM-vision.md (OKR, North Star)
-  Шаг  3   s1-pmo /charter      → PMO-charter.md
-  Шаг  4   s1-pmo /risks        → PMO-risk-register.md
-  Шаг  5   s1-finance           → FIN-business-case.md
+  Шаг  1   s1-pm /feasibility       → PM-feasibility.md (вердикт Go/No-Go)
+  Шаг  2   s1-pm /vision            → PM-vision.md (OKR, North Star)
+  Шаг  3   s1-pmo /charter          → PMO-charter.md
+  Шаг  4   s1-pmo /risks            → PMO-risk-register.md
+  Шаг  5   s1-finance               → FIN-business-case.md
             ── Quality Gate 1 ──►
 
 Этап 2: Требования
-  Шаг  6   s2-ba                → BA-BRD.md + BA-NFR.md + BA-RTM.md
-  Шаг  7   s2-po /stories       → PO-backlog.md
-  Шаг  8   s2-qa-req            → QA-REQ-review.md (Gate 2 блокируется BLOCKER)
+  Шаг  6   s2-ba /extract-requirements → BA-BRD.md (черновик)
+  Шаг  7   s2-ba /brd               → BA-BRD.md + BA-NFR.md + BA-RTM.md
+  Шаг  8   s2-po /stories           → PO-backlog.md
+  Шаг  9   s2-qa-req                → QA-REQ-review.md (Gate 2 блокируется BLOCKER)
             ── Quality Gate 2 ──►
 
 Этап 3: Дизайн
-  Шаг  9   s3-arch /hld         → ARCH-HLD.md + ARCH-api-spec.yaml
-  Шаг 10   s3-security          → SEC-threat-model.md (Critical/High блокируют Gate 3)
-  Шаг 11   s3-rbac /rbac-model  → RBAC-model.md + RBAC-matrix.md + RBAC-schema.sql
-  Шаг 12   s3-dba               → DBA-schema.sql + DBA-migrations/
+  Шаг 10   s3-arch /hld             → ARCH-HLD.md + ARCH-api-spec.yaml
+  Шаг 11   s3-arch /adr             → ARCH-ADR-*.md
+  Шаг 12   s3-security              → SEC-threat-model.md (Critical/High блокируют Gate 3)
+  Шаг 13   s3-rbac /rbac-model      → RBAC-model.md + RBAC-matrix.md + RBAC-schema.sql
+  Шаг 14   s3-dba /schema           → DBA-schema.sql + DBA-migrations/
             ── Quality Gate 3 ──►
 
 Этап 4: Разработка
-  Шаг 13   s4-dev               → код + DEV-update-notes-PR[N].md
-  Шаг 14   s4-techlead          → TL-review-PR[N].md (Gate 4 блокируется BLOCKER)
-  Шаг 15   s4-devops            → CI/CD + Runbook + Monitoring
+  Шаг 15   s4-dev                   → код + DEV-update-notes-PR[N].md
+  Шаг 16   s4-techlead              → TL-review-PR[N].md (Gate 4 блокируется BLOCKER)
             ── Quality Gate 4 ──►
 
 Этап 5: Тестирование
-  Шаг 16   s5-qa                → QA-test-plan.md + QA-go-no-go.md
-  Шаг 17   s5-qa-auto           → E2E/API тесты (coverage ≥95%)
-  Шаг 18   s5-perf              → PERF-load-report.md
+  Шаг 17   s5-qa /test-plan         → QA-test-plan.md
+  Шаг 18   s5-qa-auto               → E2E/API тесты (coverage ≥95%)
+  Шаг 19   s5-perf                  → PERF-load-report.md
+  Шаг 20   s5-qa /go-no-go          → QA-go-no-go.md (Gate 5)
             ── Quality Gate 5 ──►
 
-Этап 6: Деплой
-  Шаг 19   s6-release           → REL-checklist.md + REL-release-notes.md
-  Шаг 20   s6-sre (T+0)         → SRE-postdeploy-report.md
-            ── Quality Gate 6 ──► PRODUCTION
-
-Этап 7: Эксплуатация (T+7 дней)
-  Шаг 21   s6-sre (T+7)         → SRE-autoheal-report.md + SLO Review
-            ── Quality Gate 7 ──►
-
 Финал
-  Шаг 22   s0-tracker /report   → цикл-план vs факт
-  Шаг 23   s0-github /push      → push артефактов в GitHub
+  Шаг 21   s0-tracker /report       → цикл-план vs факт
+  Шаг 22   s0-github /push          → push артефактов в GitHub
 ```
 
 ### Quality Gates — что блокирует переход
@@ -435,13 +430,13 @@ claude --continue                            # продолжить послед
 
 ```bash
 # Первый запуск
-bash sdlc.sh → 3) новый проект → 0) Kickoff /new → 2) полный цикл
+bash sdlc.sh → 3) новый проект → 0) Kickoff /new → 1) Запустить цикл → 1) Разработка
 
 # Обновить беклог существующего проекта
 bash sdlc.sh → 0) Kickoff → 2) /refresh
 
 # Запустить один агент
-bash sdlc.sh → 1) один агент → выбрать → выбрать проект
+bash sdlc.sh → 2) один агент → выбрать → выбрать проект
 
 # Проверить структуру проекта
 bash sdlc.sh → 6) валидация → /validate

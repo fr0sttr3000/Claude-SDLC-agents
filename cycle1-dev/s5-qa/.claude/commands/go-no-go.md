@@ -5,12 +5,12 @@ description: Вынести Go/No-Go решение для релиза (Gate 5 
 Вынеси Go/No-Go решение для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage5-testing/outputs/ (все файлы)
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/TL-*-review-PR*.md (все)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/ (все файлы)
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/TL-*-review-PR*.md (все)
 
 Создай файл QA-[дата]-go-no-go.md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage5-testing/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/
 
 # Go/No-Go — $ARGUMENTS
 Дата: [сегодня]

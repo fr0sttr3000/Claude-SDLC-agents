@@ -1,5 +1,5 @@
 ---
-date: 2026-05-23
+date: 2026-06-03
 tags: [overview, sdlc, architecture]
 ---
 
@@ -46,7 +46,7 @@ tags: [overview, sdlc, architecture]
 ## Структура директорий
 
 ```
-/home/host-gui-car/Documents/Obsidian Vault/Claude/
+<vault-root>/                     # корень vault (= $SDLC_VAULT)
 │
 ├── CLAUDE.md              ← Глобальный контекст (читается агентами)
 ├── OVERVIEW.md            ← Этот файл — полный обзор системы
@@ -168,15 +168,15 @@ tags: [overview, sdlc, architecture]
 
 ---
 
-## SDLC-цикл — 27 шагов + необязательные
+## Цикл 1 — Разработка: 22 шага + необязательные
 
-Полный автоматизированный цикл запускается через `_agents/sdlc.sh → пункт 2`.
+Цикл 1 запускается через `_agents/sdlc.sh → 1) Запустить цикл → 1) Разработка`.
+Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы, см. [[plans/principles#3 цикла]].
 Перед стартом цикла предлагается выбор необязательных шагов (тоглы включения/выключения):
 - `s0-validate /validate` до цикла — проверить структуру
 - `s0-secrets` до цикла — настроить секреты
 - `s0-tracker /sprint-init` до цикла — инициализировать спринт
 - `s0-validate /validate` после цикла — проверить артефакты
-- `s6-sre /gate7` после цикла — Gate 7: мониторинг + auto-heal + SLO Review (через 7 дней после деплоя)
 
 ```
 Этап 0: Онбординг / Инфраструктура
@@ -604,11 +604,15 @@ cd _agents/_tools/s0-secrets && claude /env my-project
 0) Kickoff — онбординг нового проекта / обновление беклога
    └─ Авто-определение: пустой проект → интервью NEW; существующий → меню REFRESH
 
-1) Запустить один агент
-   └─ Выбор агента → выбор проекта → выбор команды/задачи
+1) Запустить цикл — разработка / деплой / эксплуатация / всё
+   └─ Подменю выбора:
+      1) 🔧 Разработка (Цикл 1)      ✓ готов — 22 шага
+      2) 🚀 Деплой (Цикл 2)          ⏳ в разработке
+      3) 📊 Эксплуатация (Цикл 3)    ⏳ в разработке
+      4) ⚙️  Всё сразу (1 → 2 → 3)
 
-2) Полный SDLC-цикл (24 шага)
-   └─ Выбор проекта → 22 шага с выбором режима на каждом
+2) Запустить один агент
+   └─ Выбор агента (сгруппированы по циклам) → выбор проекта → выбор команды/задачи
 
 3) Создать новый проект
    └─ Создаёт структуру stage1..stage7, Dashboard.md, idea.md
@@ -648,7 +652,7 @@ claude /feasibility my-project
 
 | Проблема | Причина | Решение |
 |----------|---------|---------|
-| `claude: command not found` | `~/.local/bin` не в PATH | Добавлено в sdlc.sh: `export PATH="/home/host-gui-car/.local/bin:$PATH"` |
+| `claude: command not found` | `~/.local/bin` не в PATH | Добавлено в sdlc.sh: `export PATH="$HOME/.local/bin:$PATH"` |
 | OAuth Invalid Request | `CLAUDECODE=1` мешает новому процессу | Агенты запускаются через `env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID` |
 | «Проект не определён» | `$ARGUMENTS` не подставлялся нативно | Шаблон раскрывается в bash через `awk` + `sed` |
 | Нет структуры папок | Проект создан без sdlc.sh | `sdlc.sh → пункт 6 → Починить` или `s0-validate /fix project` |
@@ -661,7 +665,7 @@ claude /feasibility my-project
 
 ```bash
 # 1. Запустить лаунчер
-bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
+bash "<vault-root>/_agents/sdlc.sh"
 
 # 2. Создать новый проект (пункт 3)
 #    → введи название → создастся структура + idea.md
@@ -670,13 +674,13 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/sdlc.sh"
 #    projects/{PROJECT}/stage1-planning/inputs/idea.md
 
 # 4. (опционально) Инициализировать git + GitHub
-#    пункт 1 → s0-github → /init
+#    пункт 2 → s0-github → /init
 
 # 5. (опционально) Запустить спринт
-#    пункт 1 → s0-tracker → /sprint-init
+#    пункт 2 → s0-tracker → /sprint-init
 
-# 6. Запустить полный цикл (пункт 2)
-#    → выбрать проект → 22 шага (каждый gate проверяется автоматически)
+# 6. Запустить Цикл 1 — Разработка
+#    пункт 1 → 1) Разработка → выбрать проект → 22 шага (каждый gate проверяется автоматически)
 
 # 7. После цикла: cycle-summary.md + release-notes + ветка в GitHub
 ```

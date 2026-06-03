@@ -6,7 +6,7 @@ description: Инициализировать git-репозиторий и по
 
 Шаги:
 1. Перейди в папку проекта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS
+   $SDLC_VAULT/projects/$ARGUMENTS
 
 2. Проверь, существует ли уже .git:
    - Если да — сообщи об этом и спроси продолжать ли

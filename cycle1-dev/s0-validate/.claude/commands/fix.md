@@ -5,7 +5,7 @@ description: Исправить структуру SDLC-проекта (созд
 Исправь структуру SDLC-проекта $ARGUMENTS.
 
 Если $ARGUMENTS равен "all" — исправь все проекты в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/
+$SDLC_VAULT/projects/
 (пропускай папки и файлы начинающиеся с _)
 
 Для каждого проекта:
