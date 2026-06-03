@@ -5,11 +5,11 @@ description: Создать Alembic миграцию с runbook (upgrade + downg
 Создай план миграции базы данных для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/DBA-schema.sql (если существует)
+1. $SDLC_VAULT/_agents/_standards/data-formats.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/DBA-schema.sql (если существует)
 
 Создай файл DBA-[дата]-migration-runbook.md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/
 
 # Migration Runbook — $ARGUMENTS
 Дата: [сегодня]

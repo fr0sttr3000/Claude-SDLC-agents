@@ -19,9 +19,9 @@ description: Сформировать Product Vision, North Star Metric и OKR �
 ## Шаг 2 — Чтение входных данных
 
 Прочитай:
-1. `/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/company.md`
-2. Все файлы из `projects/{PROJECT}/stage1-planning/inputs/`
-3. `projects/{PROJECT}/stage1-planning/outputs/PM-*-feasibility.md` (если существует)
+1. `$SDLC_VAULT/_agents/_standards/company.md`
+2. Все файлы из `$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/inputs/`
+3. `$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PM-*-feasibility.md` (если существует)
 
 Из `idea.md` извлеки и запомни:
 - `## Проблема` (Q1.2) → формулировка проблемы для Vision
@@ -57,7 +57,7 @@ description: Сформировать Product Vision, North Star Metric и OKR �
 
 ## Шаг 4 — Создать артефакт
 
-Файл: `projects/{PROJECT}/stage1-planning/outputs/PM-{ДАТА}-vision-okr.md`
+Файл: `$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PM-{ДАТА}-vision-okr.md`
 
 ---
 

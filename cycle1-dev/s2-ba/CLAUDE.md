@@ -5,19 +5,19 @@
 Этап SDLC: 2 — Анализ требований.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
+$SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай этап 1 — в следующем порядке:
-  1. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ. Содержит scope, бюджет, operational tier, critical risks, open issues.
-  2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/PM-*-feasibility.md
+  2. $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/PM-*-feasibility.md
      → Найди секцию `## → Handoff`. Прочитай её до основного текста.
      → `handoff.inherited_nfr` — обязательно перенести в BA-NFR.md как NFR-пункты.
-  3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage1-planning/outputs/ (остальные файлы)
-Читай inputs этапа 2: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/inputs/
-Пиши в: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}/stage2-requirements/outputs/
+  3. $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/ (остальные файлы)
+Читай inputs этапа 2: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/inputs/
+Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/
 
 ## Правило Handoff → NFR
 

@@ -5,14 +5,14 @@ description: Провести Code Review PR (Gate 4 — блокирует ре
 Проведи Code Review для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
 
 Уточни у пользователя: какой PR ревьюируем и где находится код.
 
 Создай файл TL-[дата]-review-PR[N].md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
 
 # Code Review — PR #[N] — $ARGUMENTS
 Дата: [сегодня]
@@ -42,6 +42,8 @@ description: Провести Code Review PR (Gate 4 — блокирует ре
 □ CR-04 [MAJOR] Markdown v1 в Telegram-хэндлерах — использовать HTML
 □ [MAJOR] pydantic-settings validator не обрабатывает list/set/frozenset
 □ [MAJOR] `fileConfig(disable_existing_loggers=True)` в migrations/env.py
+□ [BLOCKER] `assert` в production-коде (вне тестов) — отключается `python -O` → только `if` + `raise`
+□ [MINOR] Неиспользуемые импорты после рефакторинга — удалять
 
 ## DoD Checklist — Gate 4
 □ Бизнес-логика соответствует Acceptance Criteria

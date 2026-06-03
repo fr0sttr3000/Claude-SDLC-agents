@@ -6,7 +6,7 @@ description: Push всех SDLC-артефактов в ветку GitHub
 
 Шаги:
 1. Перейди в папку проекта:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS
+   $SDLC_VAULT/projects/$ARGUMENTS
 
 2. Проверь статус репозитория: `git status`
    Если .git не существует — сообщи что нужно сначала запустить /init и останови выполнение.

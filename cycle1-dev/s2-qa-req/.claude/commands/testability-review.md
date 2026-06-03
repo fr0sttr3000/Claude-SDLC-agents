@@ -5,12 +5,12 @@ description: Проверить требования на тестируемос
 Проведи Testability Review требований для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. Все BA-*.md в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/
-3. Все PO-*.md в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. Все BA-*.md в $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
+3. Все PO-*.md в $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
 
 Создай файл QA-REQ-[дата]-review.md в:
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/
+$SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
 
 # QA Requirements Review — $ARGUMENTS
 Дата: [сегодня]

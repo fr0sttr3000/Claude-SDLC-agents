@@ -5,12 +5,12 @@ description: Спроектировать схему базы данных (Post
 Спроектируй схему базы данных для проекта $ARGUMENTS.
 
 Прочитай:
-1. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
-2. /home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md
-3. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-4. /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
+1. $SDLC_VAULT/_agents/_standards/quality.md
+2. $SDLC_VAULT/_agents/_standards/data-formats.md
+3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+4. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
 
-Создай файлы в /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS/stage3-design/outputs/:
+Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/:
 - DBA-[дата]-schema.sql
 - DBA-[дата]-schema.dbml
 

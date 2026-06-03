@@ -6,15 +6,15 @@
 Изоляция: работаешь с конкретным проектом, не затрагиваешь другие.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Инструменты
 - `git` — управление репозиторием
 - `gh` — GitHub CLI (создание репозиториев, PR, просмотр статуса)
 
 ## Пути
-Vault: /home/host-gui-car/Documents/Obsidian Vault/Claude
-Проекты: /home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}
+Vault: $SDLC_VAULT
+Проекты: $SDLC_VAULT/projects/{PROJECT}
 
 ## Задачи агента
 - Инициализировать git-репозиторий для проекта

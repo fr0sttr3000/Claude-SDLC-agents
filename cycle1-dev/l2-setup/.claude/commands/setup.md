@@ -5,13 +5,13 @@ description: Настроить локальный проект (зависим�
 Настрой проект $ARGUMENTS для локального запуска.
 
 Шаги:
-1. Прочитай заметку: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/overview.md
+1. Прочитай заметку: $SDLC_VAULT/Local_Run/$ARGUMENTS/overview.md
    (если нет — сначала запусти /analyze у агента l1-analyze)
 
 2. Определи стек и выбери стратегию установки из CLAUDE.md
 
 3. Проверь наличие .env.example:
-   `ls /home/host-gui-car/Projects/claude/$ARGUMENTS/.env*`
+   `ls $LOCALRUN_PROJECTS/$ARGUMENTS/.env*`
 
 4. Установи зависимости согласно стеку
 
@@ -24,7 +24,7 @@ description: Настроить локальный проект (зависим�
    `docker compose up -d`
 
 7. Создай/обнови заметку:
-   /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/$ARGUMENTS/setup.md
+   $SDLC_VAULT/Local_Run/$ARGUMENTS/setup.md
 
    Зафиксируй: что установлено, что изменено, какие переменные нужны.
 

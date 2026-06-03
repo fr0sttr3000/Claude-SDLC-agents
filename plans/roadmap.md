@@ -1,5 +1,5 @@
 ---
-date: 2026-05-29
+date: 2026-06-01
 tags: [plans, roadmap]
 ---
 
@@ -59,20 +59,20 @@ tags: [plans, roadmap]
 - [ ] Артефакт: `tracking/quality-gates.md` — проектные пороги для всех gates
 - [ ] Правило валидации: каждый порог в `quality-gates.md` ≥ соответствующего порога в `_standards/quality.md`
 - [ ] Все агенты-контролёры gates (`s2-qa-req`, `s5-qa` и др.) читают `quality-gates.md` вместо hardcoded значений
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s0-kickoff`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s0-kickoff`
 
 ---
 
 #### Рефакторинг Цикла 1
 
-**Проблема:** `sdlc.sh` в `CYCLE_AGENTS` всё ещё содержит шаги для `s4-devops`, `s6-release`, `s6-sre` — агентов которые теперь принадлежат Циклам 2 и 3.
+**✅ Сделано (v2.000.000):** `sdlc.sh` приведён к модели 3 циклов.
+- [x] `CYCLE_AGENTS` разделён на `CYCLE1_AGENTS` (22 шага), `CYCLE2_AGENTS`, `CYCLE3_AGENTS`
+- [x] Главное меню: пункт «Запустить цикл» с подменю выбора (Разработка / Деплой / Эксплуатация / Всё сразу)
+- [x] Циклы 2/3 — заглушки «в разработке»
+- [x] Меню одиночного запуска сгруппировано по циклам + Tools + Local Run
+- [x] Обновлены `CLAUDE.md`, `OVERVIEW.md`, `README.md`, `GETTING_STARTED.md`
 
-Нужно:
-- [ ] Убрать из `CYCLE_AGENTS` в `sdlc.sh`: `s4-devops:/pipeline`, `s4-devops:/runbook`, `s6-release:/release-checklist`, `s6-release:/release-notes`, `s6-sre:/post-deploy`
-- [ ] Обновить меню лаунчера: убрать Цикл 2/3 агентов из списка Цикла 1
-- [ ] Обновить `CYCLE_AGENTS` в CLAUDE.md (таблица агентов SDLC-цикла)
-
-**Проблема:** `s4-devops`, `s6-release`, `s6-sre` в своих `CLAUDE.md` описывают работу в реальной prod-среде — это логика Циклов 2 и 3, не Цикла 1.
+**Проблема (осталось):** `s4-devops`, `s6-release`, `s6-sre` в своих `CLAUDE.md` описывают работу в реальной prod-среде — это логика Циклов 2 и 3, не Цикла 1.
 
 Нужно:
 - [ ] `cycle2-deploy/s4-devops/CLAUDE.md` — переписать под роль: пишет инфра-код (Dockerfile, CI/CD, monitoring) + деплоит в реальную среду
@@ -91,7 +91,7 @@ tags: [plans, roadmap]
 - [ ] Артефакты: `QA-YYYY-MM-DD-test-strategy.md` в `stage2-requirements/outputs/`
 - [ ] Содержание: типы тестирования (unit/integration/E2E/UAT), уровни покрытия, риск-матрица, критерии валидации бизнес-функций, инструменты
 - [ ] `s5-qa` читает test-strategy из S2 и строит test plan на её основе
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s2-qa-req:/testability-review`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s2-qa-req:/testability-review`
 
 ---
 
@@ -102,7 +102,7 @@ tags: [plans, roadmap]
 - [ ] Переместить `s3-security` из S3 в S2 — или создать `s2-security` для раннего threat model
 - [ ] Определить что остаётся в S3: возможно security review архитектуры (проверка HLD на соответствие threat model из S2)
 - [ ] Обновить цепочку зависимостей: `s3-arch` должен читать threat model из S2, а не наоборот
-- [ ] Обновить `CYCLE_AGENTS` в `sdlc.sh`
+- [ ] Обновить `CYCLE1_AGENTS` в `sdlc.sh`
 
 ---
 
@@ -114,7 +114,7 @@ tags: [plans, roadmap]
 - [ ] Роль: UX/UI дизайнер — user flows, wireframes, визуальный дизайн
 - [ ] Читает: `PO-backlog.md` (user stories от `s2-po`)
 - [ ] Артефакты: `UX-YYYY-MM-DD-flows.md`, `UX-YYYY-MM-DD-wireframes.md` в `stage2-requirements/outputs/`
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s2-po:/stories`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s2-po:/stories`
 - [ ] `s3-arch` должен читать wireframes при проектировании HLD
 
 ---
@@ -133,7 +133,7 @@ tags: [plans, roadmap]
 - [ ] Содержание: результаты линтеров, SAST-находки по severity, coverage отчёт, blocker-список
 - [ ] Critical/High находки SAST блокируют переход в S5
 - [ ] `s4-techlead` читает static-report при code review
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s4-dev:/dev-report`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s4-dev:/dev-report`
 
 ---
 
@@ -155,7 +155,7 @@ s4-techlead → code review
 - [ ] Читает: BRD, PO-backlog, test-strategy из S2, API spec из S3
 - [ ] Артефакты: тесты в репозитории проекта + `QA-YYYY-MM-DD-tdd-report.md` в `stage4-dev/outputs/`
 - [ ] `s4-dev` получает тесты от `s4-qa-auto` и пишет код чтобы они прошли
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` перед `s4-dev:/dev-report`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` перед `s4-dev:/dev-report`
 - [ ] Обновить `s5-qa-auto`: убрать unit/integration, оставить только E2E и API автоматизацию
 
 ---
@@ -188,7 +188,7 @@ s4-techlead → code review
 - [ ] Артефакты: `UAT-YYYY-MM-DD-report.md` в `stage5-testing/outputs/`
 - [ ] Содержание: результат по каждому сценарию (Pass/Fail), итоговый вердикт PO sign-off
 - [ ] `s5-qa:/go-no-go` читает UAT-report — без UAT PASSED переход заблокирован
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s5-qa-auto:/e2e-report`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s5-qa-auto:/e2e-report`
 
 ---
 
@@ -204,7 +204,7 @@ s4-techlead → code review
 - [ ] Артефакты: `QA-YYYY-MM-DD-exploratory-report.md` в `stage5-testing/outputs/`
 - [ ] Содержание: найденные баги, UX-проблемы, граничные случаи, риски
 - [ ] Результаты передаются в `s5-qa:/go-no-go` как дополнительный input
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh`
 
 ---
 
@@ -222,7 +222,7 @@ s4-techlead → code review
 - [ ] Дефекты с severity S1/S2 — блокируют Go/No-Go
 - [ ] Дефекты S3/S4 — уходят в `tracking/backlog.md` как Known Issues для будущих спринтов
 - [ ] `s5-qa:/go-no-go` читает `DEF-*-defects.md`
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s5-exploratory`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s5-exploratory`
 
 ---
 
@@ -240,7 +240,7 @@ s4-techlead → code review
 - [ ] Артефакты: `QA-YYYY-MM-DD-regression-report.md` в `stage5-testing/outputs/`
 - [ ] Содержание: scope регрессии, результаты прогона, новые падения vs известные
 - [ ] Новые регрессионные падения передаются в `s5-defects`
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s5-qa-auto:/e2e-report`
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s5-qa-auto:/e2e-report`
 
 ---
 
@@ -262,8 +262,8 @@ s4-techlead → code review
 - [ ] Создать агента `cycle1-dev/s5-release-prep/`
 - [ ] Роль: на основе PR summary, dev-report и changelog пишет release-notes для версии
 - [ ] Артефакт: `REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md` в `stage5-testing/outputs/` или отдельной папке
-- [ ] Добавить шаг в `CYCLE_AGENTS` в `sdlc.sh` после `s5-qa:/go-no-go`
-- [ ] Убрать `s6-release:/release-notes` из `CYCLE_AGENTS` (эта задача переходит к новому агенту)
+- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s5-qa:/go-no-go`
+- [ ] Убрать `s6-release:/release-notes` из `CYCLE2_AGENTS` (эта задача переходит к новому агенту Цикла 1)
 
 ---
 

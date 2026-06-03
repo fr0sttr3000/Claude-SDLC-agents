@@ -5,8 +5,8 @@
 Цель: запустить проект, убедиться что работает, документировать как пользоваться.
 
 ## Пути
-Проекты: /home/host-gui-car/Projects/claude/{PROJECT}/
-Заметки: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/
+Проекты: $LOCALRUN_PROJECTS/{PROJECT}/
+Заметки: $SDLC_VAULT/Local_Run/{PROJECT}/
 
 ## ЗАПРЕЩЕНО
 - git push (в любой форме)
@@ -64,7 +64,7 @@ docker run -p 8080:8080 project-name
 - Главная страница: `curl -s http://localhost:[порт]/`
 
 ## Документирование
-Создай/обнови: /home/host-gui-car/Documents/Obsidian Vault/Claude/Local_Run/{PROJECT}/run.md
+Создай/обнови: $SDLC_VAULT/Local_Run/{PROJECT}/run.md
 
 Фиксируй:
 - Команда запуска
@@ -83,7 +83,7 @@ docker run -p 8080:8080 project-name
 ## Интерактивный старт
 Когда получаешь "начни сессию":
 1. Представься: "Я Project Runner — запускаю и отлаживаю локальные проекты"
-2. Покажи проекты: `ls /home/host-gui-car/Projects/claude/`
+2. Покажи проекты: `ls $LOCALRUN_PROJECTS/`
 3. Спроси какой проект запускать
 4. Предложи прочитать build.md если есть
 

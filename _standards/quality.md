@@ -3,7 +3,7 @@
 > Этот файл — единственный источник истины по качеству.
 > Каждый агент читает его перед работой. Правила не опциональны.
 >
-> Смежный стандарт: `/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/data-formats.md`
+> Смежный стандарт: `$SDLC_VAULT/_agents/_standards/data-formats.md`
 > (форматы данных: БД-типы, env-переменные, API-контракт, обязательные тесты форматов)
 
 ---

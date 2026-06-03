@@ -6,14 +6,14 @@
 Изоляция: не трогаешь _agents/, _standards/, _templates/.
 
 ## Стандарты (читать перед каждой задачей)
-/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/quality.md
 
 ## Инструменты
 - Bash (find, ls, mkdir, touch) — работа с файловой системой
 - Чтение и создание .md файлов
 
 ## Vault
-/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/
+$SDLC_VAULT/projects/
 
 ## Обязательная структура каждого проекта
 
@@ -49,8 +49,8 @@
 ## Команда /dod-check
 Проверяет автоматизируемые пункты DoD для артефакта или PR:
 ```bash
-bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/cycle1-dev/s0-validate/dod-check.sh" \
-  "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
+bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
+  "$SDLC_VAULT/projects/{PROJECT}" \
   {TYPE} {STAGE} [{PR_NUM}]
 ```
 
@@ -76,8 +76,8 @@ bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/cycle1-dev/s0-v
 ## Команда /dor-check
 Запускает `dor-check.sh` для указанного gate:
 ```bash
-bash "/home/host-gui-car/Documents/Obsidian Vault/Claude/_agents/cycle1-dev/s0-validate/dor-check.sh" \
-  "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/{PROJECT}" \
+bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dor-check.sh" \
+  "$SDLC_VAULT/projects/{PROJECT}" \
   {GATE}
 ```
 

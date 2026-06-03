@@ -7,19 +7,19 @@ description: Показать статус синхронизации проек
 Выполни и отобрази:
 
 1. Git статус:
-   `git -C "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS" status`
+   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" status`
 
 2. Последние коммиты:
-   `git -C "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS" log --oneline -10`
+   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" log --oneline -10`
 
 3. Расхождение с remote:
-   `git -C "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS" status -sb`
+   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" status -sb`
 
 4. Список веток:
-   `git -C "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS" branch -a`
+   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" branch -a`
 
 5. URL репозитория:
-   `git -C "/home/host-gui-car/Documents/Obsidian Vault/Claude/projects/$ARGUMENTS" remote -v`
+   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" remote -v`
 
 Отформатируй вывод как сводку:
 ## Статус проекта: $ARGUMENTS
