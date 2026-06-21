@@ -12,6 +12,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 Читай:
   $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-monitoring.yaml
   $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/REL-checklist.md
+  $SDLC_VAULT/projects/{PROJECT}/tracking/known-issues.md  ← OPEN known issues: нужны алерт + runbook (§6.1)
 Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/
          $SDLC_VAULT/projects/{PROJECT}/stage7-ops/outputs/
 
@@ -46,6 +47,8 @@ p95 latency > 3× baseline за 5 мин → Rollback
 □ Топ-5 ошибок за последние 24 часа
 □ Алерты протестированы (fire drill): намеренно вызвать → убедиться что алерт сработал
 □ Алерты настроены на SLO breach, не на симптомы (не "CPU > 80%", а "error_rate > 0.1%")
+□ Для каждой OPEN-записи tracking/known-issues.md с user-facing impact настроен targeted-алерт
+  (имя алерта = KI-id), протестирован fire drill'ом (quality.md §6.1)
 ```
 
 ### 7.2 Auto-Heal — проверка и документация (BLOCKER)
@@ -68,6 +71,11 @@ p95 latency > 3× baseline за 5 мин → Rollback
 □ БД недоступна / соединений нет           → SRE-runbook-db-down.md
 □ Диск заканчивается (> 85%)               → SRE-runbook-disk-full.md
 Каждый runbook: Symptoms / Detect / Isolate / Recover / Verify / Escalate
+
+Плюс per-known-issue runbook (quality.md §6.1):
+□ Для каждой OPEN-записи known-issues.md с impact → SRE-runbook-KI-[id].md
+  (шаблон _standards/runbook-KI-template.md: Symptoms / Detect / Diagnose / Auto-remediation /
+   Workaround / Verify / Escalate). Имя файла = id записи = имя алерта.
 ```
 
 ### 7.4 SLO Review (через 7 дней после деплоя)
@@ -77,6 +85,17 @@ p95 latency > 3× baseline за 5 мин → Rollback
 □ Обновить error budget: сколько минут осталось до конца месяца
 □ Если error budget < 20% → заморозить деплои до конца месяца
 □ Зафиксировать в SRE-*-ops-report.md
+```
+
+### 7.5 Операционные метрики доставки (DORA + escaped defects)
+Ты — владелец операционных метрик из quality.md §7. Фиксируй их в SRE-*-ops-report.md;
+их читает `s0-tracker /report` для cycle-summary.md (§7.2/§7.3).
+```
+□ MTTR: среднее время detect→recover по инцидентам за период
+□ Change Failure Rate: доля релизов с откатом/хотфиксом от всех релизов
+□ Reliability: SLO выполняется стабильно? остаток error budget (5-я DORA-метрика)
+□ Escaped Defects: дефекты, найденные в проде после релиза
+  (каждый S1/S2 escaped → обязательный Blameless Post-Mortem + правило в backlog)
 ```
 
 ## SLO/Error Budget

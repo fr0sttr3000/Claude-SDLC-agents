@@ -7,6 +7,12 @@
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
 
+## Проектные пороги (читать ПЕРВЫМ делом)
+`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
+Применяй пороги ОТТУДА вместо hardcoded значений (p95, p99, error rate, availability).
+Проектные пороги гарантированно ≥ глобальных (только ужесточение).
+Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
+
 ## Пути файлов
 Читай:
   $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md

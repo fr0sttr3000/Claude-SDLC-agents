@@ -51,8 +51,10 @@ $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
 □ Security: нет открытых уязвимостей
 □ Performance: нет N+1 queries
 □ Error handling: нет bare except/pass
-□ SOLID: SRP соблюдён, функции ≤ 20 строк
-□ Unit coverage ≥ 80% изменённого кода
+□ SOLID: SRP соблюдён, функции ≤ 20 строк, complexity ≤ 10
+□ Дублирование на новом коде ≤ 3% (DoD-1, §3)
+□ Unit branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (§3.1)
+□ Integration-тест для каждого внешнего адаптера; contract-тест если PR трогает API (§3.1)
 □ DEV-*-update-notes-PR[N].md существует
 □ README / API-spec / docstring / CHANGELOG обновлены
 □ SAST прошёл без Critical/High

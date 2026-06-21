@@ -59,8 +59,9 @@ claude --continue          # продолжить последний диало�
 | `s0-github` | GitHub Sync | `/init`, `/sync`, `/push`, `/status`, `/pr` |
 | `s0-validate` | Structure Validator | `/validate`, `/fix` |
 | `s0-tracker` | Sprint & Task Tracker | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
+| `s0-quality-gates` | Quality Gates Configurator — проектные пороги из risk-профиля (после S1, до S2) | `/configure`, `/validate-gates` |
 
-## Цикл 1 — Разработка (22 шага)
+## Цикл 1 — Разработка (24 шага)
 Запуск: `sdlc.sh → 1) Запустить цикл → 1) Разработка`. Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы в реальной среде (агенты `cycle2-deploy/`, `cycle3-ops/`), в разработке.
 
 | Этап | Агент | Ключевые команды |
@@ -71,6 +72,7 @@ claude --continue          # продолжить последний диало�
 | 2 — Требования | `s2-ba` | `/extract-requirements`, `/brd` |
 | 2 — Требования | `s2-po` | `/stories` |
 | 2 — Требования | `s2-qa-req` | Testability Review |
+| 2 — Требования | `s2-security` | `/security-requirements` (SG1: abuse cases, классификация данных, ASVS) |
 | 3 — Дизайн | `s3-arch` | `/hld`, `/adr` |
 | 3 — Дизайн | `s3-security` | Threat Model |
 | 3 — Дизайн | `s3-rbac` | `/rbac-model`, `/rbac-matrix` |
@@ -93,27 +95,31 @@ claude --continue          # продолжить последний диало�
 ## Система качества и надёжности
 
 **Канонические стандарты (читать перед каждой задачей):**
-- `$SDLC_VAULT/_agents/_standards/quality.md` — DoD, DoR, Gates, NFR, Auto-Heal
+- `$SDLC_VAULT/_agents/_standards/quality.md` — DoD, DoR, Gates, NFR, test pyramid (§3.1), ISO 25010 (§4.1), Auto-Heal, Known Issues (§6.1), метрики (§7)
+- `$SDLC_VAULT/_agents/_standards/security.md` — параллельный Security-трек SG1–SG5 (CVSS, threat model, RBAC, SAST/SCA, pentest)
 - `$SDLC_VAULT/_agents/_standards/data-formats.md` — форматы DB/ENV/API, обязательные тесты форматов
 
 ### Quality Gates — принудительные переходы между этапами
 Переход заблокирован, пока Gate не закрыт. Агент следующего этапа проверяет Gate ПЕРВЫМ делом.
+Параллельно действует **Security-трек SG1–SG5** (security.md §3): этап пройден только когда
+зелёный И Quality Gate, И соответствующий Security Gate.
 
-| Переход | Gate | Кто проверяет |
+| Переход | Gate (+ Security Gate) | Кто проверяет |
 |---------|------|--------------|
 | S1 → S2 | Feasibility + Charter + Риски | **s2-ba** |
-| S2 → S3 | BRD + NFR с числами + QA-REQ review (0 BLOCKER) | **s3-arch** |
-| S3 → S4 | HLD + Threat Model (0 Critical/High) + RBAC model + DB schema | **s4-dev** |
-| S4 → S5 | Все PR закрыты + DoD + coverage ≥80% + SAST pass | **s5-qa** |
-| S5 → S6 | Go/No-Go + UAT sign-off + PERF PASS | **s6-release** |
-| S6 → PROD | Checklist + release notes + rollback проверен | **s6-sre** |
-| PROD → S7 | Monitoring + Auto-Heal verified + SLO Review | **s6-sre** (через 7 дней) |
+| S2 → S3 | BRD + NFR с числами + QA-REQ review (0 BLOCKER) + **SG1** | **s3-arch** |
+| S3 → S4 | HLD + RBAC model + DB schema + **SG2** (threat model 0 Critical/High) | **s4-dev** |
+| S4 → S5 | Все PR + DoD + branch≥80%+mutation + integration/contract + **SG3** (SAST/SCA) | **s5-qa** |
+| S5 → S6 | Go/No-Go + Functional Suitability (Must-FR↔RTM) + UAT + PERF PASS + Known Issues + **SG4** | **s6-release** |
+| S6 → PROD | Checklist + release notes (вкл. Known Issues) + rollback проверен | **s6-sre** |
+| PROD → S7 | Monitoring + Auto-Heal verified + SLO Review + KI-алерты/runbook + **SG5** | **s6-sre** (через 7 дней) |
 
 ### Неотменяемые правила (нарушение = BLOCKER)
 - Definition of Done (DoD) обязателен для каждой задачи — все 11 пунктов (включая DoD-11: тесты форматов)
 - Definition of Ready (DoR) обязателен перед стартом каждого этапа — все 8 пунктов
 - Secrets никогда не в коде, логах, .md-файлах
-- Critical/High уязвимости блокируют релиз
+- Critical/High уязвимости (CVSS ≥ 7.0) блокируют релиз (severity по CVSS — security.md §1)
+- Некритичный дефект (S3/S4) с user-facing impact в проде — только через known-issues.md (workaround + detection signal + runbook), иначе это «проигнорированный» дефект (quality.md §6.1)
 - UAT только в реальной системе, не в эмуляторе
 - Rollback-план до деплоя, не после
 - Система без auto-heal (restart policy + liveness probe + watchdog) — не идёт в prod

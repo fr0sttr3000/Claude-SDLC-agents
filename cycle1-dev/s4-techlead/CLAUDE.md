@@ -7,6 +7,12 @@
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
 
+## Проектные пороги (читать ПЕРВЫМ делом)
+`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
+Применяй пороги ОТТУДА вместо hardcoded значений (coverage ≥80%, complexity ≤10 и т.д.).
+Проектные пороги гарантированно ≥ глобальных (только ужесточение).
+Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
+
 ## Пути файлов
 Читай ADR: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
 Пиши: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
@@ -80,7 +86,7 @@ PROC-YYYY-MM-DD-[тема].md
 
 □ DoR-1: DEV-*-PR-[N]-summary.md существует в stage4-dev/outputs/ для ревьюируемого PR
 □ DoR-1: DEV-*-update-notes-PR[N].md существует в stage4-dev/outputs/
-□ DoR-1: Coverage report приложен (coverage ≥ 80% изменённого кода)
+□ DoR-1: Coverage report приложен (branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей — quality.md §3.1)
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать ревью.
 
@@ -90,7 +96,10 @@ Tech Lead — последний барьер перед QA. Не подписы
 Перед каждым approve проверь:
 □ Все 11 пунктов DoD из quality.md §2 выполнены
 □ Антипаттерны из раздела "Code Review — антипаттерны" проверены
-□ Unit coverage ≥ 80% подтверждён (coverage report прикреплён к PR)
+□ DoD-1 maintainability: complexity ≤ 10, SRP, дублирование на новом коде ≤ 3% (§3)
+□ Unit branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей подтверждены (report прикреплён к PR — §3.1)
+□ Integration/component-тест есть для каждого нового/изменённого внешнего адаптера (БД/API/очередь) (§3.1)
+□ Contract-тест (consumer-driven) есть и сверен с ARCH-api-spec.yaml, если PR трогает API (§3.1)
 □ DEV-*-update-notes-PR[N].md существует
 □ SAST прошёл (или исключения обоснованы)
 □ Нет открытых BLOCKER и MAJOR замечаний
