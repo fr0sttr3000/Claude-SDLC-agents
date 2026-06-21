@@ -22,8 +22,11 @@ $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
 ## Технические решения
 [Ключевые архитектурные и технические решения принятые в PR]
 
-## Покрытие тестами
-- Unit coverage: [%]
+## Покрытие тестами (quality.md §3.1)
+- Unit branch coverage: [%] (изм. кода, ≥ 80%)
+- Mutation score (критичные модули): [%] (≥ 60%, порог по tier)
+- Integration/component: [адаптеры с тестами: БД / API-клиент / очередь]
+- Contract (consumer-driven): [API-контракты с тестами, сверка с api-spec]
 - Изменённые модули: [список]
 - Новые тесты: [список]
 
@@ -35,7 +38,8 @@ $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
 
 ## Definition of Done — Gate 4
 □ Код написан и проходит все тесты
-□ Unit coverage ≥ 80% изменённого кода
+□ Unit: branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (§3.1)
+□ Integration-тест для каждого внешнего адаптера; contract-тест если PR трогает API (§3.1)
 □ SAST/secrets-scan: 0 Critical/High
 □ Нет игнорированных исключений (bare except/pass)
 □ README обновлён (если изменились команды/env/конфигурация)

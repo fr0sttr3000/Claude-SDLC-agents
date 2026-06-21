@@ -70,6 +70,7 @@ if [ "${TYPE}" = "K" ]; then
   else
     warn "Python-файлы не найдены — DoD-1 пропущен"
   fi
+  warn "DoD-1 duplication ≤3% нового кода — проверить вручную/CI (jscpd/SonarQube), §3"
 else
   skip "DoD-1 complexity — только для Тип К"
 fi
@@ -78,7 +79,7 @@ fi
 echo ""
 echo "  [DoD-2] Unit-тесты / тесты миграций"
 if [ "${TYPE}" = "K" ]; then
-  # Ищем coverage report
+  # Ищем coverage report (branch — quality.md §3.1)
   if [ -f "${PROJECT_PATH}/.coverage" ] || [ -f "${PROJECT_PATH}/coverage.xml" ] || \
      [ -d "${PROJECT_PATH}/htmlcov" ] || [ -f "${PROJECT_PATH}/coverage-report.txt" ]; then
     # Пытаемся прочитать процент покрытия
@@ -89,15 +90,37 @@ if [ "${TYPE}" = "K" ]; then
     if [ -n "${COVERAGE_PCT}" ]; then
       COV_NUM="${COVERAGE_PCT//%/}"
       if [ "${COV_NUM}" -ge 80 ]; then
-        pass "Coverage ${COVERAGE_PCT} ≥ 80%"
+        pass "Branch coverage ${COVERAGE_PCT} ≥ 80% (§3.1)"
       else
-        fail "Coverage ${COVERAGE_PCT} < 80% — требуется доработка"
+        fail "Branch coverage ${COVERAGE_PCT} < 80% — требуется доработка (§3.1)"
       fi
     else
-      pass "Coverage report существует (процент требует ручной проверки)"
+      pass "Coverage report существует (branch %, требует ручной проверки — §3.1)"
     fi
   else
     fail "Coverage report не найден (.coverage / coverage.xml / htmlcov/)"
+  fi
+
+  # Mutation testing — критичные модули ≥60% (§3.1), best-effort
+  if [ -f "${PROJECT_PATH}/.mutmut-cache" ] || [ -f "${PROJECT_PATH}/mutation-report.txt" ] || \
+     find "${PROJECT_PATH}" -name "*mutmut*" -not -path "*/venv/*" 2>/dev/null | grep -q .; then
+    pass "Mutation-отчёт найден — проверить ≥ 60% для критичных модулей (§3.1)"
+  else
+    warn "Mutation-тесты не обнаружены (mutmut/Cosmic Ray) — DoD-2 требует ≥60% на критичных модулях (§3.1)"
+  fi
+
+  # Integration / component тесты (§3.1), best-effort
+  if find "${PROJECT_PATH}" -ipath "*integration*" -not -path "*/venv/*" 2>/dev/null | grep -q .; then
+    pass "Integration/component-тесты найдены (§3.1)"
+  else
+    warn "Integration-тесты не обнаружены — обязательны для каждого внешнего адаптера БД/API/очереди (§3.1)"
+  fi
+
+  # Contract тесты — consumer-driven (§3.1), best-effort
+  if find "${PROJECT_PATH}" \( -ipath "*contract*" -o -ipath "*pact*" \) -not -path "*/venv/*" 2>/dev/null | grep -q .; then
+    pass "Contract-тесты найдены (§3.1)"
+  else
+    warn "Contract-тесты не обнаружены — обязательны при наличии внешнего API (consumer-driven, §3.1)"
   fi
 elif [ "${TYPE}" = "I" ]; then
   # Для инфраструктуры — тест миграций

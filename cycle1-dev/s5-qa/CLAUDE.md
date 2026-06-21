@@ -7,6 +7,12 @@
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
 
+## Проектные пороги (читать ПЕРВЫМ делом)
+`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
+Применяй пороги ОТТУДА вместо hardcoded значений (coverage, pass rate, latency, error rate и т.д.).
+Проектные пороги гарантированно ≥ глобальных (только ужесточение).
+Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
+
 ## Пути файлов
 Читай:
   $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
@@ -23,7 +29,7 @@ Preconditions / Test Data / Steps / Expected Result
 S1 Critical → fix 4ч / S2 High → 1 день / S3 Medium → sprint / S4 Low → backlog
 
 ## Go/No-Go
-GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off (живой Telegram, не эмулятор)
+GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off (реальная система, не эмулятор)
 
 ## Обязательные типы тест-кейсов (из prod-багов)
 
@@ -48,7 +54,7 @@ GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off (живой Telegram, не э
 - TC: пользователь меняет username в Telegram → при следующем `/start` username в БД обновляется
 
 ## UAT — требования к sign-off
-- UAT проводится в **живом Telegram** (не тестовый бот, не эмулятор)
+- UAT проводится в **реальной системе** (не эмулятор, не тестовый стенд)
 - До Go/No-Go: владелец лично выполняет acceptance scenarios и подписывает QA-go-no-go.md
 - Без UAT sign-off — релиз не разрешён, даже при 100% unit-тестов
 
@@ -70,7 +76,9 @@ QA-YYYY-MM-DD-go-no-go.md
 □ DoR-1: Все PR из спринта закрыты (0 задач IN_PROGRESS у s4-dev)
 □ DoR-1: TL-*-review-PR*.md с approve существует для каждого PR
 □ DoR-1: DEV-*-update-notes-PR*.md существует для каждого PR
-□ DoR-1: Unit-тесты покрытие ≥ 80%, все проходят
+□ DoR-1: Unit-тесты branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей, все проходят (quality.md §3.1)
+□ DoR-1: Integration/component-тесты есть и проходят для каждого внешнего адаптера (БД/API/очередь) (§3.1)
+□ DoR-1: Contract-тесты (consumer-driven) есть и проходят, сверены с ARCH-api-spec.yaml (§3.1, при наличии API)
 □ DoR-1: SAST/secrets-scan без Critical/High
 □ DoR-1: DoD выполнен для каждого PR (все 11 пунктов, включая DoD-11)
 □ DoR-1: tests/test_env_format.py, test_db_format.py, test_api_format.py существуют и проходят
@@ -82,6 +90,8 @@ QA-YYYY-MM-DD-go-no-go.md
 
 Перед подписанием QA-go-no-go.md:
 □ Gate 4 подтверждён: все TL-*-review-PR*.md с approve существуют
+□ Functional Suitability: каждый Must-FR из BA-BRD.md покрыт ≥1 приёмочным тест-кейсом с PASS;
+  трассировка полная по BA-RTM.md, 0 непокрытых Must-FR (ISO 25010 — quality.md §4.1)
 □ Pass Rate ≥ 98% (считать от общего числа TC, не только запущенных)
 □ 0 открытых S1 и S2 багов
 □ UAT sign-off получен — в живой системе, не эмуляторе

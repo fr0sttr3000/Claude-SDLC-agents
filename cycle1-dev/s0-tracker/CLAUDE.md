@@ -14,6 +14,7 @@ projects/{PROJECT}/tracking/
   backlog.md                  ← мастер-список всех задач
   current-sprint.md           ← ссылка на активный спринт + live-доска
   cycle-summary.md            ← итог всего цикла (создаётся /report)
+  known-issues.md             ← реестр известных дефектов в проде (KEDB, для s6-sre)
   sprints/
     sprint-01.md              ← определение спринта + статусы задач
     sprint-02.md
@@ -130,6 +131,7 @@ Velocity: X SP
 - `current-sprint.md` — текущий спринт
 - `dor-violations.md` — скопировать из `_standards/dor-violations-template.md`, подставить {PROJECT}
 - `tech-debt.md` — скопировать из `_standards/tech-debt-template.md`, подставить {PROJECT}
+- `known-issues.md` — скопировать из `_standards/known-issues-template.md`, подставить {PROJECT}
 
 ## Обязательные quality-задачи в каждом спринте
 При /sprint-init автоматически добавлять в каждый спринт:
@@ -171,6 +173,7 @@ Velocity считается только по задачами с полным D
 □ cycle-summary.md создан с итогами всех спринтов
 □ Plan vs Fact по задачам и story points зафиксирован
 □ Velocity-тренд отражён
+□ Метрики DORA (5 шт., вкл. Reliability) + defect-метрики (Density/DRE/Escaped) собраны с трендом vs прошлый цикл (quality.md §7)
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
