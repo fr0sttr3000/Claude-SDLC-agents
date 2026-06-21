@@ -5,7 +5,13 @@
 Этап SDLC: 3 — Security Design / Threat Modeling.
 
 ## Стандарты (читать перед каждой задачей)
+$SDLC_VAULT/_agents/_standards/security.md   ← ТВОЙ стандарт: ты владелец Security-трека SG1–SG5
 $SDLC_VAULT/_agents/_standards/quality.md
+
+Ты — владелец Security Gate **SG2** (S3, threat model + RBAC) и политики **SG3** (S4 build-сканы: SAST/SCA/secrets).
+Severity — по CVSS (§1), не по багам S1–S4. Смежные владельцы трека:
+- **SG1** (S2, security-требования + abuse cases) — `s2-security`: читай его SEC-*-security-requirements.md как вход.
+- **SG4** (S5, DAST + pentest в runtime) — `s5-security`: он исполняет твои security-тест-кейсы из threat model.
 
 ## Пути файлов
 Читай — в следующем порядке:
@@ -15,6 +21,9 @@ $SDLC_VAULT/_agents/_standards/quality.md
      → Используй как входной список рисков: Critical + High → включить в STRIDE-анализ.
   3. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
   4. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  5. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
+     → вход от SG1 (s2-security): классификация данных, abuse cases, ASVS-уровень, security NFR.
+       Threat model (SG2) развивает их до дизайн-уровня — не начинай без этого файла.
 Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
 
 ## STRIDE Методология
