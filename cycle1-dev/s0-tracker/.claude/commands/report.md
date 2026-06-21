@@ -17,7 +17,9 @@ description: Полный отчёт SDLC-цикла — план vs факт п
    - stage1-planning/outputs/PMO-*-schedule.md  → плановые вехи и задачи
    - stage1-planning/outputs/PMO-*-charter.md   → deliverables и даты
    - stage2-requirements/outputs/PO-*-backlog.md → запланированные user stories
-   - Если файлов нет — отметить как [ПЛАН НЕДОСТУПЕН]
+   - stage7-ops/outputs/SRE-*-ops-report.md → MTTR, Change Failure Rate, Reliability/SLO (для §6 метрик)
+   - предыдущий tracking/cycle-summary.md (если есть) → значения метрик прошлого цикла для тренда
+   - Если файлов нет — отметить как [ПЛАН НЕДОСТУПЕН] / метрику как [НЕТ ДАННЫХ]
 
 3. Сформируй отчёт и сохрани в:
    $SDLC_VAULT/projects/$ARGUMENTS/tracking/cycle-summary.md
@@ -80,7 +82,31 @@ description: Полный отчёт SDLC-цикла — план vs факт п
    | ID | Название | SP | Причина |
    |----|----------|----|---------|
 
-   ## 6. Выводы и рекомендации
+   ## 6. Метрики доставки и качества (quality.md §7)
+
+   ### DORA — план vs факт vs прошлый цикл
+   | Метрика | Цель (High) | Факт | Прошлый цикл | Тренд |
+   |---------|-------------|------|--------------|-------|
+   | Deployment Frequency | 1/день–1/неделю | | | ↑/↓/→ |
+   | Lead Time for Changes | 1 день–1 неделю | | | |
+   | MTTR | < 1 дня | | | |
+   | Change Failure Rate | < 10% | | | |
+   | Reliability (SLO) | SLO выполняется | | | |
+
+   Источники: Deployment Frequency / Lead Time — git-теги/CI (собирает s0-tracker);
+   MTTR / Change Failure Rate / Reliability — из SRE-*-ops-report.md (s6-sre).
+
+   ### Defect-метрики — эффективность гейтов
+   | Метрика | Цель | Факт | Прошлый цикл | Тренд |
+   |---------|------|------|--------------|-------|
+   | Defect Density (деф./KLOC или /SP) | тренд ↓ | | | |
+   | DRE (% дефектов пойманных до прода) | ≥ 95% | | | |
+   | Escaped Defects (найдены в проде) | → 0 | | | |
+
+   > Деградация метрики 2 цикла подряд → запись в tracking/tech-debt.md (процессный долг).
+   > DRE < 90% → ретро + усиление уровня тестов (§3.1). Escaped Defect S1/S2 → post-mortem (s6-sre).
+
+   ## 7. Выводы и рекомендации
 
    ### Что пошло хорошо
    [3-5 пунктов]

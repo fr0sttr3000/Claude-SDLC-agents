@@ -23,7 +23,10 @@ tags: [docs, agents, sdlc]
 - **Obsidian vault** — вся система открывается как хранилище знаний в Obsidian
 - **Интерактивный лаунчер** `sdlc.sh` — единая точка входа для всего цикла
 - **7 Quality Gates** — принудительные переходы между этапами с чеклистами
+- **Security-трек SG1–SG5** — параллельные Security Gates (CVSS, threat model, SAST/SCA, pentest)
 - **Definition of Done (11 пунктов)** — обязательные условия закрытия каждой задачи
+- **Пирамида тестов** — unit (branch + mutation) / integration / contract / e2e (quality.md §3.1)
+- **Known Issues (KEDB)** — операционный контракт для некритичных дефектов в проде (реестр + мониторинг + runbook + auto-remediation)
 - **Стандарт форматов данных** — обязательные правила для DB, ENV, API + шаблоны тестов
 - **Auto-Heal паттерны** — применимые паттерны определяются топологией деплоя (single-container / multi-instance / serverless)
 - **Методология выбора паттернов** — 7 формализованных правил: QA → Tactic → Pattern → ADR с трейдоффом
@@ -42,8 +45,11 @@ _agents/
 │   ├── quality.md     ← DoD, DoR, Quality Gates, NFR, Auto-Heal
 │   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
 │   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
+│   ├── security.md    ← Security-трек SG1–SG5 (CVSS, threat model, SAST/SCA, pentest)
 │   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
-│   └── tech-debt-template.md      ← Шаблон журнала технического долга
+│   ├── tech-debt-template.md      ← Шаблон журнала технического долга
+│   ├── known-issues-template.md   ← Шаблон реестра известных дефектов в проде (KEDB)
+│   └── runbook-KI-template.md     ← Шаблон per-KI runbook
 ├── _tools/            ← Утилиты для всех циклов
 │   ├── s0-github/     ← GitHub Sync
 │   └── s0-secrets/    ← Secrets Manager
@@ -331,7 +337,8 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `s0-secrets` | Secrets Manager — pass: хранение, ротация, env | `/add`, `/rotate`, `/env` |
 | `s0-github` | GitHub Sync — репо, ветки, PR, push | `/init`, `/sync`, `/push`, `/status`, `/pr` |
 | `s0-validate` | Structure + Quality Validator + DoR/DoD auto-check | `/validate [project\|all]`, `/fix [project\|all]`, `/dor-check [N]`, `/dod-check [K\|D\|I] [N] [PR]` |
-| `s0-tracker` | Sprint & Task Tracker (DoD + Tech Debt enforcement) | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
+| `s0-tracker` | Sprint & Task Tracker (DoD + Tech Debt + Known Issues enforcement) | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
+| `s0-quality-gates` | Quality Gates Configurator — проектные пороги из risk-профиля (после S1, до S2) | `/configure`, `/validate-gates` |
 
 ### Local Run (l-агенты)
 
@@ -357,6 +364,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `s2-ba` | Business Analyst — BRD, NFR (с числами), RTM | `/extract-requirements`, `/brd` |
 | `s2-po` | Product Owner — User Stories, Backlog (INVEST/RICE) | `/stories` |
 | `s2-qa-req` | QA (требования) — Testability Review → **Gate 2** | `/testability-review` |
+| `s2-security` | Security Requirements Engineer — abuse cases, классификация данных, ASVS → **SG1** | `/security-requirements` |
 
 ### Этап 3 — Дизайн
 
@@ -381,6 +389,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `s5-qa` | QA Engineer — Test Plan, Go/No-Go → **Gate 5** | `/test-plan`, `/go-no-go` |
 | `s5-qa-auto` | QA Automation — E2E/API тесты (coverage ≥95%) | `/e2e-report` |
 | `s5-perf` | Performance Engineer — Load Tests | `/load-test` |
+| `s5-security` | Security Test Engineer — DAST, pentest (tier-aware) → **SG4** | `/security-test` |
 
 ### Цикл 2 — Деплой *(разрабатывается)*
 
@@ -407,8 +416,8 @@ DoD **бинарен** — нет "Done minus docs". Задача остаётс
 
 | # | Условие | Тип | Проверка |
 |---|---------|-----|---------|
-| 1 | Complexity ≤10, SRP | К | 🤖 частично |
-| 2 | Unit-тесты, покрытие ≥80% изменённого кода | К, И | 🤖 авто |
+| 1 | Complexity ≤10, SRP, duplication ≤3% нового кода | К | 🤖 частично |
+| 2 | Тесты по пирамиде (unit/integration/contract): branch ≥80% + mutation ≥60% критичных (§3.1) | К, И | 🤖 авто |
 | 3 | Code review: 0 BLOCKER и MAJOR | К, Д, И | 👤 вручную |
 | 4 | README/API-spec/docstring обновлены | К, Д, И | 👤 вручную |
 | 5 | CHANGELOG.md обновлён | К, Д, И | 🤖 авто |
@@ -428,7 +437,9 @@ DoD **бинарен** — нет "Done minus docs". Задача остаётс
 | Availability | ≥ 99.9% |
 | Response time p95 | < 500 ms |
 | Error rate | < 0.1% |
-| Test coverage | ≥ 80% |
+| Test coverage (branch, изм. код) | ≥ 80% |
+| Mutation score (критичные модули) | ≥ 60% (порог растёт по tier, §3.1) |
+| Code duplication (новый код) | ≤ 3% |
 | Security Critical/High | 0 |
 
 ### Стандарт форматов данных (`_standards/data-formats.md`)

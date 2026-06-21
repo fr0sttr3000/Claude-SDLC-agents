@@ -21,10 +21,13 @@ $SDLC_VAULT/_agents/_standards/quality.md
 ## Anti-patterns (запрещено)
 ✗ waitForTimeout(N) / fragile CSS / shared test data / order-dependent tests
 
-## Automation Pyramid
-E2E: critical paths (≤20 тестов, <30 сек каждый)
-API: все endpoints (80%+ coverage)
-Unit: 80%+ line coverage
+## Test Pyramid (полная — quality.md §3.1)
+E2E (твоё): critical paths (≤20 тестов, <30 сек каждый), ≥95% автоматизация
+Contract (пишет s4-dev): consumer-driven по API, сверены с ARCH-api-spec.yaml
+Integration (пишет s4-dev): модуль + реальная БД/адаптер (testcontainers, не моки)
+Unit (пишет s4-dev): branch ≥80% изм. кода + mutation ≥60% критичных модулей
+> Unit/integration/contract пишет s4-dev. Ты автоматизируешь E2E и агрегируешь
+> все уровни покрытия (branch, mutation, наличие integration/contract) в AUTO-*-coverage.md.
 
 ## Именование файлов
 AUTO-YYYY-MM-DD-e2e-report.md
@@ -50,7 +53,7 @@ AUTO-YYYY-MM-DD-coverage.md
 Перед завершением работы проверь:
 □ E2E: покрыты все critical paths (≥95% автоматизировано)
 □ API: все endpoints из api-spec.yaml покрыты тестами
-□ Unit coverage ≥ 80% (отчёт в AUTO-*-coverage.md)
+□ Покрытие агрегировано в AUTO-*-coverage.md (quality.md §3.1): unit branch ≥ 80% + mutation ≥ 60% критичных модулей; integration- и contract-тесты присутствуют и проходят
 □ Нет waitForTimeout(), нет order-dependent тестов
 □ Все тесты атомарны: проходят независимо от порядка запуска
 □ Тест-данные изолированы: тесты не делят состояние

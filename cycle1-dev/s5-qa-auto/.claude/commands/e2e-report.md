@@ -21,9 +21,10 @@ description: Создать E2E/API automation отчёт с coverage (Gate 4/5)
 
 | Уровень | Цель | Факт | Статус |
 |---------|------|------|--------|
-| E2E (critical paths) | ≤ 20 тестов, < 30 сек каждый | | |
-| API (все endpoints) | 80%+ coverage | | |
-| Unit | 80%+ line coverage | | |
+| E2E (critical paths) | ≤ 20 тестов, < 30 сек каждый, ≥ 95% автоматизация | | |
+| Contract (consumer-driven) | для каждого внешнего API, сверено с api-spec | | |
+| Integration / component | для каждого внешнего адаптера (БД/API/очередь) | | |
+| Unit (branch) | ≥ 80% изм. кода + mutation ≥ 60% критичных | | |
 
 ## E2E — Critical Paths
 | TC ID | Описание | Время (сек) | Статус |
@@ -33,10 +34,14 @@ description: Создать E2E/API automation отчёт с coverage (Gate 4/5)
 | Endpoint | Method | Тест | Статус |
 |----------|--------|------|--------|
 
-## Unit Coverage
-| Модуль | Coverage | Строк | Статус |
-|--------|---------|-------|--------|
+## Покрытие — branch + mutation (quality.md §3.1)
+| Модуль | Branch % | Mutation % (критичные) | Статус |
+|--------|---------|------------------------|--------|
 | **Итого** | | | |
+
+## Integration / Contract — наличие
+| Внешний адаптер / API | Тип теста | Есть | Проходит |
+|-----------------------|-----------|------|----------|
 
 ## Anti-patterns — проверка
 □ Нет `waitForTimeout(N)` — только event-driven ожидания
@@ -48,7 +53,8 @@ description: Создать E2E/API automation отчёт с coverage (Gate 4/5)
 ## Gate 4/5 Checklist
 □ E2E: покрыты все critical paths (≥ 95% автоматизировано)
 □ API: все endpoints из api-spec.yaml покрыты
-□ Unit coverage ≥ 80%
+□ Unit: branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (§3.1)
+□ Integration- и contract-тесты присутствуют и проходят (§3.1)
 □ Все тесты проходят независимо от порядка
 □ Тест-данные изолированы (нет shared state)
 □ AUTO-*-coverage.md передан в stage5-testing/outputs/

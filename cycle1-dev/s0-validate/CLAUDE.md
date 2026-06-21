@@ -60,8 +60,8 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
 - PR_NUM: номер PR (опционально, для TYPE=K)
 
 Автоматически проверяет:
-- DoD-1 — complexity (прокси: функции > 50 строк) — Тип К
-- DoD-2 — coverage ≥80% / тест миграций — Тип К/И
+- DoD-1 — complexity (прокси: функции > 50 строк) + duplication ≤3% (warn, best-effort) — Тип К
+- DoD-2 — branch ≥80% + mutation (критичные) + integration/contract (best-effort) / тест миграций — Тип К/И
 - DoD-3 — наличие TL-review файла с approve
 - DoD-5 — CHANGELOG.md существует с записями
 - DoD-6 — DEV-*-update-notes-PR*.md существует — Тип К
@@ -188,8 +188,11 @@ status: active
 - Stage 5: PERF-*-report.md существует в stage5/outputs/
 - Stage 6: REL-*-checklist.md существует в stage6/outputs/
 - Stage 6: REL-*-release-notes-*.md существует в stage6/outputs/
+- Stage 7 / tracking: для каждой OPEN-записи tracking/known-issues.md с user-facing impact →
+  существует SRE-runbook-KI-[id].md в stage7-ops/outputs/ (контракт known issue, quality.md §6.1)
 
 Отсутствие quality-артефакта для завершённого этапа = ❌ QUALITY VIOLATION
+Known issue с impact без runbook = ❌ QUALITY VIOLATION (нарушен операционный контракт §6.1)
 
 ## Хранение секретов
 Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
