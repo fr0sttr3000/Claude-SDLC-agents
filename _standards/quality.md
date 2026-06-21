@@ -3,8 +3,10 @@
 > Этот файл — единственный источник истины по качеству.
 > Каждый агент читает его перед работой. Правила не опциональны.
 >
-> Смежный стандарт: `$SDLC_VAULT/_agents/_standards/data-formats.md`
-> (форматы данных: БД-типы, env-переменные, API-контракт, обязательные тесты форматов)
+> Смежные стандарты:
+> - `$SDLC_VAULT/_agents/_standards/data-formats.md` — форматы данных (БД-типы, env, API-контракт, тесты форматов)
+> - `$SDLC_VAULT/_agents/_standards/security.md` — **параллельный Security-трек (SG1–SG5)**: severity по CVSS,
+>   threat model, RBAC, SAST/SCA/secrets, pentest, privacy. Переход = зелёный Quality Gate **И** Security Gate.
 
 ---
 
@@ -67,8 +69,8 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 
 | # | Условие | Кто обеспечивает | Кто проверяет | Проверка |
 |---|---------|-----------------|--------------|---------|
-| DoD-1 | Код соответствует стандартам (complexity ≤10, SRP) | Агент-исполнитель | s4-techlead | 🤖 частично |
-| DoD-2 | Unit-тесты написаны, покрытие ≥80% изменённого кода | Агент-исполнитель | s4-techlead | 🤖 авто |
+| DoD-1 | Код соответствует стандартам (complexity ≤10, SRP, duplication ≤3% нового кода) | Агент-исполнитель | s4-techlead | 🤖 частично |
+| DoD-2 | Тесты по пирамиде (unit/integration/contract): branch ≥80% изм. кода + mutation ≥60% критичных модулей (§3.1) | Агент-исполнитель | s4-techlead | 🤖 авто |
 | DoD-3 | Code review пройден: 0 открытых BLOCKER и MAJOR | Агент-исполнитель | s4-techlead | 👤 вручную |
 | DoD-4 | Документация обновлена (README/API-spec/docstring) | Агент-исполнитель | Агент-получатель | 👤 вручную |
 | DoD-5 | CHANGELOG.md обновлён | Агент-исполнитель | s4-techlead | 🤖 авто |
@@ -87,8 +89,8 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 
 | # | Тип К: Код | Тип Д: Документ | Тип И: Инфраструктура |
 |---|:----------:|:---------------:|:---------------------:|
-| DoD-1 complexity ≤10, SRP | ✅ | ❌ | ❌ |
-| DoD-2 unit tests ≥80% | ✅ | ❌ | ⚠️ тест миграций вместо unit |
+| DoD-1 complexity ≤10, SRP, duplication ≤3% | ✅ | ❌ | ❌ |
+| DoD-2 тесты по пирамиде + пороги §3.1 | ✅ | ❌ | ⚠️ тест миграций вместо unit |
 | DoD-3 code review | ✅ | ✅ | ✅ |
 | DoD-4 документация обновлена | ✅ | ✅ | ✅ |
 | DoD-5 CHANGELOG обновлён | ✅ | ✅ | ✅ |
@@ -157,16 +159,63 @@ DoD бинарен. Пропуск пункта DoD допускается **т�
 | Error rate | < 0.1% | S1 если > 1%, S2 если > 0.1% |
 | RTO (Recovery Time) | < 1 час | S1 если нарушен |
 | RPO (Recovery Point) | < 24 часа | S2 если нарушен |
-| Security: Critical vulns | 0 | S1 — блокирует релиз |
-| Security: High vulns | 0 | S1 — блокирует релиз |
-| Test coverage (unit) | ≥ 80% | S2 если < 80% |
+| Security (CVSS) | → security.md §1 | severity по CVSS, не S1–S4; Critical/High блокируют релиз |
+| Test coverage (branch, изм. код) | ≥ 80% | S2 если < 80% |
+| Mutation score (критичные модули) | ≥ 60% | S2 если < 60% (порог растёт по tier — §3.1) |
+| Code duplication (новый код) | ≤ 3% | S3 если > 3%, S2 если > 5% |
 | Test pass rate | ≥ 98% | S1 если < 98% |
+
+---
+
+## 3.1 Уровни и качество тестирования (test pyramid)
+
+Тесты строятся по пирамиде. Каждый уровень — отдельный контроль; нельзя компенсировать
+отсутствие нижнего уровня верхним (анти-паттерн «ice-cream cone»).
+
+| Уровень | Что проверяет | Порог | Где enforced |
+|---------|---------------|-------|--------------|
+| **Unit** | логика в изоляции (моки внешних зависимостей) | branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей | DoD-2, Gate 4 |
+| **Integration / component** | модуль + реальная БД/адаптер/очередь (testcontainers, не моки) | существуют и проходят для КАЖДОГО внешнего адаптера (БД, API-клиент, брокер) | Gate 4 |
+| **Contract** | согласование consumer↔provider по API (consumer-driven: Pact / схема) | существуют и проходят для каждого внешнего API-контракта; сверены с ARCH-api-spec.yaml | Gate 4 |
+| **E2E** | сквозные пользовательские сценарии в реальной системе | ≥ 95% автоматизация critical paths | Gate 4/5 (s5-qa-auto) |
+| **Performance** | load / stress / soak | вердикт PASS (§4 Gate 5) | Gate 5 (s5-perf) |
+
+**Покрытие — branch, не line.** Line coverage даёт ложную уверенность: строка выполнена ≠
+ветка/условие проверены. Минимум — **branch coverage ≥ 80% изменённого кода**.
+
+**Mutation score — реальный сигнал качества тестов.** Покрытие показывает, что код выполнен;
+мутационное тестирование показывает, что тесты **ловят дефекты** (инструменты: mutmut /
+Cosmic Ray — Python, Stryker — JS/TS, PIT — Java). Порог **≥ 60% для критичных модулей**.
+
+> **Критичные модули** — доменное ядро, контроли безопасности (authn/authz), денежные и
+> расчётные операции, обработка персональных данных. Помечаются в `ARCH-HLD.md` (s3-arch)
+> или техлидом при review. Для остального кода mutation желателен, но не блокирует.
+
+**Пороги растут по tier** (принцип `s0-quality-gates` «только вверх» — `tracking/quality-gates.md`):
+
+| Tier | branch | mutation (критичные) |
+|------|:------:|:--------------------:|
+| 0 / 1 | ≥ 80% | ≥ 60% |
+| 2 | ≥ 80% | ≥ 70% |
+| 3 | ≥ 85% | ≥ 80% |
+
+**Contract testing ≠ формат-тесты.** `test_api_format.py` (data-formats.md) проверяет типы и
+формат полей; contract-тест проверяет **взаимные ожидания** consumer и provider (форма
+запроса/ответа, семантика, версионирование). Это разные контроли — оба обязательны при наличии API.
+
+**Кто пишет:** unit / integration / contract — `s4-dev` (Тип К, DoD-2); E2E-автоматизация —
+`s5-qa-auto`; performance — `s5-perf`. Отчёт о покрытии агрегирует `s5-qa-auto` в `AUTO-*-coverage.md`.
 
 ---
 
 ## 4. Quality Gates — переходы между этапами
 
 Переход заблокирован, пока Gate не пройден. Gate проверяет агент-получатель.
+
+> **Параллельно действует Security-трек (SG1–SG5) — см. `security.md §3`.**
+> Этап пройден только когда зелёный И Quality Gate (ниже), И соответствующий Security Gate.
+> Security-критерии (threat model, RBAC, SAST/SCA/secrets, pentest) вынесены в `security.md`;
+> ниже оставлены кросс-ссылки на нужный SG.
 
 ```
 S1 Planning ──[Gate 1]──► S2 Requirements
@@ -201,16 +250,12 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 ```
 □ ARCH-HLD.md существует, ADR написаны для всех ключевых решений
 □ ARCH-api-spec.yaml существует
-□ SEC-threat-model.md существует, 0 открытых Critical/High угроз
 □ DBA-schema.sql или DBA-schema.dbml существует
 □ DEVOPS-cicd.yaml (шаблон CI/CD) существует
 
-# RBAC (s3-rbac)
-□ RBAC-*-model.md существует: все роли из BRD покрыты, иерархия описана
-□ RBAC-*-matrix.md существует: матрица полная (роль × ресурс × действие)
-□ RBAC-*-schema.sql существует: таблицы roles/permissions/role_permissions/user_roles + RLS
-□ SoD-конфликты выявлены и задокументированы
-□ Owner-ресурсы защищены RLS-политиками
+# Безопасность — Security Gate SG2 (security.md §3)
+□ Security Gate SG2 (Design) пройден: threat model 0 Critical/High + RBAC/matrix/RLS + SoD
+  (детали и чек-лист — в security.md §3 SG2; владелец s3-security + s3-rbac)
 
 # Форматы данных (data-formats.md §5 s3-dba / §6 Gate 3)
 □ DBA-schema: все datetime — TIMESTAMPTZ (никогда WITHOUT TIME ZONE)
@@ -226,8 +271,11 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 □ Все PR из спринта закрыты (0 IN_PROGRESS у s4-dev)
 □ Все PR прошли code review (TL-*-review-PR*.md для каждого PR)
 □ DEV-*-update-notes-PR*.md существуют для каждого PR
-□ Unit-тесты: покрытие ≥ 80%, все проходят
-□ SAST/secrets-scan прошли без Critical/High
+□ Unit-тесты: branch-покрытие ≥ 80% изм. кода + mutation ≥ 60% критичных модулей, все проходят (§3.1)
+□ Integration/component-тесты существуют и проходят для каждого внешнего адаптера (БД, API-клиент, очередь) (§3.1)
+□ Contract-тесты (consumer-driven) существуют и проходят, сверены с ARCH-api-spec.yaml (§3.1, при наличии API)
+□ Security Gate SG3 (Build) пройден: SAST/SCA/secrets/image scan без Critical/High
+  (детали — security.md §3 SG3; непрерывно на каждый PR, владелец s3-security)
 □ DoD выполнен для каждого PR (все 11 пунктов, включая DoD-11)
 
 # Форматы данных (data-formats.md §6 Gate 4)
@@ -244,11 +292,17 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 Проверяет: **s6-release** перед подготовкой релиза
 ```
 □ QA-go-no-go.md существует с вердиктом GO
+□ Functional Suitability: каждый Must-FR из BA-BRD.md покрыт ≥1 приёмочным тест-кейсом
+  с результатом PASS; трассировка полная по BA-RTM.md (0 непокрытых Must-FR) (ISO 25010 — §4.1)
 □ 0 открытых S1 багов, 0 открытых S2 багов
 □ Pass Rate ≥ 98%
-□ UAT sign-off получен (живой Telegram / реальная система)
+□ UAT sign-off получен (реальная система, не эмулятор)
 □ PERF-report.md существует с вердиктом PASS или CONDITIONAL PASS
+□ Security Gate SG4 пройден: SEC-*-pentest-report.md с вердиктом PASS (DAST/pentest, 0 Critical/High по CVSS)
+  (владелец s5-security; детали — security.md §3 SG4)
 □ AUTO-*-coverage.md существует, ≥ 95% автоматизировано
+□ Known Issues: каждый S3/S4-дефект релиза с user-facing impact промотирован в
+  tracking/known-issues.md (Workaround + Detection signal + → tech-debt) (§6.1) — иначе No-Go
 ```
 
 ### Gate 6 (S6 → PRODUCTION)
@@ -260,7 +314,36 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 □ Rollback-план задокументирован и проверен
 □ On-call назначен, мониторинг настроен
 □ DEVOPS-runbook.md актуален под новую версию
+□ Release notes содержат секцию «Известные проблемы» из known-issues.md (все OPEN с impact) (§6.1)
+□ Security Gate SG4 (Pre-Prod) подтверждён: SEC-*-pentest-report.md с вердиктом PASS
+  (исполняется в S5; владелец s5-security; детали — security.md §3 SG4)
 ```
+
+---
+
+## 4.1 Маппинг на модель качества продукта ISO/IEC 25010
+
+Quality Gates покрывают характеристики качества продукта по **ISO/IEC 25010:2023**.
+Таблица показывает, где каждая характеристика гейтится, а где — **осознанный пробел**
+(со ссылкой на пункт roadmap). Цель — не «закрыть всё», а сделать охват явным:
+непокрытая характеристика — это решение, а не упущение.
+
+| Характеристика (2023; ex-2011) | Где гейтится | Статус |
+|--------------------------------|--------------|--------|
+| **Functional Suitability** (полнота / корректность / уместность) | Gate 2 (FR с AC), **Gate 5 (Must-FR ↔ acceptance ↔ RTM)** | ✅ |
+| **Performance Efficiency** (time / resource / capacity) | §3 NFR (p95/p99/error rate), Gate 5 (PERF-report), s5-perf | ✅ |
+| **Compatibility** (co-existence / interoperability) | Contract-тесты §3.1 (interoperability API) | ⚠️ co-existence не гейтится → roadmap п.4 |
+| **Interaction Capability** (ex-Usability) | — | ❌ не гейтится → roadmap п.3 / п.25 (accessibility) |
+| **Reliability** (maturity / availability / fault tolerance / recoverability) | §3 NFR (availability/RTO/RPO), §5 паттерны + auto-heal, §6 Gate 7 | ✅ |
+| **Security** (confidentiality / integrity / non-repudiation / accountability / authenticity) | security.md SG1–SG5, §8 | ✅ |
+| **Maintainability** (modularity / reusability / analysability / modifiability / testability) | DoD-1 (complexity ≤10, SRP), §3.1 (testability) | ⚠️ только complexity → roadmap п.12–15 |
+| **Flexibility** (ex-Portability: adaptability / scalability / installability / replaceability) | §5 (Deployment Constraint / топология), auto-heal scale-out | ⚠️ installability не гейтится → roadmap п.5 |
+| **Safety** (новое в 2023) | — | ❌ для большинства проектов не применимо; для critical-систем — по решению s1-pmo |
+
+> **Quality-in-use** (effectiveness / efficiency / satisfaction / freedom from risk / context coverage)
+> частично закрыт UAT (Gate 5) и SLO/error budget (Gate 7); системного гейта нет → roadmap п.27.
+
+Маппинг трека безопасности на NIST SSDF / OWASP SAMM / ASVS / SDL / SLSA — в `security.md §5`.
 
 ---
 
@@ -363,6 +446,8 @@ Auto-heal — способность системы обнаруживать н�
 □ Runbook для каждого типа инцидента задокументирован в stage7-ops/outputs/
 □ Error budget рассчитан и виден (текущий остаток на месяц)
 □ On-call ротация определена (кто дежурит, как escalate)
+□ Для каждой OPEN-записи known-issues.md с user-facing impact: алерт настроен и протестирован
+  (fire drill), SRE-runbook-KI-*.md существует, auto-remediation где возможно (§6.1)
 □ SRE-*-ops-report.md создан в stage7-ops/outputs/ через 7 дней после деплоя
 ```
 
@@ -370,7 +455,46 @@ Auto-heal — способность системы обнаруживать н�
 
 ---
 
-## 7. DORA-метрики — цели качества доставки — цели качества доставки
+## 6.1 Known Issues — операционный контракт (KEDB)
+
+Некритичный дефект (S3/S4, или security Low/Medium по CVSS) может уйти в прод, но не «молча»:
+он промотируется в **известную ошибку** с операционным контрактом, иначе это не «known», а
+«ignored issue». Подход — ITIL Known Error / KEDB + SRE-runbooks + auto-remediation.
+
+**Реестр:** `tracking/known-issues.md` (шаблон `known-issues-template.md`, создаёт s0-tracker).
+Это операционный срез — его читает `s6-sre` во время инцидента по Detection signal / имени алерта.
+Дедлайн / исполнитель / одобрение фикса НЕ дублируются здесь — только ссылка `→ tech-debt`.
+
+**Правило промоушена (s5-qa, Gate 5):** дефект попадает в реестр ТОЛЬКО при
+`Impact = user-facing` И определённом `Detection signal`. Иначе — обычная строка в `tech-debt.md`
+(планирование без мониторинга). Блокирующие S1/S2 в прод не уходят вовсе.
+
+**Обязательные поля записи:** Trigger · Impact · Workaround · Detection signal ·
+Auto-remediation (или «нет») · `→ tech-debt`. (Owner и Root-cause не дублируются — в задаче/tech-debt.)
+
+**Единый join-ключ:** имя алерта = id записи (KI-NN) = имя runbook'а (`SRE-runbook-KI-NN.md`).
+Поток on-call: алерт `KI-NN` → `known-issues.md` (что сломалось) → `SRE-runbook-KI-NN.md` (как чинить);
+auto-remediation отрабатывает сама (§5.5 «Alert → Auto-action»).
+
+**Patch SLA** (срок постоянного фикса; дедлайн фиксируется в `tech-debt.md`):
+
+| Severity | SLA фикса |
+|----------|-----------|
+| S3 / security Medium | ≤ 1 спринт |
+| S4 / security Low | ≤ 3 спринта (или явный risk-accept как Known Issue) |
+
+Просроченный Patch SLA → блокирует `/sprint-close` (механизм tech-debt, §2).
+
+**Закрытие:** фикс зарелижен → запись `FIXED` → снять алерт + runbook → CHANGELOG → закрыть TD.
+
+**Контроль по гейтам:** Gate 5 — промоушн (s5-qa); Gate 6 — секция в release notes (s6-release);
+Gate 7 — алерт + runbook для каждой OPEN-записи (s6-sre).
+
+---
+
+## 7. Метрики доставки и качества (DORA + defect metrics)
+
+### 7.1 DORA — пять метрик (Accelerate / State of DevOps)
 
 | Метрика | Elite | High | Medium | Low |
 |---------|-------|------|--------|-----|
@@ -378,12 +502,49 @@ Auto-heal — способность системы обнаруживать н�
 | Lead Time for Changes | <1 часа | 1 день–1 неделю | 1 неделю–1 мес | >1 мес |
 | MTTR (восстановление) | <1 часа | <1 дня | 1 день–1 неделю | >1 нед |
 | Change Failure Rate | <5% | <10% | 10–15% | >15% |
+| **Reliability** (5-я метрика, 2022) | SLO стабильно выполняется, error budget не исчерпан | SLO выполняется | SLO нарушается эпизодически | SLO систематически нарушается |
 
 Целевой уровень: **High**. Elite — при наличии ресурсов.
+**Reliability** — операционная надёжность: фактическое соответствие SLO и расход error budget
+(источник — §6 Gate 7); владелец метрики — `s6-sre`.
+
+### 7.2 Сбор и тренд метрик (метрики — не аспирация)
+
+Метрики собираются и отслеживаются по тренду от цикла к циклу, а не объявляются целью на бумаге:
+
+| Метрика | Источник данных | Кто собирает | Куда пишет |
+|---------|-----------------|--------------|-----------|
+| Deployment Frequency | git-теги / релизы / CI | s0-tracker | cycle-summary.md |
+| Lead Time for Changes | commit → deploy (git/CI) | s0-tracker | cycle-summary.md |
+| MTTR | инциденты (detect → recover) | s6-sre | SRE-*-ops-report.md |
+| Change Failure Rate | релизы с откатом/хотфиксом ÷ всего | s6-sre | SRE-*-ops-report.md |
+| Reliability | SLO-дашборд, остаток error budget | s6-sre | SRE-*-ops-report.md |
+
+- `s0-tracker /report` добавляет в `cycle-summary.md` блок **«Метрики: план vs факт vs прошлый цикл»**.
+- Тренд по каждой метрике помечается ↑ / ↓ / → относительно предыдущего цикла.
+- Деградация одной метрики **два цикла подряд** → запись в `tracking/tech-debt.md` как процессный долг.
+
+### 7.3 Defect-метрики — эффективность гейтов
+
+Показывают, ловят ли гейты дефекты **до** прода, а не сам факт «зелёного» гейта:
+
+| Метрика | Формула | Цель | Владелец |
+|---------|---------|------|----------|
+| Defect Density | дефектов ÷ KLOC (или ÷ story points) | тренд ↓ | s5-qa |
+| Defect Removal Efficiency (DRE) | дефекты до прода ÷ (до + после прода) × 100% | ≥ 95% | s5-qa |
+| Escaped Defects | дефекты, найденные в проде после релиза | тренд → 0 | s6-sre |
+
+- **DRE < 90%** → гейты пропускают дефекты: ретро + усиление соответствующего уровня тестов (§3.1).
+- **Escaped Defect S1/S2** → обязательный post-mortem (s6-sre) + новое правило в backlog
+  (петля «инцидент → gate», roadmap п.28).
+- `s0-tracker` агрегирует defect-метрики в `cycle-summary.md` рядом с DORA (§7.2).
 
 ---
 
 ## 8. Запрещено во всей системе (нарушение = BLOCKER)
+
+> Security-специфичные запреты и severity по CVSS — в `security.md §1, §7`.
+> Ниже продублированы ключевые security-BLOCKER для единого списка.
 
 ```
 ✗ Секреты (токены, пароли, ключи) в коде, логах, .md файлах, git-истории
@@ -394,6 +555,11 @@ Auto-heal — способность системы обнаруживать н�
 ✗ Переход в следующий этап без закрытого Quality Gate
 ✗ UAT в симуляторе/эмуляторе вместо реальной системы
 ✗ Закрытие задачи без DoD (все 11 пунктов)
+✗ Line coverage вместо branch как сигнал покрытия; критичный модуль без mutation-тестов (§3.1)
+✗ Внешний адаптер (БД/API/очередь) без integration-теста; внешний API без contract-теста (§3.1)
+✗ Дублирование > 3% на новом коде без рефакторинга или явного обоснования (§3)
+✗ Некритичный дефект (S3/S4) с user-facing impact в проде без записи в known-issues.md
+  (Workaround + Detection signal) — это «проигнорированный», а не «известный» дефект (§6.1)
 ✗ Critical/High уязвимости в релизе
 ✗ Нефункциональные тесты в prod-ветке
 ✗ Система в prod без auto-heal (применимого к её топологии деплоя)

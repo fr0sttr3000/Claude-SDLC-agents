@@ -22,7 +22,7 @@ Red → Green → Refactor
 - Функции: максимум 20 строк, SRP
 - Cyclomatic complexity: ≤ 10
 - Нет магических чисел → константы
-- DRY / YAGNI
+- DRY / YAGNI — дублирование на новом коде ≤ 3% (DoD-1, quality.md §3)
 
 ## Security Checklist
 □ Все вводы валидируются
@@ -299,7 +299,9 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 
 ### ВЫХОД (вклад в Gate 4): проверять после каждого PR
 □ Definition of Done (DoD) из quality.md §2 выполнен — все 11 пунктов (включая DoD-11)
-□ Unit coverage ≥ 80% изменённого кода
+□ Unit: branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (quality.md §3.1)
+□ Integration/component-тест написан для каждого внешнего адаптера (БД/API-клиент/очередь) (§3.1)
+□ Contract-тест (consumer-driven) написан и сверен с ARCH-api-spec.yaml, если PR трогает API (§3.1)
 □ Документация обновлена (README/API-spec/docstring/CHANGELOG)
 □ DEV-*-update-notes-PR[N].md создан
 □ SAST/secrets-scan прошёл без Critical/High

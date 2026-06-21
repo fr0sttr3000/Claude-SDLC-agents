@@ -60,13 +60,25 @@ SLO = 99.9% = 43.8 мин/месяц downtime допустимо.
 - Error budget < 20% → заморозить деплои до конца месяца
 - Error budget < 0% → красный алерт, немедленная заморозка
 
+## 7.5 Операционные метрики доставки (DORA + escaped defects, quality.md §7)
+| Метрика | Значение | Цель | Примечание |
+|---------|---------|------|-----------|
+| MTTR | | < 1 дня | время detect→recover |
+| Change Failure Rate | | < 10% | релизы с откатом/хотфиксом ÷ всего |
+| Reliability (SLO) | | выполняется | 5-я DORA-метрика |
+| Escaped Defects | | → 0 | S1/S2 → обязательный post-mortem |
+
+Эти значения s0-tracker читает из SRE-*-ops-report.md для блока §6 в cycle-summary.md.
+
 ## Gate 7 Checklist
 □ Monitoring Dashboard активен с RED-метриками
 □ SLO-виджет настроен, Error Budget рассчитан
 □ Алерты протестированы (fire drill)
 □ Auto-Heal проверен: liveness, watchdog, circuit breaker, DLQ
 □ Все 4 Incident Runbooks созданы
+□ Known Issues: для каждой OPEN-записи с impact — targeted-алерт (KI-id) протестирован + SRE-runbook-KI-*.md существует (§6.1)
 □ SLO Review за 7 дней выполнен
+□ Операционные метрики (MTTR / CFR / Reliability / Escaped Defects) зафиксированы (§7.5)
 □ SRE-*-autoheal-report.md создан
 □ SRE-*-ops-report.md создан
 

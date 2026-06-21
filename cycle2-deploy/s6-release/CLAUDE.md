@@ -37,11 +37,13 @@ REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md
 Источник: quality.md §1 + §4 Gate 5. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
 □ DoR-1: QA-go-no-go.md существует с вердиктом "GATE 5 PASSED"
+□ DoR-1: Functional Suitability подтверждён в go-no-go (все Must-FR ↔ RTM, 0 непокрытых)
 □ DoR-1: 0 открытых S1 и S2 багов
 □ DoR-1: Pass Rate ≥ 98%
-□ DoR-1: UAT sign-off получен в живой системе (не эмулятор)
+□ DoR-1: UAT sign-off получен в реальной системе (не эмулятор)
 □ DoR-1: PERF-report.md существует с вердиктом PASS или CONDITIONAL PASS
 □ DoR-1: AUTO-*-coverage.md существует, automation coverage ≥ 95%
+□ DoR-1: known-issues.md актуален — все S3/S4 релиза промотированы (для секции Known Issues в release notes)
 □ DoR-8: Rollback-план описан в DEVOPS-runbook.md
 
 Если Gate 5 не пройден → записать нарушения в `tracking/dor-violations.md`, сообщить пользователю какие пункты отсутствуют. Пользователь перезапускает s5-qa для устранения. Не начинать подготовку релиза.
