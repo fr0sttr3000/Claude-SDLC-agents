@@ -1,5 +1,5 @@
 ---
-date: 2026-06-01
+date: 2026-06-20
 tags: [plans, roadmap]
 ---
 
@@ -41,25 +41,33 @@ tags: [plans, roadmap]
 - `CLAUDE.md`, `OVERVIEW.md`, `GETTING_STARTED.md` обновлены
 - Проверена изоляция контекста между агентами
 
+**Quality Gates overhaul (v2.000.002)** — улучшения относительно ISO 25010 / ISTQB / DORA / SRE / ITIL:
+- Пирамида тестов (§3.1): branch coverage ≥80% (вместо line) + mutation score ≥60% критичных + уровни integration/contract; пороги растут по tier
+- Code duplication ≤3% нового кода (DoD-1, §3)
+- Маппинг на ISO/IEC 25010 (§4.1) + Functional Suitability в Gate 5 (Must-FR ↔ RTM)
+- Метрики (§7): DORA +Reliability (5-я), сбор/тренд по циклам, defect-метрики (Density, DRE ≥95%, Escaped)
+- Known Issues operational contract / KEDB (§6.1): реестр `known-issues.md` + per-KI runbook + targeted-алерт + auto-remediation + Patch SLA; шаблоны `known-issues-template.md`, `runbook-KI-template.md`
+- Распространено по агентам s4-dev/s4-techlead/s5-qa/s5-qa-auto/s0-tracker/s0-validate/s6-release/s6-sre + `dod-check.sh`
+
 ---
 
 ### 🔄 Запланировано
 
-#### Новый агент в Цикле 1: s0-quality-gates (этап S0)
+#### ✅ Новый агент в Цикле 1: s0-quality-gates (этап S0) — СДЕЛАНО
 
 Сейчас quality gates захардкожены глобально в `_standards/quality.md` и одинаковы для всех проектов. Нет возможности настроить пороги под конкретный проект.
 
-Агент запускается в S0 после `s0-kickoff` — до старта S1.
+**Решение по размещению (изменено относительно первоначального плана):** агент запускается **после S1, до S2** — а не «после `s0-kickoff` до S1». Причина: главный вход агента — `PMO-constraints.md` (operational tier, critical_risks), который создаёт `s1-pmo` внутри S1. До S1 risk-профиля ещё нет, tier пришлось бы угадывать.
 
 **Правило:** проектные пороги могут только повышаться относительно глобальных. Снижение глобальных порогов запрещено.
 
-- [ ] Создать агента `cycle1-dev/s0-quality-gates/`
-- [ ] Роль: Quality Gates Configurator — настраивает пороги quality gates для проекта
-- [ ] Читает: `_standards/quality.md` (глобальные пороги — минимум), `idea.md`, `PMO-constraints.md` (risk profile)
-- [ ] Артефакт: `tracking/quality-gates.md` — проектные пороги для всех gates
-- [ ] Правило валидации: каждый порог в `quality-gates.md` ≥ соответствующего порога в `_standards/quality.md`
-- [ ] Все агенты-контролёры gates (`s2-qa-req`, `s5-qa` и др.) читают `quality-gates.md` вместо hardcoded значений
-- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s0-kickoff`
+- [x] Создать агента `cycle1-dev/s0-quality-gates/` (CLAUDE.md + `/configure` + `/validate-gates`)
+- [x] Роль: Quality Gates Configurator — настраивает пороги quality gates для проекта
+- [x] Читает: `_standards/quality.md` (глобальные пороги — минимум), `idea.md`, `PMO-constraints.md` (risk profile)
+- [x] Артефакт: `tracking/quality-gates.md` — проектные пороги для всех gates
+- [x] Правило валидации: каждый порог в `quality-gates.md` ≥ соответствующего (с учётом направления метрики); `/validate-gates` проверяет
+- [x] Gate-контролёры (`s2-qa-req`, `s4-techlead`, `s5-qa`, `s5-perf`) читают `quality-gates.md` ПЕРВЫМ делом, fallback на quality.md
+- [x] Добавлен шаг `s0-quality-gates:/configure` в `CYCLE1_AGENTS` после `s1-finance:/business-case`, до `s2-ba`
 
 ---
 
@@ -81,6 +89,11 @@ tags: [plans, roadmap]
 
 #### Новый агент в Цикле 1: s2-test-strategy (этап S2)
 
+> ⚠️ **Сверка с реализованным:** уровни/типы тестов и пороги покрытия уже формализованы в
+> `quality.md §3.1` (пирамида unit/integration/contract/e2e, branch+mutation). Этот агент НЕ должен
+> их дублировать — его зона: риск-матрица, выбор инструментов, привязка типов к конкретным требованиям
+> (применение §3.1 к проекту), а не переопределение порогов.
+
 `s2-qa-req` только проверяет тестируемость требований. Никто не определяет стратегию тестирования: типы, уровни, инструменты, риски, валидацию бизнес-функций. Стратегия должна закладываться в S2 (Shift Left), а не в S5.
 
 Агент добавляется после `s2-qa-req`.
@@ -95,14 +108,27 @@ tags: [plans, roadmap]
 
 ---
 
-#### Перенести моделирование угроз из S3 в S2
+#### ✅ Разделение Quality / Security — СДЕЛАНО
 
-Сейчас `s3-security` делает threat model на этапе дизайна — слишком поздно. Угрозы нужно моделировать на уровне требований, до того как архитектура зафиксирована.
+Security был вшит в Quality Gates (threat model в Gate 3, SAST в Gate 4, vulns в NFR). По DevSecOps / NIST SSDF / OWASP SAMM / Microsoft SDL безопасность ведётся отдельным треком: свой язык severity (CVSS, не баги S1–S4), свой каденс (непрерывно + вехи + пост-прод), свой владелец (`s3-security`).
 
-- [ ] Переместить `s3-security` из S3 в S2 — или создать `s2-security` для раннего threat model
-- [ ] Определить что остаётся в S3: возможно security review архитектуры (проверка HLD на соответствие threat model из S2)
-- [ ] Обновить цепочку зависимостей: `s3-arch` должен читать threat model из S2, а не наоборот
-- [ ] Обновить `CYCLE1_AGENTS` в `sdlc.sh`
+- [x] Создан `_standards/security.md` — параллельный трек **Security Gates SG1–SG5** + CVSS-политика + ASVS-уровни по tier («только вверх») + маппинг на NIST SSDF/OWASP/SDL/SLSA
+- [x] Security-специфика вырезана из `quality.md` (threat model, RBAC, SAST/secrets, vulns) → заменена кросс-ссылками на нужный SG; добавлено правило «переход = зелёный Quality Gate И Security Gate»
+- [x] `s3-security` назначен владельцем трека (читает `security.md` первым)
+- [x] **Privacy/PII — корректный фрейминг:** это per-project дименсия по классификации данных (SG1), а НЕ свойство самого vault `_agents` (markdown-система без пользовательских данных). Проект без чувствительных данных помечает «PII: нет», §6 не применяется.
+
+- [x] Создан агент `s2-security` (владелец SG1): `/security-requirements` — классификация данных, abuse cases (STRIDE на уровне требований), ASVS-уровень по tier, security NFR как контракт для s3-arch/s4-dev. Добавлен в `CYCLE1_AGENTS` после `s2-qa-req`. `s3-security` читает его артефакт как вход для threat model (SG2).
+
+#### ✅ Перенести моделирование угроз из S3 в S2 — РЕШЕНО (через split SG1/SG2)
+
+Изначально стояла дилемма «перенести `s3-security` в S2 или создать `s2-security`». Выбран **split, а не перенос**: безопасность раскладывается на два уровня вместо перемещения одного агента.
+
+- [x] Создан `s2-security` для **раннего (requirements-level) анализа**: abuse cases, классификация данных, ASVS, security NFR (SG1, S2) — shift-left
+- [x] В S3 остаётся **design-level**: `s3-security` делает STRIDE/DREAD по HLD-компонентам (SG2), развивая security-требования из SG1
+- [x] Цепочка зависимостей обновлена: `s3-security` читает `SEC-*-security-requirements.md` (SG1) как вход; security NFR из S2 идут к `s3-arch`
+- [x] `CYCLE1_AGENTS` обновлён: `s2-security:/security-requirements` после `s2-qa-req`
+
+> Почему split лучше переноса: на уровне требований нет архитектуры для полноценного STRIDE по компонентам. SG1 ловит дефекты требований (abuse cases, классификация), SG2 — дефекты дизайна. Это каноничный shift-left (Microsoft SDL: Requirements → Design — два разных этапа security).
 
 ---
 
@@ -220,7 +246,7 @@ s4-techlead → code review
 - [ ] Артефакты: `DEF-YYYY-MM-DD-defects.md` в `stage5-testing/outputs/`
 - [ ] Содержание: формальные bug reports (шаги воспроизведения, severity, priority, статус), разделение на "блокируют релиз" и "в backlog на будущее"
 - [ ] Дефекты с severity S1/S2 — блокируют Go/No-Go
-- [ ] Дефекты S3/S4 — уходят в `tracking/backlog.md` как Known Issues для будущих спринтов
+- [ ] Дефекты S3/S4 с user-facing impact — промотируются в `tracking/known-issues.md` (операционный контракт: workaround + detection signal + runbook + auto-remediation, quality.md §6.1); остальные — в `tracking/backlog.md`/`tech-debt.md`
 - [ ] `s5-qa:/go-no-go` читает `DEF-*-defects.md`
 - [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s5-exploratory`
 

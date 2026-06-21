@@ -1,12 +1,12 @@
 ---
-date: 2026-06-03
+date: 2026-06-20
 tags: [overview, sdlc, architecture]
 ---
 
 # SDLC Agent System — Полный обзор
 
 > Автоматизированная система управления жизненным циклом разработки (SDLC)
-> на базе Claude Code. 27 специализированных AI-агентов покрывают весь цикл
+> на базе Claude Code. 30 специализированных AI-агентов покрывают весь цикл
 > от идеи до деплоя и ведения задач в спринтах.
 
 ---
@@ -58,8 +58,11 @@ tags: [overview, sdlc, architecture]
 │   │   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
 │   │   ├── quality.md     ← DoD, DoR, Gates, NFR, Auto-Heal (читать перед каждой задачей)
 │   │   ├── data-formats.md ← Форматы DB/ENV/API, тесты форматов (читать перед каждой задачей)
+│   │   ├── security.md      ← Security-трек SG1–SG5: CVSS, threat model, RBAC, SAST/SCA, pentest
 │   │   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
-│   │   └── tech-debt-template.md      ← Шаблон журнала технического долга
+│   │   ├── tech-debt-template.md      ← Шаблон журнала технического долга
+│   │   ├── known-issues-template.md   ← Шаблон реестра известных дефектов в проде (KEDB)
+│   │   └── runbook-KI-template.md     ← Шаблон per-KI runbook (Detect/Diagnose/Auto-rem/Workaround)
 │   ├── _tools/            ← Утилиты для всех циклов
 │   │   ├── s0-github/     ← GitHub Sync
 │   │   └── s0-secrets/    ← Secrets Manager
@@ -72,6 +75,7 @@ tags: [overview, sdlc, architecture]
 │   │   ├── s0-kickoff/    ← Project Kickoff — онбординг нового проекта / обновление беклога
 │   │   ├── s0-validate/   ← Structure Validator + Quality Artifacts Validator
 │   │   ├── s0-tracker/    ← Sprint & Task Tracker (DoD enforcement)
+│   │   ├── s0-quality-gates/ ← Quality Gates Configurator (пороги проекта, после S1 до S2)
 │   │   ├── l1-analyze/    ← Local Run: анализ проекта
 │   │   ├── l2-setup/      ← Local Run: настройка окружения
 │   │   ├── l3-build/      ← Local Run: сборка
@@ -82,15 +86,17 @@ tags: [overview, sdlc, architecture]
 │   │   ├── s2-ba/         ← Business Analyst
 │   │   ├── s2-po/         ← Product Owner
 │   │   ├── s2-qa-req/     ← QA (требования) — Gate 2
+│   │   ├── s2-security/   ← Security Requirements Engineer — SG1 (abuse cases, ASVS)
 │   │   ├── s3-arch/       ← Solution Architect — Gate 3
-│   │   ├── s3-security/   ← Security Engineer
+│   │   ├── s3-security/   ← Security Engineer — владелец Security-трека (SG2/SG3)
 │   │   ├── s3-rbac/       ← RBAC Designer
 │   │   ├── s3-dba/        ← DBA
 │   │   ├── s4-dev/        ← Backend Developer
 │   │   ├── s4-techlead/   ← Tech Lead — Gate 4
 │   │   ├── s5-qa/         ← QA Engineer — Gate 5
 │   │   ├── s5-qa-auto/    ← QA Automation
-│   │   └── s5-perf/       ← Performance Engineer
+│   │   ├── s5-perf/       ← Performance Engineer
+│   │   └── s5-security/   ← Security Test Engineer — SG4 (DAST, pentest)
 │   ├── cycle2-deploy/     ← Цикл 2: Деплой (разрабатывается)
 │   │   ├── s4-devops/     ← DevOps Engineer
 │   │   └── s6-release/    ← Release Manager
@@ -125,11 +131,12 @@ tags: [overview, sdlc, architecture]
         │   └── outputs/
         │       ├── BA-*.md            ← BRD, NFR, RTM
         │       ├── PO-*.md            ← Backlog, Sprint
-        │       └── QA-REQ-*.md        ← Testability Review (Gate 2)
+        │       ├── QA-REQ-*.md        ← Testability Review (Gate 2)
+        │       └── SEC-*-security-requirements.md ← Abuse cases, ASVS, security NFR (SG1)
         ├── stage3-design/
         │   └── outputs/
         │       ├── ARCH-*.md          ← HLD, ADR-N, api-spec.yaml
-        │       ├── SEC-*.md           ← Threat Model (Gate 3)
+        │       ├── SEC-*-threat-model.md ← Threat Model STRIDE/DREAD (SG2, Gate 3)
         │       └── DBA-*.md           ← Schema, Migration Runbook
         ├── stage4-dev/
         │   └── outputs/
@@ -141,7 +148,8 @@ tags: [overview, sdlc, architecture]
         │   └── outputs/
         │       ├── QA-*.md            ← Test Plan, Test Cases, Go/No-Go (Gate 5)
         │       ├── AUTO-*.md          ← E2E/API Coverage Report
-        │       └── PERF-*.md          ← Load Test Report
+        │       ├── PERF-*.md          ← Load Test Report
+        │       └── SEC-*-pentest-report.md ← DAST/pentest, вердикт по CVSS (SG4)
         ├── stage6-deploy/
         │   └── outputs/
         │       ├── REL-*-checklist-v[X.Y.Z].md   ← Gate 6
@@ -159,8 +167,10 @@ tags: [overview, sdlc, architecture]
             ├── backlog.md
             ├── current-sprint.md
             ├── cycle-summary.md
+            ├── quality-gates.md   ← проектные пороги gates (создаётся s0-quality-gates)
             ├── dor-violations.md  ← журнал возвратов по DoR (создаётся s0-tracker)
             ├── tech-debt.md       ← журнал техдолга (создаётся s0-tracker)
+            ├── known-issues.md    ← реестр известных дефектов в проде (KEDB, читает s6-sre)
             └── sprints/
                 ├── sprint-01.md
                 └── sprint-02.md
@@ -168,10 +178,12 @@ tags: [overview, sdlc, architecture]
 
 ---
 
-## Цикл 1 — Разработка: 22 шага + необязательные
+## Цикл 1 — Разработка: 24 шага + необязательные
 
 Цикл 1 запускается через `_agents/sdlc.sh → 1) Запустить цикл → 1) Разработка`.
 Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы, см. [[plans/principles#3 цикла]].
+Параллельно Quality Gates действует **Security-трек SG1–SG5** (`_standards/security.md`) —
+владелец `s3-security`; этап пройден только когда зелёный И Quality Gate, И Security Gate.
 Перед стартом цикла предлагается выбор необязательных шагов (тоглы включения/выключения):
 - `s0-validate /validate` до цикла — проверить структуру
 - `s0-secrets` до цикла — настроить секреты
@@ -181,7 +193,7 @@ tags: [overview, sdlc, architecture]
 ```
 Этап 0: Онбординг / Инфраструктура
   ─────────────────────────────────────────────────────────────────
-  s0-kickoff /new           Интервью (4 блока) → заполняет idea.md + PM-input-interview.md
+  s0-kickoff /new           Интервью (5 блоков) → заполняет idea.md + PM-input-interview.md
   s0-kickoff /refresh       Обновить видение / беклог / NFR для существующего проекта
   s0-validate /fix          Проверить и починить структуру (если нужно)
   s0-tracker /sprint-init   Запустить спринт (перед циклом)
@@ -195,61 +207,78 @@ tags: [overview, sdlc, architecture]
   Шаг  5  s1-finance             Business Case + ROI + Сценарный анализ
                                  ── Quality Gate 1 закрыт ──►
 
+Этап 0 (после S1, до S2): Настройка порогов качества
+  ─────────────────────────────────────────────────────────────────
+  s0-quality-gates /configure    Проектные пороги gates из risk-профиля (PMO-constraints
+                                 operational tier) → tracking/quality-gates.md
+                                 Правило: только ужесточение относительно глобальных минимумов.
+                                 Читается ПЕРВЫМ делом gate-контролёрами s2-qa-req/s4-techlead/
+                                 s5-qa/s5-perf (инфра-шаг этапа 0, не нумеруется).
+
 Этап 2: Требования
   ─────────────────────────────────────────────────────────────────
   Шаг  6  s2-ba /extract-requirements   Сбор требований
   Шаг  7  s2-ba /brd                    BRD + NFR (с числами) + RTM
   Шаг  8  s2-po /stories                User Stories + Backlog (INVEST/RICE)
   Шаг  9  s2-qa-req /testability-review  Testability Review → Gate 2 PASSED/FAILED
-                                         ── Quality Gate 2: s3-arch ждёт PASSED ──►
+  Шаг 10  s2-security /security-requirements  Abuse cases (STRIDE-req), классификация данных,
+                                         ASVS-уровень по tier, security NFR → Security Gate SG1
+                                         ── Quality Gate 2 + SG1: s3-arch ждёт PASSED ──►
 
 Этап 3: Дизайн
   ─────────────────────────────────────────────────────────────────
-  Шаг 10  s3-arch /hld                  High-Level Design
-  Шаг 11  s3-arch /adr                  Architecture Decision Records (≥3 варианта, ATAM трейдофф)
-  Шаг 12  s3-security /threat-model     Threat Model (STRIDE/DREAD/OWASP)
-  Шаг 13  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
-  Шаг 14  s3-dba /schema                DB Schema (читает RBAC-schema.sql)
-                                         ── Quality Gate 3: s4-dev ждёт PASSED ──►
+  Шаг 11  s3-arch /hld                  High-Level Design
+  Шаг 12  s3-arch /adr                  Architecture Decision Records (≥3 варианта, ATAM трейдофф)
+  Шаг 13  s3-security /threat-model     Threat Model (STRIDE/DREAD по HLD) — развивает SG1 → SG2
+  Шаг 14  s3-rbac /rbac-model           RBAC Model + Permission Matrix + RLS + SQL Schema
+  Шаг 15  s3-dba /schema                DB Schema (читает RBAC-schema.sql)
+                                         ── Quality Gate 3 + SG2: s4-dev ждёт PASSED ──►
 
 Этап 4: Разработка
   ─────────────────────────────────────────────────────────────────
-  Шаг 15  s4-dev /dev-report            Dev Report + PR Summary
-  Шаг 16  s4-dev /update-notes          Update Notes (обязательно после каждого PR)
+  Шаг 16  s4-dev /dev-report            Dev Report + PR Summary + Update Notes (после каждого PR)
   Шаг 17  s4-techlead /review           Code Review (DoD: все 11 пунктов)
                                          → Gate 4: TL-*-review-PR*.md для каждого PR
-  Шаг 18  s4-devops /pipeline           CI/CD Pipeline (lint→test→build→SAST→secrets-scan)
-  Шаг 19  s4-devops /runbook            Runbook деплоя + rollback-процедура
-                                         ── Quality Gate 4: s5-qa ждёт coverage≥80% ──►
+                                         Security Gate SG3: SAST/SCA/secrets-scan непрерывно на PR
+                                         ── Quality Gate 4 + SG3: s5-qa ждёт branch≥80%+mutation+integ/contract ──►
 
 Этап 5: Тестирование
   ─────────────────────────────────────────────────────────────────
-  Шаг 20  s5-qa /test-plan              Test Plan + тест-кейсы (IEEE 829)
-  Шаг 21  s5-qa-auto /e2e-report        Automation Report (coverage ≥95%)
-  Шаг 22  s5-perf /load-test            Load Tests (smoke/load/stress/soak) + вердикт
-  Шаг 23  s5-qa /go-no-go              Go/No-Go → Gate 5 PASSED/FAILED
-                                         ── Quality Gate 5: s6-release ждёт PASSED ──►
-
-Этап 6: Деплой
-  ─────────────────────────────────────────────────────────────────
-  Шаг 24  s6-release /release-checklist  Release Checklist + Gate 6
-  Шаг 25  s6-release /release-notes      Release Notes v[X.Y.Z]
-  Шаг 26  s6-sre /post-deploy            Post-Deploy Report (T+0..T+60)
-                                          + Post-Mortem если был инцидент
+  Шаг 18  s5-qa /test-plan              Test Plan + тест-кейсы (IEEE 829)
+  Шаг 19  s5-qa-auto /e2e-report        Automation Report (coverage ≥95%)
+  Шаг 20  s5-perf /load-test            Load Tests (smoke/load/stress/soak) + вердикт
+  Шаг 21  s5-security /security-test     DAST + pentest (глубина по tier) → Security Gate SG4
+  Шаг 22  s5-qa /go-no-go              Go/No-Go → Gate 5 PASSED/FAILED (учитывает SG4)
+                                         ── Quality Gate 5 + SG4: Цикл 2 ждёт PASSED ──►
 
 Финальные шаги (всегда выполняются)
   ─────────────────────────────────────────────────────────────────
-  Шаг 27  s0-tracker /report     Отчёт цикла: план vs факт ◄ ПРЕДПОСЛЕДНИЙ
-  Шаг 28  s0-github /push        Push артефактов в GitHub   ◄ ПОСЛЕДНИЙ
+  Шаг 23  s0-tracker /report     Отчёт цикла: план vs факт ◄ ПРЕДПОСЛЕДНИЙ
+  Шаг 24  s0-github /push        Push артефактов в ветку    ◄ ПОСЛЕДНИЙ
+```
 
-Этап 7: Эксплуатация (необязательный в цикле — запускается через 7 дней после деплоя)
-  ─────────────────────────────────────────────────────────────────
-  [opt]  s6-sre /gate7                   Monitoring Dashboard: RED + SLO + Error Budget
-                                          Auto-Heal verification: kill → restart < 30 сек
-                                          Incident Runbooks (4 типа)
-                                          SLO Review → SRE-*-ops-report.md
-                                          ── Quality Gate 7 закрыт → следующий релиз разблокирован ──►
-  Включается через toggle-меню sdlc.sh перед стартом цикла (позиция: после цикла)
+### Цикл 2 — Деплой (⏳ в разработке)
+
+Отдельный цикл в реальной среде. Запускается после зелёного Gate 5 Цикла 1.
+
+```
+  s4-devops /pipeline            CI/CD Pipeline (lint→test→build→SAST→secrets-scan)
+  s4-devops /runbook             Runbook деплоя + rollback-процедура
+  s6-release /release-checklist   Release Checklist + Gate 6
+  s6-release /release-notes       Release Notes v[X.Y.Z]
+                                  ── Quality Gate 6 ──► PRODUCTION
+```
+
+### Цикл 3 — Эксплуатация (⏳ в разработке)
+
+Отдельный цикл. `gate7` запускается через 7 дней после деплоя.
+
+```
+  s6-sre /post-deploy            Post-Deploy Report (T+0..T+60) + Post-Mortem при инциденте
+  s6-sre /gate7                  Monitoring (RED + SLO + Error Budget), Auto-Heal verification
+                                 (kill → restart < 30 сек), Incident Runbooks (4 типа),
+                                 SLO Review → SRE-*-ops-report.md + SEC-* pentest подтверждён
+                                 ── Quality Gate 7 → следующий релиз разблокирован ──►
 ```
 
 ---
@@ -273,7 +302,7 @@ S3 Дизайн ──[Gate 3]──► S4 Разработка
 
 S4 Разработка ──[Gate 4]──► S5 Тестирование
                               Проверяет s5-qa:
-                              Все PR с DoD + coverage≥80% + SAST pass
+                              Все PR с DoD + branch≥80%+mutation + integ/contract + SAST pass
 
 S5 Тестирование ──[Gate 5]──► S6 Деплой
                                 Проверяет s6-release:
@@ -290,6 +319,9 @@ PRODUCTION ──[Gate 7]──► Следующий релиз (через 7 �
 ```
 
 Канонические правила каждого gate — в `_standards/quality.md §4` и `§6`.
+Покрытие гейтами характеристик качества продукта (ISO/IEC 25010) — в `quality.md §4.1`:
+гейтятся Functional Suitability, Performance, Reliability, Security, Maintainability;
+осознанные пробелы (Usability, Compatibility, Portability) помечены со ссылкой на roadmap.
 
 ---
 
@@ -301,8 +333,8 @@ DoD **бинарен**: нет "Done minus docs" или "почти Done". За�
 
 | # | Условие | Кто проверяет | Проверка |
 |---|---------|--------------|---------|
-| 1 | Код соответствует стандартам (complexity ≤10, SRP) | s4-techlead | 🤖 частично |
-| 2 | Unit-тесты написаны, покрытие ≥80% изменённого кода | s4-techlead | 🤖 авто |
+| 1 | Код соответствует стандартам (complexity ≤10, SRP, duplication ≤3% нового кода) | s4-techlead | 🤖 частично |
+| 2 | Тесты по пирамиде (unit/integration/contract): branch ≥80% + mutation ≥60% критичных (§3.1) | s4-techlead | 🤖 авто |
 | 3 | Code review пройден: 0 открытых BLOCKER и MAJOR | s4-techlead | 👤 вручную |
 | 4 | README/API-spec/docstring обновлены | Агент-получатель | 👤 вручную |
 | 5 | CHANGELOG.md обновлён | s4-techlead | 🤖 авто |
@@ -331,16 +363,21 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
     └──► s1-finance: FIN-business-case.md
               │
               ▼ [Gate 1]
+         s0-quality-gates: tracking/quality-gates.md (проектные пороги, читают gate-контролёры)
+              │
+              ▼
          s2-ba: BA-BRD.md, BA-NFR.md, BA-RTM.md
               │
               ├──► s2-po: PO-backlog.md, PO-sprint-N.md
               │
-              └──► s2-qa-req: QA-REQ-*-review.md → "GATE 2 PASSED"
+              ├──► s2-qa-req: QA-REQ-*-review.md → "GATE 2 PASSED"
+              │
+              └──► s2-security: SEC-*-security-requirements.md → SG1 (abuse cases, ASVS)
                         │
-                        ▼ [Gate 2]
+                        ▼ [Gate 2 + SG1]
                    s3-arch: ARCH-HLD.md, ARCH-ADR-*.md, ARCH-api-spec.yaml
                         │
-                        ├──► s3-security: SEC-threat-model.md
+                        ├──► s3-security: SEC-*-threat-model.md (SG2, развивает SG1)
                         │
                         └──► s3-dba: DBA-schema.sql/.dbml
                                   │
@@ -360,9 +397,11 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
                                             │
                                             ├──► s5-qa-auto: AUTO-*-coverage.md
                                             │
-                                            └──► s5-perf: PERF-report.md
+                                            ├──► s5-perf: PERF-report.md
+                                            │
+                                            └──► s5-security: SEC-*-pentest-report.md (SG4)
                                                       │
-                                                      ▼ [Gate 5]
+                                                      ▼ [Gate 5 + SG4]
                                                  s6-release: REL-*-checklist.md
                                                              REL-*-release-notes-v*.md  ← НОВОЕ
                                                       │
@@ -385,7 +424,7 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 
 Правило передачи: каждый агент читает артефакты предыдущего через **абсолютный путь**. История диалога не передаётся.
 
-> **Единый файл ограничений** `tracking/PMO-constraints.md` создаётся s1-pmo из `PM-feasibility.md → Handoff` и читается ПЕРВЫМ агентами s2-ba, s3-arch, s3-security, s4-devops — содержит scope, budget, operational tier, topology, critical_risks, open_issues.
+> **Единый файл ограничений** `tracking/PMO-constraints.md` создаётся s1-pmo из `PM-feasibility.md → Handoff` и читается ПЕРВЫМ агентами s0-quality-gates, s2-ba, s2-security, s3-arch, s3-security, s4-devops, s5-security — содержит scope, budget, operational tier, topology, critical_risks, open_issues. `operational.tier` задаёт глубину security-трека (ASVS-уровень, DAST/pentest) и проектные пороги quality gates.
 
 > **Необязательные шаги** (s0-validate, s0-secrets, s0-tracker /sprint-init) вставляются до или после основного потока — выбираются пользователем в меню sdlc.sh перед стартом цикла.
 
@@ -400,8 +439,11 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 | `company.md` | `_agents/_standards/company.md` | s1-pm, s1-pmo, s1-finance, s3-arch |
 | `quality.md` | `_agents/_standards/quality.md` | Все агенты |
 | `data-formats.md` | `_agents/_standards/data-formats.md` | s2-ba, s3-dba, s4-dev, s5-qa-auto |
+| `security.md` | `_agents/_standards/security.md` | Владелец s3-security; s2-security, s5-security, s4-techlead |
 | `dor-violations-template.md` | `_agents/_standards/dor-violations-template.md` | s0-tracker (создаёт tracking/dor-violations.md) |
 | `tech-debt-template.md` | `_agents/_standards/tech-debt-template.md` | s0-tracker (создаёт tracking/tech-debt.md) |
+| `known-issues-template.md` | `_agents/_standards/known-issues-template.md` | s0-tracker (создаёт tracking/known-issues.md); читает s6-sre |
+| `runbook-KI-template.md` | `_agents/_standards/runbook-KI-template.md` | s6-sre (per-KI runbook в stage7-ops) |
 
 ### NFR-дефолты (применять если не указано в BRD)
 
@@ -413,8 +455,10 @@ s1-pm: PM-feasibility.md, PM-vision-okr.md
 | Error rate | < 0.1% |
 | RTO | < 1 час |
 | RPO | < 24 часа |
-| Security Critical/High | 0 |
-| Test coverage | ≥ 80% |
+| Security Critical/High (CVSS ≥ 7.0) | 0 — блокирует релиз (severity по CVSS, см. security.md §1) |
+| Test coverage (branch, изм. код) | ≥ 80% |
+| Mutation score (критичные модули) | ≥ 60% (порог растёт по tier, quality.md §3.1) |
+| Code duplication (новый код) | ≤ 3% |
 
 ### Обязательные паттерны надёжности (quality.md §5)
 
@@ -536,14 +580,14 @@ cd _agents/cycle1-dev/s0-validate && claude "/dod-check my-project K 4 42"
 - DoR-8: rollback в runbook (gate 7)
 
 `/dod-check <PROJECT> <K|D|I> <STAGE> [PR]` — проверяет DoD-1..11 по типу артефакта:
-- Тип К (Код): DoD-1 complexity, DoD-2 coverage ≥80%, DoD-3 TL-review, DoD-5 CHANGELOG, DoD-6 update-notes, DoD-8 secrets, DoD-10 outputs, DoD-11 format-tests
+- Тип К (Код): DoD-1 complexity, DoD-2 branch≥80%+mutation+integ/contract (§3.1), DoD-3 TL-review, DoD-5 CHANGELOG, DoD-6 update-notes, DoD-8 secrets, DoD-10 outputs, DoD-11 format-tests
 - Тип Д (Документ): DoD-3,4,5,7,8,10
 - Тип И (Инфраструктура): DoD-2 migration test, DoD-3..5, DoD-8..11
 
 Проверяет наличие:
 - `Dashboard.md`, `stage1..stage7` с `inputs/` и `outputs/`
 - `stage1-planning/inputs/idea.md`
-- Quality-артефактов для завершённых этапов: QA-REQ review, SEC threat model, RBAC model+matrix, TL reviews, QA go-no-go, PERF report, REL checklist + release notes
+- Quality-артефактов для завершённых этапов: QA-REQ review, SEC security-requirements (SG1), SEC threat model (SG2), RBAC model+matrix, TL reviews, QA go-no-go, PERF report, SEC pentest report (SG4), REL checklist + release notes
 
 ### s0-github — GitHub Sync
 
@@ -606,7 +650,7 @@ cd _agents/_tools/s0-secrets && claude /env my-project
 
 1) Запустить цикл — разработка / деплой / эксплуатация / всё
    └─ Подменю выбора:
-      1) 🔧 Разработка (Цикл 1)      ✓ готов — 22 шага
+      1) 🔧 Разработка (Цикл 1)      ✓ готов — 24 шага
       2) 🚀 Деплой (Цикл 2)          ⏳ в разработке
       3) 📊 Эксплуатация (Цикл 3)    ⏳ в разработке
       4) ⚙️  Всё сразу (1 → 2 → 3)
@@ -680,7 +724,7 @@ bash "<vault-root>/_agents/sdlc.sh"
 #    пункт 2 → s0-tracker → /sprint-init
 
 # 6. Запустить Цикл 1 — Разработка
-#    пункт 1 → 1) Разработка → выбрать проект → 22 шага (каждый gate проверяется автоматически)
+#    пункт 1 → 1) Разработка → выбрать проект → 24 шага (каждый gate проверяется автоматически)
 
 # 7. После цикла: cycle-summary.md + release-notes + ветка в GitHub
 ```
@@ -702,4 +746,5 @@ bash "<vault-root>/_agents/sdlc.sh"
 
 ---
 
-*Обновлено: 2026-05-23. v1.7.0: s0-kickoff расширен до 5 блоков/26 вопросов (Operational Tier, kill criteria, known unknowns). s1-pm: Operational Tier Selection matrix (Tier 0–3), Veto Protocol, parametric flags, Handoff YAML. PMO-constraints.md как единый файл ограничений (читается первым в s2-ba, s3-arch, s3-security, s4-devops). Исправлены 9 нарушений изоляции (переименованы Handoff ключи).*
+*Обновлено: 2026-06-20. Разделение Quality / Security: добавлен Security-трек SG1–SG5 (`_standards/security.md`, severity по CVSS, владелец s3-security). Новые агенты: `s0-quality-gates` (проектные пороги из risk-профиля, после S1 до S2), `s2-security` (SG1 — abuse cases/ASVS/security NFR, shift-left), `s5-security` (SG4 — DAST/pentest, tier-aware). Цикл 1 = 24 шага; деплой/эксплуатация вынесены в Циклы 2/3. Всего агентов: 30.*
+*v1.7.0: s0-kickoff расширен до 5 блоков/26 вопросов (Operational Tier, kill criteria, known unknowns). s1-pm: Operational Tier Selection matrix (Tier 0–3), Veto Protocol, parametric flags, Handoff YAML. PMO-constraints.md как единый файл ограничений. Исправлены 9 нарушений изоляции.*
