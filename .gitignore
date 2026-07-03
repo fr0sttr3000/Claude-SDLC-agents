@@ -2,11 +2,6 @@
 .claude/settings.local.json
 **/.claude/settings.local.json
 
-# Environment files
-.env
-.env.local
-**/.env
-
 # OS
 .DS_Store
 Thumbs.db
@@ -16,3 +11,41 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+
+# Assistant/private working memory (must stay outside the product repo)
+PROJECT_MEMORY.md
+**/PROJECT_MEMORY.md
+
+# Launcher user config if XDG_CONFIG_HOME is accidentally pointed into repo
+.config/sdlc-agents/
+sdlc-agents/config
+**/.config/sdlc-agents/
+
+# Environment files
+.env
+.env.*
+*.env
+*.env.*
+**/.env
+**/.env.*
+
+# Secret material and local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
+*.credentials
+*.secret
+*.token
+secrets.local.*
+
+# Runtime/cache/log output
+*.log
+.cache/
+**/.cache/

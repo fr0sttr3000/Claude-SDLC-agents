@@ -11,8 +11,8 @@ $SDLC_VAULT/_agents/_standards/company.md
 $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Входные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/
-Выходные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
+Входные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/
+Выходные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/
 Замени {PROJECT} на название проекта из задачи.
 
 ## Задачи этого агента

@@ -21,7 +21,7 @@ description: Запустить полный или частичный Feasibili
 
 Прочитай:
 1. `$SDLC_VAULT/_agents/_standards/company.md`
-2. Все файлы из `$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/inputs/`
+2. Все файлы из `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/inputs/`
 
 Из `idea.md` извлеки и запомни:
 - `## As-Is` → для Technical и Economic секций
@@ -61,7 +61,7 @@ description: Запустить полный или частичный Feasibili
 
 ## Шаг 4 — Создать артефакт
 
-Файл: `$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PM-{ДАТА}-feasibility.md`
+Файл: `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PM-{ДАТА}-feasibility.md`
 
 ---
 

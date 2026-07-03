@@ -1,14 +1,19 @@
 # CLAUDE.md — SDLC Vault (Глобальный контекст)
 
 ## Назначение vault
-Автоматизированная SDLC-система на базе Claude Code.
+Автоматизированная SDLC-система с универсальным runtime-слоем. Runtime выбирается явно при первом запуске, через `AGENT_RUNTIME` или меню; неявного fallback на Claude нет. Claude, Codex и Gemini поддерживаются через адаптеры.
 Каждый агент — отдельная папка в `_agents/` со своим `CLAUDE.md` и slash-командами.
-Агенты изолированы; данные передаются только через файлы в `projects/`.
+Агенты изолированы; данные передаются только через файлы в каталоге `SDLC_PROJECTS_DIR`.
 
 ## Структура vault
 ```
 _agents/
   _standards/       ← Стандарты компании (читать перед каждой задачей)
+  _contract/        ← Universal Runtime Contract: инварианты и источники истины
+  _runtimes/        ← agent-run.sh + adapters для claude/codex/gemini
+  AGENTS.md         ← Codex adapter к каноническим CLAUDE.md
+  GEMINI.md         ← Gemini adapter к каноническим CLAUDE.md
+  .codex/           ← Codex project config
   _tools/           ← Утилиты для всех циклов (s0-github, s0-secrets)
   cycle1-dev/       ← Цикл 1: Разработка (19 агентов: s0-kickoff/tracker/validate, s1-s5, l1-l4)
   cycle2-deploy/    ← Цикл 2: Деплой (s4-devops, s6-release)
@@ -17,14 +22,14 @@ _agents/
   sdlc.sh           ← Главный лаунчер (циклы 1 → 2 → 3)
   localrun.sh       ← Лаунчер Local Run (GitHub-проекты)
 _secrets/           ← Документация по управлению секретами (pass)
-projects/           ← Артефакты проектов (inputs/outputs по этапам + tracking/)
+$SDLC_PROJECTS_DIR/ ← Артефакты проектов (inputs/outputs по этапам + tracking/), настраивается launcher-ом
 Local_Run/          ← Заметки по локальным проектам с GitHub
 OVERVIEW.md         ← Полный обзор системы
 ```
 
-## Структура проекта в projects/
+## Структура проекта в `$SDLC_PROJECTS_DIR`
 ```
-projects/{PROJECT}/
+$SDLC_PROJECTS_DIR/{PROJECT}/
   Dashboard.md                  ← прогресс по этапам
   stage1-planning/inputs/       ← входные данные (idea.md и др.)
   stage1-planning/outputs/      ← артефакты агентов (PM-*.md, PMO-*.md)
@@ -38,17 +43,36 @@ projects/{PROJECT}/
     sprints/sprint-NN.md
 ```
 
+## Universal Runtime Contract
+
+Правила SDLC не зависят от AI runtime. Канонические источники:
+- root `CLAUDE.md` — глобальный контекст;
+- `cycle*/{agent}/CLAUDE.md` — роль агента;
+- `.claude/commands/*.md` — общие command templates;
+- `_standards/*.md` — обязательные стандарты;
+- `_contract/GLOBAL.md` — инварианты совместимости.
+
+Runtime adapters (`AGENTS.md`, `GEMINI.md`, `.codex/config.toml`, `_runtimes/adapters/*`) не должны содержать уникальные gates, правила или команды. Новое поведение сначала фиксируется в каноне, затем запускается через любой runtime.
+
+```bash
+bash "$SDLC_VAULT/_agents/sdlc.sh"                         # первый запуск спросит runtime
+AGENT_RUNTIME=claude bash "$SDLC_VAULT/_agents/sdlc.sh"
+AGENT_RUNTIME=codex bash "$SDLC_VAULT/_agents/sdlc.sh"
+AGENT_RUNTIME=gemini bash "$SDLC_VAULT/_agents/sdlc.sh"
+```
+
 ## Как работать с агентами
 ```bash
-# Через лаунчер (рекомендуется)
+# Через лаунчер (рекомендуется): runtime выбирается в меню или env-переменной.
 bash "$SDLC_VAULT/_agents/sdlc.sh"
+AGENT_RUNTIME=codex bash "$SDLC_VAULT/_agents/sdlc.sh"
+AGENT_RUNTIME=gemini bash "$SDLC_VAULT/_agents/sdlc.sh"
 
-# Напрямую
-cd "$SDLC_VAULT/_agents/[agent]"
-claude "[задача]"          # task-режим
-claude                     # интерактивный режим
-claude "начни сессию"      # инициировать диалог с представлением
-claude --continue          # продолжить последний диалог
+# Напрямую через universal dispatcher.
+AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" \
+  --agent-dir "$SDLC_VAULT/_agents/cycle1-dev/s1-pm" \
+  --mode task \
+  --prompt "Создай Feasibility Study для проекта my-project"
 ```
 
 ## Агенты — инфраструктура (этап 0)
@@ -142,7 +166,7 @@ Docs:      DEV-YYYY-MM-DD-update-notes-PR[N].md    → stage4-dev/outputs/
 
 ```bash
 # Пример: s2-ba читает результат s1-pm
-claude "Прочитай $SDLC_VAULT/projects/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
+AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" --agent-dir "$SDLC_VAULT/_agents/cycle1-dev/s2-ba" --mode task --prompt "Прочитай $SDLC_PROJECTS_DIR/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
 ```
 
 ## Пути проекта (env-переменные, КРИТИЧНО)
@@ -152,10 +176,15 @@ claude "Прочитай $SDLC_VAULT/projects/my-project/stage1-planning/outputs
 | Переменная | Что содержит | Пример пути |
 |-----------|--------------|-------------|
 | `AGENT_DIR` | папка текущего агента | `$AGENT_DIR/.claude/commands/` |
-| `SDLC_VAULT` | корень vault | `$SDLC_VAULT/projects/{PROJECT}/...` |
+| `SDLC_VAULT` | корень установки/vault со стандартами и `_agents` | `$SDLC_VAULT/_agents/_standards/quality.md` |
+| `SDLC_PROJECTS_DIR` | каталог-родитель SDLC-проектов | `$SDLC_PROJECTS_DIR/{PROJECT}/...` |
+| `SDLC_PROJECTS_MODE` | режим выбора проектов: `collection` или `single` | `single` |
+| `SDLC_SINGLE_PROJECT` | имя активного проекта в режиме `single` | `FamilyPlannerBot` |
 | `LOCALRUN_PROJECTS` | локальные GitHub-проекты (L-агенты) | `$LOCALRUN_PROJECTS/{PROJECT}/` |
 
-Получить значение в bash: `echo "$SDLC_VAULT"`. Стандарты читаются как `$SDLC_VAULT/_agents/_standards/quality.md`.
+В режиме одного проекта launcher показывает путь к конкретному проекту, но `SDLC_PROJECTS_DIR` остаётся родительским каталогом для совместимости с контрактом `$SDLC_PROJECTS_DIR/{PROJECT}`.
+
+Получить значение в bash: `echo "$SDLC_PROJECTS_DIR"`. Стандарты читаются как `$SDLC_VAULT/_agents/_standards/quality.md`.
 
 **Фолбэк:** если переменная пуста (агент запущен напрямую, минуя лаунчер) — спроси путь у пользователя, не угадывай и не подставляй чужой абсолютный путь.
 
@@ -179,7 +208,7 @@ cd /some/project && git log
 Обязательны для всех агентов Цикла 1. Источник — пост-мортемы FamilyPlannerBot Sprint 4.
 
 - **Git — не для отката.** Никогда не использовать `git checkout/reset/restore` для отмены ошибочных правок — откатывать вручную через Edit, восстанавливая содержимое файла. Любые git-операции выполняются ТОЛЬКО через агента `s0-github` или по явному запросу пользователя. (INC-02)
-- **Запись файлов — самостоятельно.** Реализацию и правку кода/артефактов делать напрямую через Read/Edit/Write. НЕ делегировать запись сабагентам (Agent) или `claude -p` — у них может не быть прав, изменения молча не применятся (exit 0, файл не тронут). Сабагенты — только для read-only задач (поиск, анализ). (INC-03)
+- **Запись файлов — самостоятельно.** Реализацию и правку кода/артефактов делать напрямую через Read/Edit/Write. НЕ делегировать запись сабагентам (Agent) или runtime CLI в отдельном процессе — у них может не быть прав, изменения молча не применятся (exit 0, файл не тронут). Сабагенты — только для read-only задач (поиск, анализ). (INC-03)
 - **«Все» = полный вывод.** Если пользователь просит «все» (задачи, список и т.п.) — выводить целиком, без сокращений «ради краткости». Явное «все/полный» перевешивает дефолт на лаконичность. (INC-05)
 - **Deployment constraint — учитывать.** Не предлагать действий, противоречащих модели деплоя проекта (напр. «выкатить в тест», когда тестовой среды нет — деплоятся только стабильные версии в prod). Читать `Deployment Constraint` из idea.md. (INC-07)
 

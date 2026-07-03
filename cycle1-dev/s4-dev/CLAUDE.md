@@ -10,10 +10,10 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай:
-  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
-Пиши отчёты в: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+Пиши отчёты в: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
 
 ## TDD Workflow
 Red → Green → Refactor
@@ -262,7 +262,7 @@ feat / fix / refactor / test / docs
 □ **ADR** — если решение изменяет архитектуру, создай/обнови ADR в stage3-design/outputs/
 
 Файл с update notes пиши в:
-`$SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEV-YYYY-MM-DD-update-notes-PR[N].md`
+`$SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/DEV-YYYY-MM-DD-update-notes-PR[N].md`
 
 Формат update notes:
 ```

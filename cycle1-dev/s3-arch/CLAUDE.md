@@ -10,13 +10,13 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ: scope, бюджет, operational tier, topology, critical risks.
      → architectural_constraints — обязательные требования к HLD и API spec.
-  2. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  3. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  4. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
+  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/
 
 ## Архитектурные принципы
 1. Design for failure

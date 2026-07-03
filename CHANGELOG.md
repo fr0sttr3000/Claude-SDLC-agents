@@ -1,5 +1,5 @@
 ---
-date: 2026-06-03
+date: 2026-07-03
 tags: [docs, changelog]
 ---
 
@@ -10,6 +10,52 @@ tags: [docs, changelog]
 ---
 
 ## [Unreleased]
+
+---
+
+## [2.000.003] — 2026-07-03
+
+### Added
+
+#### Universal Runtime Contract — Claude / Codex / Gemini
+- Добавлен `_contract/GLOBAL.md` и `_contract/README.md`: vendor-neutral контракт, где канон = `_standards/*.md`, root `CLAUDE.md`, agent `CLAUDE.md`, `.claude/commands/*.md`, `projects/`
+- Добавлен `_runtimes/agent-run.sh` — единый dispatcher для `claude`, `codex`, `gemini`
+- Добавлены runtime adapter docs: `_runtimes/adapters/claude.md`, `codex.md`, `gemini.md`
+- Добавлены `AGENTS.md` (Codex bridge), `GEMINI.md` (Gemini bridge), `.codex/config.toml`
+- Добавлена явная настройка проектов: first-run wizard поддерживает каталог с несколькими SDLC-проектами и папку одного проекта; launcher не выбирает каталог проектов автоматически
+
+### Changed
+
+- `sdlc.sh` запускает агентов через runtime dispatcher; runtime выбирается явно через `AGENT_RUNTIME=claude|codex|gemini`, сохранённый config, first-run wizard или меню `Настройки`; автоматического выбора Claude нет
+- `localrun.sh` также использует runtime dispatcher, раскрывает `.claude/commands/*.md` в обычный prompt до передачи в runtime и показывает/позволяет менять каталог локальных проектов
+- Документация обновлена под multi-runtime режим: `README.md`, `OVERVIEW.md`, `GETTING_STARTED.md`, `CLAUDE.md`, `plans/principles.md`, `plans/roadmap.md`
+- Агентские файловые контракты переведены с `$SDLC_VAULT/projects/{PROJECT}` на `$SDLC_PROJECTS_DIR/{PROJECT}`
+
+### Compatibility
+
+- Claude workflow сохранён как явный runtime: `AGENT_RUNTIME=claude bash sdlc.sh` или выбор Claude в настройках; чистый `bash sdlc.sh` сначала спрашивает runtime
+- Новые Codex/Gemini adapters не являются источником SDLC-логики; новые правила должны добавляться в канонические markdown-файлы
+
+---
+
+## [2.000.002] — 2026-06-21
+
+### Added
+
+#### Security-трек SG1–SG5
+- Добавлен `_standards/security.md`: CVSS severity, ASVS по tier, Security Gates SG1–SG5, DevSecOps controls, privacy/data protection при PII
+- Добавлены агенты `s2-security` (SG1), `s5-security` (SG4), `s0-quality-gates` (проектные пороги gates)
+- `s3-security` назначен владельцем SG2/SG3
+
+#### Quality Gates overhaul
+- Добавлена пирамида тестов: branch coverage, mutation score, integration, contract, E2E, performance
+- Добавлен маппинг ISO/IEC 25010, Functional Suitability в Gate 5, DORA + Reliability и defect-метрики
+- Добавлен Known Issues operational contract / KEDB: `known-issues.md`, per-KI runbook, alert join-key, Patch SLA
+
+### Changed
+
+- `quality.md` разделён с `security.md`: переход этапа требует зелёный Quality Gate и соответствующий Security Gate
+- `sdlc.sh`, `README.md`, `OVERVIEW.md`, `CLAUDE.md`, `plans/roadmap.md` синхронизированы с 24 шагами Цикла 1 и security/quality overhaul
 
 ---
 
@@ -437,7 +483,9 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.001...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.003...HEAD
+[2.000.003]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.002...v2.000.003
+[2.000.002]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.001...v2.000.002
 [2.000.001]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.000...v2.000.001
 [2.000.000]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.1...v2.000.000
 [1.7.1]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v1.7.0...v1.7.1

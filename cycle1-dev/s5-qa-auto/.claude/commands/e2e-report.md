@@ -6,10 +6,10 @@ description: Создать E2E/API automation отчёт с coverage (Gate 4/5)
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/QA-test-cases-*.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/QA-test-cases-*.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/:
 - AUTO-[дата]-e2e-report.md
 - AUTO-[дата]-coverage.md
 

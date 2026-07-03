@@ -13,7 +13,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 - Чтение и создание .md файлов
 
 ## Vault
-$SDLC_VAULT/projects/
+$SDLC_PROJECTS_DIR/
 
 ## Обязательная структура каждого проекта
 
@@ -50,7 +50,7 @@ $SDLC_VAULT/projects/
 Проверяет автоматизируемые пункты DoD для артефакта или PR:
 ```bash
 bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
-  "$SDLC_VAULT/projects/{PROJECT}" \
+  "$SDLC_PROJECTS_DIR/{PROJECT}" \
   {TYPE} {STAGE} [{PR_NUM}]
 ```
 
@@ -77,7 +77,7 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
 Запускает `dor-check.sh` для указанного gate:
 ```bash
 bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dor-check.sh" \
-  "$SDLC_VAULT/projects/{PROJECT}" \
+  "$SDLC_PROJECTS_DIR/{PROJECT}" \
   {GATE}
 ```
 

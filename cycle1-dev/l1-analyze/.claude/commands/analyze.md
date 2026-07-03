@@ -27,4 +27,4 @@ $SDLC_VAULT/Local_Run/_templates/project.md
 
 В конце выведи:
 - Стек одной строкой
-- Следующий шаг: `claude /setup $ARGUMENTS` у агента l2-setup
+- Следующий шаг: запусти `/setup $ARGUMENTS` у агента `l2-setup` через выбранный runtime
