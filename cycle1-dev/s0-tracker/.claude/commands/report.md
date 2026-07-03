@@ -7,7 +7,7 @@ description: Полный отчёт SDLC-цикла — план vs факт п
 Шаги:
 
 1. Собери данные из tracking/:
-   $SDLC_VAULT/projects/$ARGUMENTS/tracking/
+   $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/
 
    - Прочитай все sprint-NN.md (в порядке возрастания)
    - Прочитай backlog.md
@@ -22,7 +22,7 @@ description: Полный отчёт SDLC-цикла — план vs факт п
    - Если файлов нет — отметить как [ПЛАН НЕДОСТУПЕН] / метрику как [НЕТ ДАННЫХ]
 
 3. Сформируй отчёт и сохрани в:
-   $SDLC_VAULT/projects/$ARGUMENTS/tracking/cycle-summary.md
+   $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/cycle-summary.md
 
    Структура отчёта:
    ```markdown

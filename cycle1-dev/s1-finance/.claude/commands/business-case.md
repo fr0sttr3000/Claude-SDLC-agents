@@ -6,11 +6,11 @@ description: Создать Business Case (NPV, ROI, TCO, сценарный а�
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/inputs/idea.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PM-feasibility.md (если существует)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/inputs/idea.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PM-feasibility.md (если существует)
 
 Создай файл FIN-[дата]-business-case.md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/
 
 # Business Case — $ARGUMENTS
 Дата: [сегодня]

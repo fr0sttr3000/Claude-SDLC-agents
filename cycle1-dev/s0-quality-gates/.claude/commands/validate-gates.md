@@ -6,7 +6,7 @@ description: Проверить, что проектные пороги не о�
 
 ## Шаги
 
-1. Прочитай `$SDLC_VAULT/projects/$ARGUMENTS/tracking/quality-gates.md`.
+1. Прочитай `$SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/quality-gates.md`.
    Если файла нет — сообщи, что нужно сначала запустить `/configure $ARGUMENTS`, остановись.
 
 2. Прочитай глобальные минимумы из `_agents/_standards/quality.md` §3 (NFR-дефолты) и §4 (Gates).

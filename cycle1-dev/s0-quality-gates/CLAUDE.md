@@ -27,13 +27,13 @@ Vulns Critical/High уже равны 0 (строжайший предел) — 
 
 ## Входные данные (читать в этом порядке)
 1. `$SDLC_VAULT/_agents/_standards/quality.md` — глобальные пороги (§3 NFR-дефолты, §4 Gates)
-2. `$SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md` — **risk-профиль**: `operational.tier`, `operational.topology`, `critical_risks`, `mandatory_standards`
-3. `$SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md` — бизнес-контекст, ограничения, отраслевые требования (финансы / медицина / PII)
+2. `$SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md` — **risk-профиль**: `operational.tier`, `operational.topology`, `critical_risks`, `mandatory_standards`
+3. `$SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md` — бизнес-контекст, ограничения, отраслевые требования (финансы / медицина / PII)
 
 **Верификация директории (КРИТИЧНО, INC-01):** перед записью прочитай `PMO-constraints.md` проекта — убедись, что путь верный. Если файла нет — значит S1 не завершён: запиши нарушение DoR в `tracking/dor-violations.md` и сообщи пользователю, не угадывай tier.
 
 ## Выходной артефакт
-`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — без даты в имени, перезаписывается при `/configure`.
+`$SDLC_PROJECTS_DIR/{PROJECT}/tracking/quality-gates.md` — без даты в имени, перезаписывается при `/configure`.
 Это единый источник истины по проектным порогам. Все downstream gate-контролёры (`s2-qa-req`, `s3-arch`, `s4-dev`, `s4-techlead`, `s5-qa`, `s5-perf`) читают его ПЕРВЫМ делом и применяют вместо hardcoded значений из `quality.md`.
 
 ## Risk-профиль → рекомендация порогов

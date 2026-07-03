@@ -1,12 +1,12 @@
 ---
-date: 2026-06-03
+date: 2026-07-03
 tags: [docs, getting-started]
 ---
 
 # Руководство по первому запуску
 
-> Claude SDLC Agents — автоматизированная SDLC-система на базе Claude Code.
-> Этот документ проведёт тебя от установки до первого запущенного цикла.
+> Claude SDLC Agents — автоматизированная SDLC-система.
+> Этот документ проведёт тебя от установки до первого запущенного цикла через Claude, Codex или Gemini.
 
 ---
 
@@ -15,6 +15,7 @@ tags: [docs, getting-started]
 1. [Предварительные требования](#1-предварительные-требования)
 2. [Установка](#2-установка)
 3. [Структура системы](#3-структура-системы)
+   - [Выбор runtime](#31-выбор-runtime)
 4. [Первый проект — пошагово](#4-первый-проект--пошагово)
 5. [Kickoff — ключевой шаг](#5-kickoff--ключевой-шаг)
 6. [Обновление существующего проекта](#6-обновление-существующего-проекта)
@@ -28,7 +29,7 @@ tags: [docs, getting-started]
 
 | Компонент | Версия | Назначение |
 |-----------|--------|-----------|
-| [Claude Code CLI](https://claude.ai/code) | последняя | запуск агентов |
+| Claude Code CLI / Codex CLI / Gemini CLI | последняя | нужен хотя бы один выбранный runtime |
 | `bash` | 4.0+ | лаунчер sdlc.sh |
 | `pass` | любая | хранение секретов (обязательно) |
 | [Obsidian](https://obsidian.md) | любая | просмотр артефактов (рекомендуется) |
@@ -68,8 +69,8 @@ git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
 ### Вариант Б — отдельная папка
 
 ```bash
-git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git claude-sdlc
-cd claude-sdlc/_agents
+git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git sdlc-agents
+cd sdlc-agents/_agents
 ```
 
 ### Проверка установки
@@ -79,7 +80,7 @@ cd _agents
 bash sdlc.sh
 ```
 
-Должно появиться главное меню лаунчера. Если ошибка — проверь, что Claude Code CLI установлен: `claude --version`.
+При первом запуске launcher попросит явно выбрать режим проектов: каталог с несколькими проектами или папку одного проекта. Он не выбирает каталог проектов автоматически. Затем должно появиться главное меню. Если ошибка — проверь, что выбранный runtime установлен: `claude --version`, `codex --version` или `gemini --version`.
 
 ---
 
@@ -90,6 +91,10 @@ Claude/
 ├── _agents/                ← этот репозиторий
 │   ├── sdlc.sh             ← главный лаунчер (запускай отсюда)
 │   ├── localrun.sh         ← лаунчер Local Run
+│   ├── AGENTS.md           ← Codex adapter
+│   ├── GEMINI.md           ← Gemini adapter
+│   ├── _contract/          ← Universal Runtime Contract
+│   ├── _runtimes/          ← dispatcher claude/codex/gemini
 │   ├── _standards/         ← стандарты (читаются всеми агентами)
 │   ├── _tools/             ← утилиты для всех циклов (s0-github, s0-secrets)
 │   ├── plans/              ← планы развития системы
@@ -108,7 +113,7 @@ Claude/
 │   ├── cycle2-deploy/      ← Цикл 2: Деплой (s4-devops, s6-release)
 │   └── cycle3-ops/         ← Цикл 3: Эксплуатация (s6-sre)
 │
-└── projects/               ← создаётся при добавлении проектов
+└── SDLC_PROJECTS_DIR/       ← настраивается при первом запуске
     └── {PROJECT}/
         ├── Dashboard.md
         ├── stage1-planning/inputs/    ← входные данные (заполняет kickoff)
@@ -121,6 +126,32 @@ Claude/
 
 ---
 
+## 3.1 Выбор runtime
+
+Runtime выбирается явно. При чистом первом запуске launcher спросит runtime и сохранит выбор; позже его можно сменить в меню `7) Настройки` или задать через env:
+
+```bash
+bash sdlc.sh
+```
+
+Явный выбор runtime без интерактивного шага:
+
+```bash
+AGENT_RUNTIME=claude bash sdlc.sh
+AGENT_RUNTIME=codex bash sdlc.sh
+AGENT_RUNTIME=gemini bash sdlc.sh
+```
+
+Та же переменная работает для Local Run:
+
+```bash
+AGENT_RUNTIME=codex bash localrun.sh
+```
+
+Новые SDLC-правила, агенты и команды добавляй в канонические файлы (`CLAUDE.md`, `_standards/*.md`, `.claude/commands/*.md`), а не только в runtime-specific адаптеры. Тогда проект остаётся доступным Claude, Codex и Gemini.
+
+---
+
 ## 4. Первый проект — пошагово
 
 ### Шаг 1. Запусти лаунчер
@@ -130,7 +161,7 @@ cd _agents
 bash sdlc.sh
 ```
 
-В Claude Code чате:
+Из терминала или shell-команды выбранного AI runtime:
 ```
 ! bash "/полный/путь/до/_agents/sdlc.sh"
 ```
@@ -222,17 +253,16 @@ stage1-planning/inputs/
 
 После завершения: `s1-pm /feasibility` для проекта готов к запуску.
 
-### Запуск Kickoff напрямую (без лаунчера)
+### Запуск Kickoff через universal dispatcher
 
 ```bash
-cd _agents/cycle1-dev/s0-kickoff
-
-# Новый проект
-claude "/new my-project"
-
-# Авто-определение
-claude "/start my-project"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh \
+  --agent-dir _agents/cycle1-dev/s0-kickoff \
+  --mode task \
+  --prompt "/new my-project"
 ```
+
+Обычный путь остаётся через меню: `bash sdlc.sh → 0) Kickoff`.
 
 ---
 
@@ -374,7 +404,7 @@ stage2-requirements/inputs/
 
 ### "Агент не видит артефакты предыдущего"
 **Причина:** Передаётся относительный путь, а не абсолютный.
-**Решение:** Используй абсолютные пути вида `/home/.../projects/{PROJECT}/stage{N}/outputs/`.
+**Решение:** Используй абсолютные пути через `$SDLC_PROJECTS_DIR/{PROJECT}/stage{N}/outputs/`.
 
 ---
 
@@ -415,14 +445,21 @@ nano _agents/_standards/company.md
 "agent-name|/command|before|Описание шага"
 ```
 
-### Прямой запуск агента (без лаунчера)
+### Прямой запуск агента через dispatcher
 
 ```bash
-cd _agents/cycle1-dev/s1-pm
-claude "начни сессию"                        # интерактивный режим
-claude "/feasibility проект: my-app"         # slash-команда
-claude --continue                            # продолжить последний диалог
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh \
+  --agent-dir _agents/cycle1-dev/s1-pm \
+  --mode task \
+  --prompt "/feasibility my-app"
+
+AGENT_RUNTIME=gemini _agents/_runtimes/agent-run.sh \
+  --agent-dir _agents/cycle1-dev/s1-pm \
+  --mode interactive \
+  --prompt "начни сессию"
 ```
+
+Через интерактивный launcher: `bash sdlc.sh → 7) Настройки → выбрать runtime`.
 
 ---
 
@@ -441,9 +478,9 @@ bash sdlc.sh → 2) один агент → выбрать → выбрать п
 # Проверить структуру проекта
 bash sdlc.sh → 6) валидация → /validate
 
-# Прямой запуск агента
-cd _agents/cycle1-dev/s0-kickoff && claude "/new my-project"
-cd _agents/cycle1-dev/s1-pm && claude "/feasibility my-project"
+# Прямой запуск агента через dispatcher
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/new my-project"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s1-pm --mode task --prompt "/feasibility my-project"
 ```
 
 ---

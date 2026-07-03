@@ -6,11 +6,11 @@ description: Проверить требования на тестируемос
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. Все BA-*.md в $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
-3. Все PO-*.md в $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
+2. Все BA-*.md в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
+3. Все PO-*.md в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
 
 Создай файл QA-REQ-[дата]-review.md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
 
 # QA Requirements Review — $ARGUMENTS
 Дата: [сегодня]

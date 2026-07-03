@@ -7,7 +7,7 @@ description: Построить/обновить проектные пороги
 ## Шаги
 
 1. **Верифицируй директорию (INC-01):** прочитай
-   `$SDLC_VAULT/projects/$ARGUMENTS/tracking/PMO-constraints.md`.
+   `$SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/PMO-constraints.md`.
    Если файла нет — S1 не завершён: запиши нарушение DoR-1 в
    `tracking/dor-violations.md`, сообщи что нужно запустить `s1-pmo`, остановись.
    Не угадывай tier.

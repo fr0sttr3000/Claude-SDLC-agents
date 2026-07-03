@@ -6,15 +6,319 @@ export PATH="$HOME/.local/bin:$PATH"
 # Пути вычисляются от расположения скрипта — переносимо между окружениями
 AGENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="$(dirname "$AGENTS")"
-PROJECTS="$VAULT/projects"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sdlc-agents"
+CONFIG_FILE="$CONFIG_DIR/config"
+PROJECTS=""
+PROJECTS_MODE=""
+SINGLE_PROJECT=""
+PROJECTS_DIR_NOTE=""
 
-# Экспортируем пути в окружение — агенты используют их в CLAUDE.md
-# вместо захардкоженных абсолютных путей (по образцу AGENT_DIR)
+# Экспортируем пути в окружение — агенты используют их вместо
+# захардкоженных абсолютных путей (по образцу AGENT_DIR).
 export SDLC_VAULT="$VAULT"
+export AGENT_RUNTIME="${AGENT_RUNTIME:-}"
+AGENT_RUNNER="$AGENTS/_runtimes/agent-run.sh"
 
 # ─── цвета ────────────────────────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[0;33m'
 B='\033[0;34m'; C='\033[0;36m'; W='\033[1;37m'; N='\033[0m'
+
+
+# ─── конфигурация runtime и проектов ─────────────────────────────────────────
+read_config_value() {
+  local key="$1"
+  [[ -f "$CONFIG_FILE" ]] || return 1
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      value=$0
+      sub(/^[^=]*=/, "", value)
+      sub(/^"/, "", value)
+      sub(/"$/, "", value)
+      print value
+      exit
+    }
+  ' "$CONFIG_FILE"
+}
+
+write_config_value() {
+  local key="$1" value="$2" tmp
+  mkdir -p "$CONFIG_DIR"
+  tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")" || return 1
+  if [[ -f "$CONFIG_FILE" ]]; then
+    awk -v key="$key" -v value="$value" '
+      BEGIN { written=0 }
+      index($0, key "=") == 1 { print key "=\"" value "\""; written=1; next }
+      { print }
+      END { if (written == 0) print key "=\"" value "\"" }
+    ' "$CONFIG_FILE" > "$tmp"
+  else
+    printf '%s="%s"\n' "$key" "$value" > "$tmp"
+  fi
+  mv "$tmp" "$CONFIG_FILE"
+}
+
+expand_path() {
+  local value="$1"
+  [[ "$value" == "~" ]] && value="$HOME"
+  [[ "$value" == "~/"* ]] && value="$HOME/${value#~/}"
+  echo "$value"
+}
+
+normalize_runtime() {
+  local runtime="${1:-}"
+  [[ -z "$runtime" ]] && return 1
+  runtime="${runtime,,}"
+  case "$runtime" in
+    claude|codex|gemini) echo "$runtime" ;;
+    gemeni|gqmeni) echo "gemini" ;;
+    *) return 1 ;;
+  esac
+}
+
+init_runtime() {
+  local requested="${1:-${AGENT_RUNTIME:-}}"
+  local normalized
+  if ! normalized="$(normalize_runtime "$requested")"; then
+    [[ -n "$requested" ]] && echo -e "${R}Неизвестный runtime: ${requested}${N}"
+    [[ -n "$requested" ]] && echo -e "Ожидается: ${C}claude${N}, ${C}codex${N} или ${C}gemini${N}"
+    return 1
+  fi
+  AGENT_RUNTIME="$normalized"
+  export AGENT_RUNTIME
+}
+
+runtime_label() {
+  case "$AGENT_RUNTIME" in
+    claude) echo "Claude" ;;
+    codex) echo "Codex" ;;
+    gemini) echo "Gemini" ;;
+    "") echo "не выбран" ;;
+    *) echo "$AGENT_RUNTIME" ;;
+  esac
+}
+
+runtime_bin() {
+  case "$AGENT_RUNTIME" in
+    claude) echo "${CLAUDE_BIN:-claude}" ;;
+    codex) echo "${CODEX_BIN:-codex}" ;;
+    gemini) echo "${GEMINI_BIN:-gemini}" ;;
+    *) echo "" ;;
+  esac
+}
+
+ensure_runtime_available() {
+  local bin
+  if [[ -z "${AGENT_RUNTIME:-}" ]]; then
+    echo -e "${R}Runtime не выбран.${N}"
+    return 1
+  fi
+  bin="$(runtime_bin)"
+  if [[ -z "$bin" ]] || ! command -v "$bin" >/dev/null 2>&1; then
+    echo -e "${R}Runtime '${AGENT_RUNTIME}' выбран, но команда '${bin}' не найдена в PATH.${N}"
+    echo -e "Установи CLI, выбери другой runtime в настройках или задай ${W}${AGENT_RUNTIME^^}_BIN${N}."
+    return 1
+  fi
+}
+
+load_runtime() {
+  local configured=""
+  if [[ -n "${AGENT_RUNTIME:-}" ]]; then
+    configured="$AGENT_RUNTIME"
+  else
+    configured="$(read_config_value AGENT_RUNTIME || true)"
+  fi
+  [[ -n "$configured" ]] && init_runtime "$configured"
+}
+
+select_runtime() {
+  local allow_back="${1:-yes}"
+  local choice prompt_suffix
+  while true; do
+    header
+    echo -e "${W}── Runtime AI-вендора ───────────────────────────────${N}"
+    echo
+    echo -e "Текущий runtime: ${C}$(runtime_label)${N}${AGENT_RUNTIME:+ ($AGENT_RUNTIME)}"
+    echo
+    echo -e "  ${Y}1)${N} Claude"
+    echo -e "  ${Y}2)${N} Codex"
+    echo -e "  ${Y}3)${N} Gemini"
+    if [[ "$allow_back" == "yes" ]]; then
+      echo -e "  ${Y}b)${N} Назад"
+      prompt_suffix="1-3/b"
+    else
+      prompt_suffix="1-3"
+    fi
+    echo
+    read -rp "$(echo -e "${W}Выбери runtime [${prompt_suffix}]:${N} ")" choice
+    case "$choice" in
+      1) AGENT_RUNTIME="claude" ;;
+      2) AGENT_RUNTIME="codex" ;;
+      3) AGENT_RUNTIME="gemini" ;;
+      b|B)
+        if [[ "$allow_back" == "yes" ]]; then
+          return 1
+        fi
+        echo -e "${R}Неверный выбор${N}"
+        sleep 0.5
+        continue
+        ;;
+      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5; continue ;;
+    esac
+    export AGENT_RUNTIME
+    write_config_value AGENT_RUNTIME "$AGENT_RUNTIME"
+    echo
+    echo -e "${G}✓ Runtime: ${W}$(runtime_label)${N}"
+    ensure_runtime_available || true
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+    return 0
+  done
+}
+
+ensure_runtime() {
+  load_runtime && return 0
+  select_runtime no
+}
+
+is_sdlc_project_dir() {
+  local dir="$1"
+  [[ -d "$dir" ]] || return 1
+  [[ -d "$dir/stage1-planning" ]] || return 1
+  [[ -d "$dir/stage2-requirements" ]] || return 1
+  [[ -d "$dir/stage3-design" ]] || return 1
+  [[ -d "$dir/stage4-dev" ]] || return 1
+  [[ -d "$dir/stage5-testing" ]] || return 1
+}
+
+set_project_collection_dir() {
+  local dir
+  PROJECTS_DIR_NOTE=""
+  dir="$(expand_path "$1")"
+  [[ -z "$dir" ]] && return 1
+  mkdir -p "$dir" || return 1
+  PROJECTS="$(cd "$dir" && pwd -P)"
+  PROJECTS_MODE="collection"
+  SINGLE_PROJECT=""
+  export SDLC_PROJECTS_DIR="$PROJECTS"
+  unset SDLC_SINGLE_PROJECT
+}
+
+set_single_project_dir() {
+  local dir project_dir
+  PROJECTS_DIR_NOTE=""
+  dir="$(expand_path "$1")"
+  [[ -z "$dir" ]] && return 1
+  if ! is_sdlc_project_dir "$dir"; then
+    echo -e "${R}Это не похоже на папку SDLC-проекта: $dir${N}"
+    echo -e "Ожидаются stage1-planning ... stage5-testing внутри выбранной папки."
+    return 1
+  fi
+  project_dir="$(cd "$dir" && pwd -P)"
+  PROJECTS="$(dirname "$project_dir")"
+  SINGLE_PROJECT="$(basename "$project_dir")"
+  PROJECTS_MODE="single"
+  PROJECTS_DIR_NOTE="Режим: один проект — ${SINGLE_PROJECT}"
+  export SDLC_PROJECTS_DIR="$PROJECTS"
+  export SDLC_SINGLE_PROJECT="$SINGLE_PROJECT"
+}
+
+load_projects_dir() {
+  local configured="" mode="" single=""
+  if [[ -n "${SDLC_PROJECTS_DIR:-}" ]]; then
+    configured="$SDLC_PROJECTS_DIR"
+    mode="${SDLC_PROJECTS_MODE:-}"
+    single="${SDLC_SINGLE_PROJECT:-}"
+  else
+    configured="$(read_config_value SDLC_PROJECTS_DIR || true)"
+    mode="$(read_config_value SDLC_PROJECTS_MODE || true)"
+    single="$(read_config_value SDLC_SINGLE_PROJECT || true)"
+  fi
+  [[ -z "$configured" ]] && return 1
+  case "$mode" in
+    single)
+      if [[ -n "$single" ]]; then
+        set_single_project_dir "$configured/$single"
+      else
+        set_single_project_dir "$configured"
+      fi
+      ;;
+    collection)
+      set_project_collection_dir "$configured"
+      ;;
+    *)
+      if is_sdlc_project_dir "$configured"; then
+        set_single_project_dir "$configured"
+      else
+        set_project_collection_dir "$configured"
+      fi
+      ;;
+  esac
+}
+
+configure_projects_dir() {
+  local mode input
+  while true; do
+    header
+    echo -e "${W}── Настройка каталога SDLC-проектов ────────────────${N}"
+    echo
+    echo -e "Launcher не выбирает каталог автоматически."
+    echo -e "Можно указать каталог с несколькими SDLC-проектами или папку одного проекта."
+    [[ -n "${SDLC_PROJECTS_DIR:-}" ]] && echo -e "Текущее значение env: ${C}${SDLC_PROJECTS_DIR}${N}"
+    echo
+    echo -e "  ${Y}1)${N} Каталог с несколькими проектами"
+    echo -e "  ${Y}2)${N} Папка одного проекта"
+    echo -e "  ${Y}b)${N} Отмена"
+    echo
+    read -rp "$(echo -e "${W}Выбери [1-2/b]:${N} ")" mode
+    case "$mode" in
+      b|B) return 1 ;;
+      1|2) ;;
+      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5; continue ;;
+    esac
+
+    echo
+    if [[ "$mode" == "1" ]]; then
+      echo -e "${C}Введи полный путь к каталогу, внутри которого лежат папки проектов.${N}"
+    else
+      echo -e "${C}Введи полный путь к папке конкретного SDLC-проекта.${N}"
+    fi
+    read -rp "$(echo -e "${W}Путь (b — отмена):${N} ")" input
+    [[ "$input" == "b" || "$input" == "B" ]] && continue
+    if [[ -z "$input" ]]; then
+      echo -e "${R}Путь обязателен. Launcher не подставляет каталог по умолчанию.${N}"
+      sleep 0.8
+      continue
+    fi
+
+    if [[ "$mode" == "1" ]]; then
+      set_project_collection_dir "$input" || { echo -e "${R}Не удалось настроить каталог: $input${N}"; sleep 1; continue; }
+    else
+      set_single_project_dir "$input" || { sleep 1; continue; }
+    fi
+
+    write_config_value SDLC_PROJECTS_DIR "$PROJECTS"
+    write_config_value SDLC_PROJECTS_MODE "$PROJECTS_MODE"
+    write_config_value SDLC_SINGLE_PROJECT "$SINGLE_PROJECT"
+    echo
+    [[ -n "${PROJECTS_DIR_NOTE:-}" ]] && echo -e "${Y}${PROJECTS_DIR_NOTE}${N}"
+    echo -e "${G}✓ Каталог проектов: ${W}$PROJECTS${N}"
+    [[ "$PROJECTS_MODE" == "single" ]] && echo -e "  Активный проект: ${W}$SINGLE_PROJECT${N}"
+    echo -e "  Изменить позже: настройки launcher или env ${W}SDLC_PROJECTS_DIR${N}"
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+    return 0
+  done
+}
+
+ensure_projects_dir() {
+  load_projects_dir
+  [[ -n "$PROJECTS" ]] && return 0
+  configure_projects_dir
+}
+
+choose_runtime() {
+  select_runtime yes
+}
 
 # ─── агенты: папка → описание ─────────────────────────────────────────────────
 declare -A AGENT_DESC=(
@@ -111,25 +415,51 @@ declare -a CYCLE3_AGENTS=(
 header() {
   clear
   echo -e "${B}╔══════════════════════════════════════════════════════╗${N}"
-  echo -e "${B}║${W}         SDLC Agent Launcher — Claude Code           ${B}║${N}"
+  echo -e "${B}║${W}        SDLC Agent Launcher — AI Runtime           ${B}║${N}"
   echo -e "${B}╚══════════════════════════════════════════════════════╝${N}"
+  echo -e "  Runtime: ${C}$(runtime_label)${N} (${AGENT_RUNTIME})"
+  if [[ -n "${PROJECTS:-}" ]]; then
+    if [[ "$PROJECTS_MODE" == "single" ]]; then
+      echo -e "  Projects: ${C}$PROJECTS/$SINGLE_PROJECT${N} ${Y}(один проект)${N}"
+    else
+      echo -e "  Projects: ${C}$PROJECTS${N}"
+    fi
+  else
+    echo -e "  Projects: ${Y}не настроены${N}"
+  fi
   echo
 }
 
 # ─── выбор проекта ────────────────────────────────────────────────────────────
 pick_project() {
+  mkdir -p "$PROJECTS"
   echo -e "${C}Проекты:${N}"
+  if [[ "$PROJECTS_MODE" == "single" ]]; then
+    echo -e "  ${Y}1)${N} $SINGLE_PROJECT"
+    echo -e "  ${Y}b)${N} Назад"
+    echo
+    read -rp "$(echo -e "${W}Выбери проект [1/b]:${N} ")" choice
+    [[ "$choice" == "b" || "$choice" == "B" ]] && return 1
+    if [[ "$choice" == "1" ]]; then
+      PROJECT="$SINGLE_PROJECT"
+      return 0
+    fi
+    echo -e "${R}Неверный выбор${N}"; sleep 1; return 1
+  fi
+
   local i=1
   local -a proj_list=()
   while IFS= read -r -d '' d; do
     local name
     name=$(basename "$d")
-    [[ "$name" == _* ]] && continue
+    [[ "$name" == _* || "$name" == .* ]] && continue
+    is_sdlc_project_dir "$d" || continue
     proj_list+=("$name")
     echo -e "  ${Y}$i)${N} $name"
     ((i++))
-  done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
+  [[ ${#proj_list[@]} -eq 0 ]] && echo -e "  ${Y}Проектов пока нет в выбранном каталоге${N}"
   echo -e "  ${Y}n)${N} Создать новый проект"
   echo -e "  ${Y}b)${N} Назад"
   echo
@@ -152,6 +482,7 @@ pick_project() {
 # ─── создать структуру проекта ────────────────────────────────────────────────
 create_project() {
   local name="$1"
+  mkdir -p "$PROJECTS"
   local dir="$PROJECTS/$name"
 
   if [[ -d "$dir" ]]; then
@@ -218,8 +549,8 @@ DASH
 
 # ─── запуск агента ────────────────────────────────────────────────────────────
 # Режимы:
-#   task (default) — claude "задача проект"  →  агент выполняет и завершает
-#   interactive    — claude                  →  открывается REPL-диалог
+#   task (default) — runtime "задача проект"  →  агент выполняет и завершает
+#   interactive    — runtime                  →  открывается диалог, если runtime поддерживает
 #
 # Возврат: 0 — OK, 1 — ошибка, 2 — выход из цикла
 find_agent_dir() {
@@ -243,34 +574,46 @@ run_agent() {
     echo -e "${R}Агент '$agent' не найден${N}"; return 1
   fi
 
-  # собираем аргумент для claude в task-режиме
-  local claude_arg
+  if [[ ! -x "$AGENT_RUNNER" ]]; then
+    echo -e "${R}Runtime dispatcher не найден или не исполняемый: $AGENT_RUNNER${N}"; return 1
+  fi
+
+  ensure_runtime_available || return 1
+
+  # Собираем vendor-neutral prompt для выбранного runtime.
+  local prompt=""
   if [[ "$task" == /* ]]; then
-    # Раскрываем шаблон slash-команды вручную, чтобы $ARGUMENTS подставился в bash,
-    # а не ждать от claude CLI (в неинтерактивном режиме он может не подставляться)
-    local cmd_name="${task#/}"
+    local slash_task="${task#/}"
+    local cmd_name="${slash_task%% *}"
+    local cmd_args="${slash_task#"$cmd_name"}"
+    cmd_args="${cmd_args# }"
+    [[ -z "$cmd_args" ]] && cmd_args="$project"
     local cmd_file="$agent_dir/.claude/commands/${cmd_name}.md"
     if [[ -f "$cmd_file" ]]; then
-      # Убираем frontmatter (--- ... ---) и подставляем $ARGUMENTS → project
       local template
       template=$(awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$cmd_file")
       [[ -z "$template" ]] && template=$(grep -v '^---' "$cmd_file" | grep -v '^description:')
-      claude_arg="Проект: $project."$'\n\n'"${template//\$ARGUMENTS/$project}"
+      prompt="Проект: $project."$'\n\n'"${template//\$ARGUMENTS/$cmd_args}"
     else
-      claude_arg="$task $project"
+      prompt="$task"
     fi
-  else
-    claude_arg="Проект: $project."$'\n\n'"$task"
+  elif [[ -n "$task" ]]; then
+    prompt="Проект: $project."$'\n\n'"$task"
   fi
 
   echo
   echo -e "${B}┌─ Агент ────────────────────────────────────────────┐${N}"
   echo -e "${B}│${N} ${W}$agent${N} — ${AGENT_DESC[$agent]}"
+  echo -e "${B}│${N} Runtime: ${W}$(runtime_label)${N} (${AGENT_RUNTIME})"
   echo -e "${B}│${N} Проект: ${W}$project${N}"
-  echo -e "${B}│${N} Задача: ${C}$claude_arg${N}"
+  [[ -n "$prompt" ]] && echo -e "${B}│${N} Prompt: ${C}$prompt${N}"
   echo -e "${B}└────────────────────────────────────────────────────┘${N}"
   echo
-  echo -e "  ${Y}Enter${N} — запустить задачу (claude завершится автоматически)"
+  if [[ -n "$prompt" ]]; then
+    echo -e "  ${Y}Enter${N} — запустить задачу (выбранный runtime завершится автоматически)"
+  else
+    echo -e "  ${Y}Enter${N} — открыть интерактивный режим выбранного runtime"
+  fi
   echo -e "  ${Y}i${N}     — открыть интерактивный диалог с агентом"
   echo -e "  ${Y}s${N}     — пропустить этот шаг"
   echo -e "  ${Y}q${N}     — выйти из цикла"
@@ -288,24 +631,24 @@ run_agent() {
     i|I)
       echo
       echo -e "${C}Интерактивный режим — ${W}$agent${N} — ${AGENT_DESC[$agent]}"
-      echo -e "${Y}Задача этого шага:${N} $claude_arg"
-      echo -e "${Y}Для выхода: /exit или Ctrl+C${N}"
+      [[ -n "$prompt" ]] && echo -e "${Y}Задача этого шага:${N} $prompt"
+      echo -e "${Y}Для выхода используй команду выхода выбранного runtime.${N}"
       echo
-      # Шаг 1: агент представляется
-      echo -e "${B}── Агент инициирует диалог... ──────────────────────${N}"
-      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
-      echo
-      # Шаг 2: продолжаем тот же диалог интерактивно
-      echo -e "${B}── Продолжение диалога ─────────────────────────────${N}"
-      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
+      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "${prompt:-начни сессию}"
       echo
       echo -e "${G}✓ Сессия завершена${N}"
       ;;
     *)
       echo
-      echo -e "${C}Запускаю: ${W}claude \"$claude_arg\"${N}"
-      echo
-      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "$claude_arg")
+      if [[ -n "$prompt" ]]; then
+        echo -e "${C}Запускаю ($(runtime_label)): ${W}$prompt${N}"
+        echo
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode task --prompt "$prompt"
+      else
+        echo -e "${C}Открываю интерактивный режим выбранного runtime...${N}"
+        echo
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "начни сессию"
+      fi
       echo
       echo -e "${G}✓ Агент завершил работу${N}"
       ;;
@@ -364,13 +707,13 @@ menu_single_agent() {
 
   pick_project || return
 
-  # slash-команды агента
+  # command templates агента
   local cmd_dir
   cmd_dir="$(find_agent_dir "$agent")/.claude/commands"
   local task
   if [[ -d "$cmd_dir" ]] && compgen -G "$cmd_dir/*.md" > /dev/null 2>&1; then
     echo
-    echo -e "${C}Slash-команды агента:${N}"
+    echo -e "${C}Команды агента:${N}"
     local j=1
     local -a cmds=()
     for f in "$cmd_dir"/*.md; do
@@ -674,6 +1017,13 @@ menu_new_project() {
   header
   echo -e "${W}── Новый проект ──────────────────────────────────────${N}"
   echo
+  if [[ "$PROJECTS_MODE" == "single" ]]; then
+    echo -e "${Y}Сейчас выбран режим одного проекта: ${W}$SINGLE_PROJECT${N}"
+    echo -e "Чтобы создавать новые проекты, переключи настройки на каталог с несколькими проектами."
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+    return
+  fi
   read -rp "$(echo -e "${W}Название проекта (Enter — назад):${N} ")" name
   if [[ -z "$name" ]]; then return; fi
   create_project "$name"
@@ -715,24 +1065,38 @@ menu_validate_project() {
   header
   echo -e "${W}── Валидация и починка структуры проекта ────────────${N}"
   echo
-  echo -e "  ${Y}1)${N} Проверить один проект       ${C}(/validate)${N}"
-  echo -e "  ${Y}2)${N} Проверить все проекты       ${C}(/validate all)${N}"
-  echo -e "  ${Y}3)${N} Починить один проект        ${C}(/fix)${N}"
-  echo -e "  ${Y}4)${N} Починить все проекты        ${C}(/fix all)${N}"
-  echo -e "  ${Y}b)${N} Назад"
-  echo
-  read -rp "$(echo -e "${W}Выбери [1-4/b]:${N} ")" choice
+  if [[ "$PROJECTS_MODE" == "single" ]]; then
+    echo -e "  ${Y}1)${N} Проверить проект ${W}$SINGLE_PROJECT${N}       ${C}(/validate)${N}"
+    echo -e "  ${Y}3)${N} Починить проект ${W}$SINGLE_PROJECT${N}        ${C}(/fix)${N}"
+    echo -e "  ${Y}b)${N} Назад"
+    echo
+    read -rp "$(echo -e "${W}Выбери [1/3/b]:${N} ")" choice
+  else
+    echo -e "  ${Y}1)${N} Проверить один проект       ${C}(/validate)${N}"
+    echo -e "  ${Y}2)${N} Проверить все проекты       ${C}(/validate all)${N}"
+    echo -e "  ${Y}3)${N} Починить один проект        ${C}(/fix)${N}"
+    echo -e "  ${Y}4)${N} Починить все проекты        ${C}(/fix all)${N}"
+    echo -e "  ${Y}b)${N} Назад"
+    echo
+    read -rp "$(echo -e "${W}Выбери [1-4/b]:${N} ")" choice
+  fi
 
   case "$choice" in
     b|B) return ;;
     1|3)
-      pick_project || return
+      if [[ "$PROJECTS_MODE" == "single" ]]; then
+        PROJECT="$SINGLE_PROJECT"
+      else
+        pick_project || return
+      fi
       local project="$PROJECT"
       local task; [[ "$choice" == "1" ]] && task="/validate" || task="/fix"
       run_agent "s0-validate" "$project" "$task"
       ;;
     2|4)
-      local task; [[ "$choice" == "2" ]] && task="/validate" || task="/fix"
+      [[ "$PROJECTS_MODE" == "single" ]] && { echo -e "${R}Неверный выбор${N}"; sleep 0.5; return; }
+      local task
+      [[ "$choice" == "2" ]] && task="/validate" || task="/fix"
       run_agent "s0-validate" "all" "$task"
       ;;
     *)
@@ -744,29 +1108,71 @@ menu_validate_project() {
 }
 
 # ─── список проектов ──────────────────────────────────────────────────────────
+print_project_progress() {
+  local d="$1" name="$2" stages_done=0 s bar=""
+  for s in stage1-planning stage2-requirements stage3-design stage4-dev \
+            stage5-testing stage6-deploy stage7-ops; do
+    [[ -n "$(ls -A "$d/$s/outputs" 2>/dev/null)" ]] && ((stages_done++))
+  done
+  for ((k=0; k<stages_done; k++)); do bar+="█"; done
+  for ((k=stages_done; k<7; k++)); do bar+="░"; done
+  echo -e "  ${W}$name${N}  ${C}$bar${N} $stages_done/7"
+}
+
 menu_list_projects() {
   header
   echo -e "${W}── Проекты ───────────────────────────────────────────${N}"
   echo
+  if [[ "$PROJECTS_MODE" == "single" ]]; then
+    print_project_progress "$PROJECTS/$SINGLE_PROJECT" "$SINGLE_PROJECT"
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+    return
+  fi
+
   local found=0
   while IFS= read -r -d '' d; do
     local name
     name=$(basename "$d")
-    [[ "$name" == _* ]] && continue
-    local stages_done=0
-    for s in stage1-planning stage2-requirements stage3-design stage4-dev \
-              stage5-testing stage6-deploy stage7-ops; do
-      [[ -n "$(ls -A "$d/$s/outputs" 2>/dev/null)" ]] && ((stages_done++))
-    done
-    local bar=""
-    for ((k=0; k<stages_done; k++)); do bar+="█"; done
-    for ((k=stages_done; k<7; k++)); do bar+="░"; done
-    echo -e "  ${W}$name${N}  ${C}$bar${N} $stages_done/7"
+    [[ "$name" == _* || "$name" == .* ]] && continue
+    is_sdlc_project_dir "$d" || continue
+    print_project_progress "$d" "$name"
     found=1
-  done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+  done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
   [[ $found -eq 0 ]] && echo -e "  ${Y}Проектов пока нет${N}"
   echo
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
+}
+
+
+# ─── настройки ────────────────────────────────────────────────────────────────
+menu_settings() {
+  while true; do
+    header
+    echo -e "${W}── Настройки ────────────────────────────────────────${N}"
+    echo
+    echo -e "  Runtime:  ${C}$(runtime_label)${N} (${AGENT_RUNTIME})"
+    echo -e "  CLI:      ${C}$(runtime_bin)${N}"
+    if [[ "$PROJECTS_MODE" == "single" ]]; then
+      echo -e "  Projects: ${C}$PROJECTS/$SINGLE_PROJECT${N} (один проект)"
+    else
+      echo -e "  Projects: ${C}${PROJECTS:-не настроены}${N}"
+    fi
+    echo
+    echo -e "  ${Y}1)${N} Выбрать AI runtime"
+    echo -e "  ${Y}2)${N} Изменить каталог SDLC-проектов"
+    echo -e "  ${Y}3)${N} Проверить CLI выбранного runtime"
+    echo -e "  ${Y}b)${N} Назад"
+    echo
+    read -rp "$(echo -e "${W}Выбери [1-3/b]:${N} ")" choice
+    case "$choice" in
+      1) choose_runtime ;;
+      2) configure_projects_dir ;;
+      3) ensure_runtime_available; read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _ ;;
+      b|B) return ;;
+      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
+    esac
+  done
 }
 
 # ─── главное меню ─────────────────────────────────────────────────────────────
@@ -780,6 +1186,7 @@ main_menu() {
     echo -e "  ${Y}4)${N} Список проектов"
     echo -e "  ${Y}5)${N} ${C}Local Run${N} — проекты с GitHub (clone / build / run)"
     echo -e "  ${Y}6)${N} ${C}Валидация${N} — проверить и починить структуру проекта"
+    echo -e "  ${Y}7)${N} ${C}Настройки${N} — runtime и каталог проектов"
     echo -e "  ${Y}q)${N} Выход"
     echo
     read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
@@ -791,10 +1198,13 @@ main_menu() {
       4) menu_list_projects ;;
       5) bash "$AGENTS/localrun.sh" ;;
       6) menu_validate_project ;;
+      7) menu_settings ;;
       q|Q) echo -e "${N}Выход."; exit 0 ;;
       *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
     esac
   done
 }
 
+ensure_runtime || exit 1
+ensure_projects_dir || exit 1
 main_menu

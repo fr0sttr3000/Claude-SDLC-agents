@@ -1,5 +1,5 @@
 ---
-date: 2026-05-29
+date: 2026-07-03
 tags: [plans, principles]
 ---
 
@@ -16,8 +16,12 @@ tags: [plans, principles]
 → Подробнее: [[OVERVIEW#Архитектура системы]]
 
 **Единая точка входа**
-`sdlc.sh` — интерактивный лаунчер для всего SDLC-цикла. `localrun.sh` — лаунчер для Local Run. Прямой запуск агентов через `cd agent_dir && claude` тоже поддерживается.
+`sdlc.sh` — интерактивный лаунчер для всего SDLC-цикла. `localrun.sh` — лаунчер для Local Run. Runtime выбирается явно через `AGENT_RUNTIME=claude|codex|gemini`, сохранённый config или меню; агентские запуски идут через universal dispatcher выбранного runtime.
 → Подробнее: [[README#Архитектура]]
+
+**Universal Runtime Contract**
+SDLC-логика отделена от конкретного AI runtime. Claude, Codex и Gemini запускают один и тот же контракт: `_standards/*.md`, `CLAUDE.md`, агентские `CLAUDE.md`, `.claude/commands/*.md` и файловые артефакты `projects/`. Runtime-specific файлы (`AGENTS.md`, `GEMINI.md`, `.codex/`) являются адаптерами и не могут быть единственным местом новых правил.
+→ Подробнее: [[README#Universal Runtime Contract]]
 
 ## Принципы платформы
 
@@ -30,7 +34,7 @@ tags: [plans, principles]
 → Подробнее: [[README#Интеграция с Obsidian]]
 
 **Быстрый старт с нуля**
-Установка = `git clone` + открыть в Obsidian + `bash sdlc.sh`. Никаких дополнительных зависимостей кроме Claude Code.
+Установка = `git clone` + открыть в Obsidian + `bash sdlc.sh`. Нужен хотя бы один CLI выбранного runtime: Claude Code, Codex или Gemini.
 → Подробнее: [[GETTING_STARTED#Установка]]
 
 **Local Run — оснастка разработчика**

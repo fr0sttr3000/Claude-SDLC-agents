@@ -15,16 +15,16 @@ Severity — по CVSS (§1), не по багам S1–S4. Смежные вл�
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ: critical_risks содержат риски для Threat Model (помечай [PMO-RISK-N]).
-  2. $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/PMO-*-risk-register.md
+  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/PMO-*-risk-register.md
      → Используй как входной список рисков: Critical + High → включить в STRIDE-анализ.
-  3. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  4. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  5. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
+  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  5. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
      → вход от SG1 (s2-security): классификация данных, abuse cases, ASVS-уровень, security NFR.
        Threat model (SG2) развивает их до дизайн-уровня — не начинай без этого файла.
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/
 
 ## STRIDE Методология
 S-poofing / T-ampering / R-epudiation / I-nformation Disclosure / D-oS / E-levation of Privilege
