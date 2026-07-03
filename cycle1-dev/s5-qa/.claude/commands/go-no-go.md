@@ -6,11 +6,11 @@ description: Вынести Go/No-Go решение для релиза (Gate 5 
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/ (все файлы)
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/TL-*-review-PR*.md (все)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/ (все файлы)
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/TL-*-review-PR*.md (все)
 
 Создай файл QA-[дата]-go-no-go.md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/
 
 # Go/No-Go — $ARGUMENTS
 Дата: [сегодня]

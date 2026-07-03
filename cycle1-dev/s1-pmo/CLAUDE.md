@@ -10,11 +10,11 @@
 $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Входные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/
-Читай PM-Feasibility: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/PM-*.md
+Входные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/
+Читай PM-Feasibility: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/PM-*.md
   → Найди секцию `## → Handoff` и прочитай её ПЕРВОЙ до основного текста
-Выходные данные: $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
-Пиши constraints: $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+Выходные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/
+Пиши constraints: $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
 
 ## Задачи этого агента
 - Project Charter (10 разделов)

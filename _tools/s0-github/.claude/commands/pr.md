@@ -17,7 +17,7 @@ description: Создать Pull Request для завершённого эта�
 
 Шаги:
 1. Перейди в папку проекта:
-   $SDLC_VAULT/projects/[project]
+   $SDLC_PROJECTS_DIR/[project]
 
 2. Переключись на ветку этапа:
    `git checkout stage/[stage-name]`

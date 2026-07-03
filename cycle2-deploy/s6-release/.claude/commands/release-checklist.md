@@ -5,10 +5,10 @@ description: Создать Release Checklist
 Создай Release Checklist для проекта $ARGUMENTS.
 
 Прочитай:
-$SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-runbook.md
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEVOPS-runbook.md
 
-Создай: $SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
+Создай: $SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
 
 Разделы: Версия / Что меняется / Go-No-Go Gate / Pre-Deployment / Deployment Steps / Smoke Tests / Rollback Criteria / Rollback Steps / Communication / Post-Release Actions
 

@@ -6,10 +6,10 @@ description: Создать Runbook деплоя с rollback-процедуро�
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-cicd.yaml (если существует)
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEVOPS-cicd.yaml (если существует)
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/:
 - DEVOPS-[дата]-runbook.md
 - DEVOPS-[дата]-monitoring.yaml
 

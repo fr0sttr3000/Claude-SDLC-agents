@@ -14,7 +14,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути
 Vault: $SDLC_VAULT
-Проекты: $SDLC_VAULT/projects/{PROJECT}
+Проекты: $SDLC_PROJECTS_DIR/{PROJECT}
 
 ## Задачи агента
 - Инициализировать git-репозиторий для проекта

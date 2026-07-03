@@ -1,5 +1,5 @@
 ---
-date: 2026-06-20
+date: 2026-07-03
 tags: [plans, roadmap]
 ---
 
@@ -40,6 +40,14 @@ tags: [plans, roadmap]
 - `sdlc.sh` и `localrun.sh` обновлены: поиск агентов через `find_agent_dir()`
 - `CLAUDE.md`, `OVERVIEW.md`, `GETTING_STARTED.md` обновлены
 - Проверена изоляция контекста между агентами
+
+
+**Universal Runtime Contract (v2.000.003)**
+- Добавлен vendor-neutral слой `_contract/` с правилом: канон = `_standards/*.md`, root `CLAUDE.md`, agent `CLAUDE.md`, `.claude/commands/*.md`, `projects/`
+- Добавлен runtime dispatcher `_runtimes/agent-run.sh` и adapters для Claude/Codex/Gemini
+- `sdlc.sh` и `localrun.sh` запускают агентов через `AGENT_RUNTIME=claude|codex|gemini`, сохранённый config или меню; автоматического выбора Claude нет
+- Добавлены `AGENTS.md`, `GEMINI.md`, `.codex/config.toml` как bridge/adapters без дублирования SDLC-логики
+- Документация синхронизирована под multi-runtime режим
 
 **Quality Gates overhaul (v2.000.002)** — улучшения относительно ISO 25010 / ISTQB / DORA / SRE / ITIL:
 - Пирамида тестов (§3.1): branch coverage ≥80% (вместо line) + mutation score ≥60% критичных + уровни integration/contract; пороги растут по tier

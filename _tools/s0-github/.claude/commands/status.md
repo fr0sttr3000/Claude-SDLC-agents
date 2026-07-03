@@ -7,19 +7,19 @@ description: Показать статус синхронизации проек
 Выполни и отобрази:
 
 1. Git статус:
-   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" status`
+   `git -C "$SDLC_PROJECTS_DIR/$ARGUMENTS" status`
 
 2. Последние коммиты:
-   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" log --oneline -10`
+   `git -C "$SDLC_PROJECTS_DIR/$ARGUMENTS" log --oneline -10`
 
 3. Расхождение с remote:
-   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" status -sb`
+   `git -C "$SDLC_PROJECTS_DIR/$ARGUMENTS" status -sb`
 
 4. Список веток:
-   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" branch -a`
+   `git -C "$SDLC_PROJECTS_DIR/$ARGUMENTS" branch -a`
 
 5. URL репозитория:
-   `git -C "$SDLC_VAULT/projects/$ARGUMENTS" remote -v`
+   `git -C "$SDLC_PROJECTS_DIR/$ARGUMENTS" remote -v`
 
 Отформатируй вывод как сводку:
 ## Статус проекта: $ARGUMENTS
