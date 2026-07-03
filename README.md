@@ -1,27 +1,29 @@
 ---
-date: 2026-06-03
+date: 2026-07-03
 tags: [docs, agents, sdlc]
 ---
 
 # Claude SDLC Agents
 
-> Автоматизированная система управления жизненным циклом разработки (SDLC) на базе Claude Code.
-> 27 специализированных AI-агентов покрывают весь цикл — от идеи до деплоя и эксплуатации.
+> Автоматизированная система управления жизненным циклом разработки (SDLC).
+> 30 специализированных AI-агентов покрывают весь цикл — от идеи до деплоя и эксплуатации.
+> Запуск поддерживается через Claude, Codex и Gemini при едином контракте правил.
 
 ---
 
 ## Что это такое
 
-**Claude SDLC Agents** — набор специализированных Claude Code агентов, каждый из которых выполняет конкретную роль в процессе разработки программного обеспечения: Product Manager, Business Analyst, Architect, DBA, Developer, QA, DevOps, SRE и другие.
+**Claude SDLC Agents** — набор специализированных SDLC-агентов, каждый из которых выполняет конкретную роль в процессе разработки программного обеспечения: Product Manager, Business Analyst, Architect, DBA, Developer, QA, DevOps, SRE и другие.
 
 Агенты работают последовательно, передавая артефакты (markdown-файлы) друг другу через файловую систему. Между этапами стоят **Quality Gates** — принудительные барьеры, которые блокируют переход до выполнения всех условий.
 
 ### Ключевые особенности
 
-- **27 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
+- **30 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
 - **Markdown-first** — все артефакты, стандарты и входные данные — `.md` файлы
 - **Obsidian vault** — вся система открывается как хранилище знаний в Obsidian
 - **Интерактивный лаунчер** `sdlc.sh` — единая точка входа для всего цикла
+- **Universal Runtime Contract** — один набор правил запускается через Claude, Codex или Gemini
 - **7 Quality Gates** — принудительные переходы между этапами с чеклистами
 - **Security-трек SG1–SG5** — параллельные Security Gates (CVSS, threat model, SAST/SCA, pentest)
 - **Definition of Done (11 пунктов)** — обязательные условия закрытия каждой задачи
@@ -41,6 +43,11 @@ tags: [docs, agents, sdlc]
 _agents/
 ├── sdlc.sh            ← Главный лаунчер (SDLC-цикл + необязательные шаги)
 ├── localrun.sh        ← Лаунчер Local Run (GitHub-проекты)
+├── AGENTS.md          ← Codex adapter: читает канонические CLAUDE.md
+├── GEMINI.md          ← Gemini adapter: читает канонические CLAUDE.md
+├── .codex/config.toml ← Codex project config (CLAUDE.md fallback)
+├── _contract/         ← Universal Runtime Contract (инварианты и источники истины)
+├── _runtimes/         ← agent-run.sh + adapters для claude/codex/gemini
 ├── _standards/        ← Стандарты (читаются всеми агентами)
 │   ├── quality.md     ← DoD, DoR, Quality Gates, NFR, Auto-Heal
 │   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
@@ -75,10 +82,30 @@ _agents/
 
 Каждый агент — отдельная папка с `CLAUDE.md` (роль, правила, стандарты) и `.claude/commands/` (slash-команды).
 
+## Universal Runtime Contract
+
+Проект поддерживает три runtime без раздвоения логики. Runtime выбирается явно: через `AGENT_RUNTIME`, сохранённый config или пункт `Настройки` в launcher. Чистый первый запуск без `AGENT_RUNTIME` сначала спрашивает runtime и не делает silent fallback на Claude:
+
+```bash
+# Первый запуск: launcher спросит runtime и каталог проектов
+bash sdlc.sh
+
+# Явно через Claude
+AGENT_RUNTIME=claude bash sdlc.sh
+
+# Через Codex
+AGENT_RUNTIME=codex bash sdlc.sh
+
+# Через Gemini
+AGENT_RUNTIME=gemini bash sdlc.sh
+```
+
+Канонические источники правил остаются прежними: `_standards/*.md`, корневой `CLAUDE.md`, агентские `CLAUDE.md` и `.claude/commands/*.md`. Файлы `AGENTS.md`, `GEMINI.md`, `.codex/config.toml` и `_runtimes/adapters/*` — только runtime-адаптеры. Новые gates, агенты, команды и правила должны сначала появляться в канонических markdown-файлах, чтобы проект оставался доступен Claude, Codex и Gemini одновременно.
+
+Диспетчер запуска: `_runtimes/agent-run.sh`. Он получает готовый prompt от `sdlc.sh` / `localrun.sh` и вызывает выбранный CLI. Каталог SDLC-проектов выбирается явно при первом запуске: можно указать каталог-коллекцию или папку одного проекта. В режиме одного проекта `SDLC_PROJECTS_DIR` хранит родителя, а активный проект фиксируется в `SDLC_SINGLE_PROJECT`. Launcher не выбирает каталог проектов автоматически.
+
 > **Принципы системы** (3 цикла, SDD, TDD, Shift Left, Markdown-first и др.) — [[plans/principles]]
 > **Roadmap изменений** — [[plans/roadmap]]
-
-Каждый агент — отдельная папка с `CLAUDE.md` (роль, правила, стандарты) и `.claude/commands/` (slash-команды).
 
 ---
 
@@ -254,7 +281,7 @@ tags: [project/my-project, stage/requirements, agent/ba, status/done]
 
 ### Предварительные требования
 
-- [Claude Code CLI](https://claude.ai/code) — установлен и авторизован
+- Один из runtime CLI установлен и авторизован: Claude Code CLI, Codex CLI или Gemini CLI
 - `bash` 4.0+
 - `pass` — менеджер паролей (для хранения секретов)
 - [Obsidian](https://obsidian.md) — опционально, но рекомендуется
@@ -266,6 +293,8 @@ git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
 cd _agents
 bash sdlc.sh
 ```
+
+При первом запуске выбери режим: каталог с несколькими проектами или папка одного проекта. Настройку можно поменять позже через `7) Настройки` или env/config (`SDLC_PROJECTS_MODE`, `SDLC_SINGLE_PROJECT`).
 
 **Для Obsidian:** открой папку `Claude/` как vault — все артефакты видны в едином интерфейсе.
 
@@ -296,7 +325,7 @@ bash sdlc.sh   # → 3) создай проект (вводи имя)
 | `/new` | Новый проект, пустые входные данные | `sdlc.sh → 0) Kickoff → 1)` |
 | `/refresh` | Обновить беклог / видение / NFR | `sdlc.sh → 0) Kickoff → 2)` |
 | `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
-| `/cr` | Change Request — изменение требований в середине этапа | `cd cycle1-dev/s0-kickoff && claude "/cr my-project"` |
+| `/cr` | Change Request — изменение требований в середине этапа | `sdlc.sh → 2) один агент → s0-kickoff → /cr` |
 
 **Режим `/new` — 5 блоков интервью, 26 вопросов:**
 1. **Проблема и продукт** — pain point, As-Is, To-Be, описание продукта, аудитория, конкуренты, уникальность
@@ -458,7 +487,7 @@ DoD **бинарен** — нет "Done minus docs". Задача остаётс
 
 ```bash
 # Добавить секрет
-cd _tools/s0-secrets && claude /add my-project api-key
+AGENT_RUNTIME=codex _runtimes/agent-run.sh --agent-dir _tools/s0-secrets --mode task --prompt "/add my-project api-key"
 
 # Использовать секрет
 export TOKEN=$(pass sdlc/projects/my-project/api-key)
@@ -471,18 +500,17 @@ export TOKEN=$(pass sdlc/projects/my-project/api-key)
 ## Прямой запуск агента
 
 ```bash
-# Перейди в папку агента
-cd cycle1-dev/s1-pm
+# Task-режим через universal dispatcher
+AGENT_RUNTIME=codex _runtimes/agent-run.sh \
+  --agent-dir cycle1-dev/s1-pm \
+  --mode task \
+  --prompt "/feasibility my-project"
 
-# Slash-команда (task-режим — выполнит и завершится)
-claude /feasibility my-project
-
-# Произвольная задача
-claude "Создай Feasibility Study для проекта my-project"
-
-# Интерактивный диалог
-claude "начни сессию"
-claude --continue
+# Интерактивный режим выбранного runtime
+AGENT_RUNTIME=gemini _runtimes/agent-run.sh \
+  --agent-dir cycle1-dev/s1-pm \
+  --mode interactive \
+  --prompt "начни сессию"
 ```
 
 ---
@@ -491,8 +519,7 @@ claude --continue
 
 ```bash
 # Агент читает артефакт предыдущего через абсолютный путь
-cd cycle1-dev/s2-ba
-claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
+AGENT_RUNTIME=codex _runtimes/agent-run.sh --agent-dir cycle1-dev/s2-ba --mode task --prompt "Прочитай $SDLC_PROJECTS_DIR/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
 ```
 
 Правило: только финальные файлы из `outputs/`. Историю диалога не передавать.
@@ -539,9 +566,10 @@ claude "Прочитай /path/to/projects/my-project/stage1-planning/outputs/PM
 | `plans/roadmap.md` | Roadmap и запланированные изменения системы |
 | `{agent}/CLAUDE.md` | Роль, правила, стандарты конкретного агента |
 | `sdlc.sh` → `OPTIONAL_AGENTS_DEF` | Список необязательных шагов цикла |
+| `_contract/GLOBAL.md` | Инварианты Universal Runtime Contract |
+| `_runtimes/agent-run.sh` | Диспетчер запуска Claude/Codex/Gemini |
+| `AGENTS.md` / `GEMINI.md` | Runtime-мосты для Codex и Gemini |
 
 ---
 
----
-
-*Claude SDLC Agents v2.000.001 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*
+*Claude SDLC Agents v2.000.003 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*

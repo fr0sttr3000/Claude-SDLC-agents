@@ -5,13 +5,13 @@ description: Сгенерировать Release Notes для версии
 Создай Release Notes для проекта $ARGUMENTS.
 
 Прочитай:
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/          ← все DEV-*-update-notes-PR*.md
-$SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/ ← PO-backlog.md (для сопоставления с User Stories)
-$SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/QA-go-no-go.md
-$SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
-$SDLC_VAULT/projects/$ARGUMENTS/tracking/known-issues.md            ← OPEN-записи для секции «Известные проблемы»
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/          ← все DEV-*-update-notes-PR*.md
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/ ← PO-backlog.md (для сопоставления с User Stories)
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/QA-go-no-go.md
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
+$SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/known-issues.md            ← OPEN-записи для секции «Известные проблемы»
 
-Создай: $SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md
+Создай: $SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md
 
 Формат Release Notes:
 ```

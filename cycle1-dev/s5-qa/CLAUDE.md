@@ -8,16 +8,16 @@
 $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Проектные пороги (читать ПЕРВЫМ делом)
-`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
+`$SDLC_PROJECTS_DIR/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
 Применяй пороги ОТТУДА вместо hardcoded значений (coverage, pass rate, latency, error rate и т.д.).
 Проектные пороги гарантированно ≥ глобальных (только ужесточение).
 Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
 
 ## Пути файлов
 Читай:
-  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
-  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/
 
 ## Формат тест-кейса
 TC-[EPIC_ID]-[N]: [название]

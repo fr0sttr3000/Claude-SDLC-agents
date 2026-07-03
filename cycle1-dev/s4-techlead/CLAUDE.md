@@ -8,14 +8,14 @@
 $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Проектные пороги (читать ПЕРВЫМ делом)
-`$SDLC_VAULT/projects/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
+`$SDLC_PROJECTS_DIR/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
 Применяй пороги ОТТУДА вместо hardcoded значений (coverage ≥80%, complexity ≤10 и т.д.).
 Проектные пороги гарантированно ≥ глобальных (только ужесточение).
 Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
 
 ## Пути файлов
-Читай ADR: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
-Пиши: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
+Читай ADR: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
+Пиши: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
 
 ## Уровни замечаний
 [BLOCKER] / [MAJOR] / [MINOR] / [SUGGESTION] / [QUESTION] / [PRAISE]

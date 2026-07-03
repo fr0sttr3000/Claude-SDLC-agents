@@ -16,16 +16,16 @@ Security-уровень проекта (ASVS L1/L2/L3) — по `security.md §2
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → `operational.tier` (→ ASVS-уровень), `critical_risks` (security-риски → abuse cases),
        `mandatory_standards` (комплаенс-требования проекта)
-  2. $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md
+  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md
      → характер данных, отрасль (финансы / медицина / PII) — драйвер классификации
-  3. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
      → функциональные требования: для каждого критичного FR — abuse/misuse case
-  4. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  5. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/PO-*.md (backlog, stories)
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/
+  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
+  5. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-*.md (backlog, stories)
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/
 
 **Верификация директории (INC-01):** перед записью прочитай хотя бы один существующий файл
 из `stage2-requirements/outputs/` — убедись, что путь верный. Пустая папка → уточни у пользователя.

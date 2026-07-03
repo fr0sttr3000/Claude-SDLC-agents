@@ -5,7 +5,7 @@ description: Создать Update Notes для PR (обязательно по�
 Создай Update Notes для PR проекта $ARGUMENTS.
 
 Создай файл DEV-[дата]-update-notes-PR[N].md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 
 Уточни у пользователя номер PR (если не указан в задаче).
 

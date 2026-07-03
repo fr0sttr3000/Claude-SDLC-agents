@@ -9,9 +9,9 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/QA-test-cases-*.md
-  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-Пиши отчёты в: $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/QA-test-cases-*.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+Пиши отчёты в: $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/
 
 ## Page Object Model
 - Локаторы ТОЛЬКО в Page Object

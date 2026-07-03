@@ -6,13 +6,13 @@ description: Провести Code Review PR (Gate 4 — блокирует ре
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
 
 Уточни у пользователя: какой PR ревьюируем и где находится код.
 
 Создай файл TL-[дата]-review-PR[N].md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 
 # Code Review — PR #[N] — $ARGUMENTS
 Дата: [сегодня]

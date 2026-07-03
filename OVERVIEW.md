@@ -1,13 +1,13 @@
 ---
-date: 2026-06-20
+date: 2026-07-03
 tags: [overview, sdlc, architecture]
 ---
 
 # SDLC Agent System — Полный обзор
 
 > Автоматизированная система управления жизненным циклом разработки (SDLC)
-> на базе Claude Code. 30 специализированных AI-агентов покрывают весь цикл
-> от идеи до деплоя и ведения задач в спринтах.
+> 30 специализированных AI-агентов покрывают весь цикл
+> от идеи до деплоя и ведения задач в спринтах. Запуск поддерживается через Claude, Codex и Gemini.
 
 ---
 
@@ -20,6 +20,11 @@ tags: [overview, sdlc, architecture]
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  _agents/sdlc.sh — Интерактивный лаунчер                │   │
 │  └───────────────────────┬──────────────────────────────────┘   │
+│                          │ собирает prompt                      │
+│         ┌────────────────▼────────────────┐                     │
+│         │ _runtimes/agent-run.sh           │                     │
+│         │ claude | codex | gemini          │                     │
+│         └────────────────┬────────────────┘                     │
 │                          │ запускает                            │
 │         ┌────────────────┼────────────────┐                     │
 │         ▼                ▼                ▼                     │
@@ -31,7 +36,7 @@ tags: [overview, sdlc, architecture]
 │         └────────────────┼────────────────┘                     │
 │                          │ читают/пишут                         │
 │         ┌────────────────▼────────────────┐                     │
-│         │         projects/               │                     │
+│         │      SDLC_PROJECTS_DIR/         │                     │
 │         │  {PROJECT}/                     │                     │
 │         │    stage1-planning/outputs/     │                     │
 │         │    stage2-requirements/outputs/ │                     │
@@ -54,6 +59,11 @@ tags: [overview, sdlc, architecture]
 ├── _agents/               ← агенты + стандарты + планы
 │   ├── README.md          ← Операционное руководство
 │   ├── CLAUDE.md          ← Глобальный контекст агентов (quality gates, правила)
+│   ├── AGENTS.md          ← Codex adapter к каноническим CLAUDE.md
+│   ├── GEMINI.md          ← Gemini adapter к каноническим CLAUDE.md
+│   ├── .codex/config.toml ← Codex project config
+│   ├── _contract/         ← Universal Runtime Contract
+│   ├── _runtimes/         ← agent-run.sh + runtime adapters
 │   ├── _standards/        ← Стандарты (доступны всем агентам)
 │   │   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
 │   │   ├── quality.md     ← DoD, DoR, Gates, NFR, Auto-Heal (читать перед каждой задачей)
@@ -280,6 +290,34 @@ tags: [overview, sdlc, architecture]
                                  SLO Review → SRE-*-ops-report.md + SEC-* pentest подтверждён
                                  ── Quality Gate 7 → следующий релиз разблокирован ──►
 ```
+
+---
+
+## Universal Runtime Contract
+
+Universal Runtime Contract отделяет SDLC-логику от конкретного AI CLI.
+
+**Канон:**
+- `_standards/*.md` — правила качества, безопасности, форматов и шаблоны;
+- root `CLAUDE.md` — глобальный контекст;
+- `cycle*/{agent}/CLAUDE.md` — роль и локальные правила агента;
+- `.claude/commands/*.md` — общие prompt templates;
+- `$SDLC_PROJECTS_DIR/{PROJECT}/...` — файловые контракты артефактов.
+
+**Адаптеры:**
+- Claude: `claude` runtime, `CLAUDE.md`, `.claude/commands`;
+- Codex: `AGENTS.md`, `.codex/config.toml`, `codex exec`;
+- Gemini: `GEMINI.md`, `gemini -p`.
+
+Запуск:
+```bash
+bash sdlc.sh                       # первый запуск спросит runtime
+AGENT_RUNTIME=claude bash sdlc.sh
+AGENT_RUNTIME=codex bash sdlc.sh
+AGENT_RUNTIME=gemini bash sdlc.sh
+```
+
+Правило: vendor-specific adapter не может быть единственным местом нового gate, агента, команды или SDLC-правила. Всё новое сначала фиксируется в канонических markdown-файлах, потом становится доступным всем runtime.
 
 ---
 
@@ -562,16 +600,16 @@ s0-tracker автоматически добавляет при `/sprint-init`:
 
 ```bash
 # Проверить один проект (только отчёт, без изменений)
-cd _agents/cycle1-dev/s0-validate && claude /validate my-project
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-validate --mode task --prompt "/validate my-project"
 
 # Починить все проекты (создать недостающие директории и заглушки)
-cd _agents/cycle1-dev/s0-validate && claude /fix all
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-validate --mode task --prompt "/fix all"
 
 # Проверить DoR перед переходом на Gate N (автоматически)
-cd _agents/cycle1-dev/s0-validate && claude "/dor-check my-project 3"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-validate --mode task --prompt "/dor-check my-project 3"
 
 # Проверить DoD для артефакта или PR (автоматически)
-cd _agents/cycle1-dev/s0-validate && claude "/dod-check my-project K 4 42"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-validate --mode task --prompt "/dod-check my-project K 4 42"
 ```
 
 `/dor-check <PROJECT> <GATE>` — проверяет DoR-1..8 перед переходом на Gate 1–6:
@@ -592,9 +630,9 @@ cd _agents/cycle1-dev/s0-validate && claude "/dod-check my-project K 4 42"
 ### s0-github — GitHub Sync
 
 ```bash
-cd _agents/_tools/s0-github && claude /init my-project   # первичная инициализация
-cd _agents/_tools/s0-github && claude /push my-project   # шаг 22 цикла
-cd _agents/_tools/s0-github && claude /sync my-project   # синхронизация
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/_tools/s0-github --mode task --prompt "/init my-project"   # первичная инициализация
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/_tools/s0-github --mode task --prompt "/push my-project"   # финальный шаг цикла
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/_tools/s0-github --mode task --prompt "/sync my-project"   # синхронизация
 ```
 
 Ветки SDLC: `main`, `stage/planning`, `stage/requirements`, `stage/design`, `stage/development`, `stage/testing`, `stage/deploy`.
@@ -602,17 +640,17 @@ cd _agents/_tools/s0-github && claude /sync my-project   # синхрониза�
 ### s0-kickoff — Project Kickoff
 
 ```bash
-# Новый проект — провести интервью с нуля (4 блока вопросов)
-cd _agents/cycle1-dev/s0-kickoff && claude "/new my-project"
+# Новый проект — провести интервью с нуля
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/new my-project"
 
 # Обновить существующий проект — беклог, видение, NFR
-cd _agents/cycle1-dev/s0-kickoff && claude "/refresh my-project"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/refresh my-project"
 
 # Авто-определение режима (new vs refresh)
-cd _agents/cycle1-dev/s0-kickoff && claude "/start my-project"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/start my-project"
 
 # Change Request — изменение требований в середине этапа
-cd _agents/cycle1-dev/s0-kickoff && claude "/cr my-project"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/cr my-project"
 ```
 
 Режим **NEW**: 5 блоков интервью, 26 вопросов (Проблема+Продукт → Бизнес → Техника → Приоритеты → Неизвестное).
@@ -636,8 +674,8 @@ cd _agents/cycle1-dev/s0-kickoff && claude "/cr my-project"
 ### s0-secrets — Secrets Manager
 
 ```bash
-cd _agents/_tools/s0-secrets && claude /add my-project api-key
-cd _agents/_tools/s0-secrets && claude /env my-project
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/_tools/s0-secrets --mode task --prompt "/add my-project api-key"
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/_tools/s0-secrets --mode task --prompt "/env my-project"
 ```
 
 ---
@@ -670,25 +708,30 @@ cd _agents/_tools/s0-secrets && claude /env my-project
 
 6) Валидация — проверить и починить структуру
    └─ validate/fix × один проект / все проекты
+
+7) Настройки — runtime и каталог проектов
+   └─ выбор Claude/Codex/Gemini + режим проектов (коллекция или один проект)
 ```
 
 ---
 
 ## Механизм изоляции агентов
 
-Каждый агент читает **только свой** `CLAUDE.md` при запуске из своей папки:
+Каждый агент получает **только свой** канонический контракт (`CLAUDE.md` / bridge-файл выбранного runtime) через `--agent-dir`:
 
 ```bash
-cd "_agents/cycle1-dev/s1-pm"    # claude читает _agents/cycle1-dev/s1-pm/CLAUDE.md
-claude /feasibility my-project
+AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh \
+  --agent-dir _agents/cycle1-dev/s1-pm \
+  --mode task \
+  --prompt "/feasibility my-project"
 ```
 
-Лаунчер автоматически делает `cd` в нужную папку перед вызовом claude:
+Лаунчер автоматически передаёт нужную папку в runtime dispatcher:
 ```bash
-(cd "$agent_dir" && env -u CLAUDECODE ... claude "$expanded_prompt")
+"$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode task --prompt "$expanded_prompt"
 ```
 
-Шаблон slash-команды раскрывается в bash до передачи в claude — `$ARGUMENTS` заменяется на реальное имя проекта ещё на уровне скрипта.
+Шаблон команды раскрывается в bash до передачи выбранному runtime — `$ARGUMENTS` заменяется на реальное имя проекта ещё на уровне скрипта.
 
 ---
 
@@ -696,8 +739,8 @@ claude /feasibility my-project
 
 | Проблема | Причина | Решение |
 |----------|---------|---------|
-| `claude: command not found` | `~/.local/bin` не в PATH | Добавлено в sdlc.sh: `export PATH="$HOME/.local/bin:$PATH"` |
-| OAuth Invalid Request | `CLAUDECODE=1` мешает новому процессу | Агенты запускаются через `env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID` |
+| `claude/codex/gemini: command not found` | выбранный runtime CLI не установлен или не в PATH | Установить нужный CLI или сменить `AGENT_RUNTIME` |
+| OAuth Invalid Request в Claude runtime | `CLAUDECODE=1` мешает новому процессу | Claude adapter в `_runtimes/agent-run.sh` очищает переменные окружения перед запуском |
 | «Проект не определён» | `$ARGUMENTS` не подставлялся нативно | Шаблон раскрывается в bash через `awk` + `sed` |
 | Нет структуры папок | Проект создан без sdlc.sh | `sdlc.sh → пункт 6 → Починить` или `s0-validate /fix project` |
 | Push не работает | Нет remote / не инициализирован | Сначала `s0-github /init project` |
@@ -715,7 +758,7 @@ bash "<vault-root>/_agents/sdlc.sh"
 #    → введи название → создастся структура + idea.md
 
 # 3. Заполнить idea.md описанием проекта
-#    projects/{PROJECT}/stage1-planning/inputs/idea.md
+#    $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md
 
 # 4. (опционально) Инициализировать git + GitHub
 #    пункт 2 → s0-github → /init
@@ -739,12 +782,12 @@ bash "<vault-root>/_agents/sdlc.sh"
 | `_standards/company.md` | Добавить стандарты компании (стек, роли, compliance) |
 | `_standards/quality.md` | Изменить NFR-дефолты, пороги gates, паттерны надёжности |
 | `_standards/data-formats.md` | Изменить правила форматов DB/ENV/API, шаблоны тестов |
-| `projects/{PROJECT}/stage1-planning/inputs/idea.md` | Описание идеи для s1-pm |
+| `$SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md` | Описание идеи для s1-pm |
 | `_agents/{agent}/CLAUDE.md` | Настройка роли и правил агента |
 | `_agents/sdlc.sh` | Изменить цикл, добавить агента, необязательные шаги |
 | `_agents/localrun.sh` | Изменить Local Run pipeline |
 
 ---
 
-*Обновлено: 2026-06-20. Разделение Quality / Security: добавлен Security-трек SG1–SG5 (`_standards/security.md`, severity по CVSS, владелец s3-security). Новые агенты: `s0-quality-gates` (проектные пороги из risk-профиля, после S1 до S2), `s2-security` (SG1 — abuse cases/ASVS/security NFR, shift-left), `s5-security` (SG4 — DAST/pentest, tier-aware). Цикл 1 = 24 шага; деплой/эксплуатация вынесены в Циклы 2/3. Всего агентов: 30.*
+*Обновлено: 2026-07-03. Universal Runtime Contract: запуск через Claude/Codex/Gemini (`AGENT_RUNTIME`), runtime dispatcher `_runtimes/agent-run.sh`, адаптеры `AGENTS.md` и `GEMINI.md`.  Разделение Quality / Security: добавлен Security-трек SG1–SG5 (`_standards/security.md`, severity по CVSS, владелец s3-security). Новые агенты: `s0-quality-gates` (проектные пороги из risk-профиля, после S1 до S2), `s2-security` (SG1 — abuse cases/ASVS/security NFR, shift-left), `s5-security` (SG4 — DAST/pentest, tier-aware). Цикл 1 = 24 шага; деплой/эксплуатация вынесены в Циклы 2/3. Всего агентов: 30.*
 *v1.7.0: s0-kickoff расширен до 5 блоков/26 вопросов (Operational Tier, kill criteria, known unknowns). s1-pm: Operational Tier Selection matrix (Tier 0–3), Veto Protocol, parametric flags, Handoff YAML. PMO-constraints.md как единый файл ограничений. Исправлены 9 нарушений изоляции.*

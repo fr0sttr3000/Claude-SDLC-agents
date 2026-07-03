@@ -4,8 +4,8 @@ description: Создать Risk Register
 
 Создай Risk Register для проекта $ARGUMENTS.
 
-Прочитай: $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/
-Создай: $SDLC_VAULT/projects/$ARGUMENTS/stage1-planning/outputs/PMO-risk-register.md
+Прочитай: $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/
+Создай: $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PMO-risk-register.md
 
 Требования:
 - Минимум 20 рисков

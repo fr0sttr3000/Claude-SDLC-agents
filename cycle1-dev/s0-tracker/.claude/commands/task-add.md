@@ -6,7 +6,7 @@ description: Добавить задачу в backlog проекта
 
 Шаги:
 1. Прочитай backlog.md для определения следующего ID:
-   $SDLC_VAULT/projects/$ARGUMENTS/tracking/backlog.md
+   $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/backlog.md
    Если файла нет — создай его с заголовком.
 
 2. Спроси пользователя (если данные не переданы в аргументах):

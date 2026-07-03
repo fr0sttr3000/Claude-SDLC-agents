@@ -5,8 +5,8 @@ description: Спроектировать полную RBAC-модель (рол
 Спроектируй RBAC-модель для проекта $ARGUMENTS.
 
 Прочитай (в таком порядке):
-1. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/ — найди BA-BRD.md (роли пользователей, бизнес-правила доступа)
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ — найди ARCH-HLD.md (ресурсы системы) и SEC-*-threat-model.md (угрозы несанкционированного доступа)
+1. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/ — найди BA-BRD.md (роли пользователей, бизнес-правила доступа)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ — найди ARCH-HLD.md (ресурсы системы) и SEC-*-threat-model.md (угрозы несанкционированного доступа)
 
 Выполни полное проектирование RBAC:
 
@@ -20,7 +20,7 @@ description: Спроектировать полную RBAC-модель (рол
 
 Применяй принципы: Deny by Default, Least Privilege, Separation of Duties.
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/:
 - RBAC-{ДАТА}-model.md
 - RBAC-{ДАТА}-matrix.md
 - RBAC-{ДАТА}-schema.sql

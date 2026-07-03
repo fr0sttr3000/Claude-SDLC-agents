@@ -8,8 +8,8 @@
 $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
-Читай от s2-ba: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-*.md
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/
+Читай от s2-ba: $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-*.md
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/
 
 ## Формат User Story
 ---

@@ -6,11 +6,11 @@ description: Создать Dev Report по завершённому PR / спр
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
 
 Создай файл DEV-[дата]-PR-[N]-summary.md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 
 # Dev Report — PR #[N] — $ARGUMENTS
 Дата: [сегодня]

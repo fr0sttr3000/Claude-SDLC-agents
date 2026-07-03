@@ -14,17 +14,17 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 ```
-Читай:   $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md
-Читай:   $SDLC_VAULT/projects/{PROJECT}/stage1-planning/outputs/
-Читай:   $SDLC_VAULT/projects/{PROJECT}/Dashboard.md
+Читай:   $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md
+Читай:   $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/
+Читай:   $SDLC_PROJECTS_DIR/{PROJECT}/Dashboard.md
 
 Пиши (NEW):
-  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/idea.md
-  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
 
 Пиши (REFRESH):
-  $SDLC_VAULT/projects/{PROJECT}/stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md
-  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md
 ```
 
 ## Автоопределение режима
@@ -324,8 +324,8 @@ Q1.1: {вопрос} → {ответ}
   + stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
 
 Следующий шаг:
-  cd _agents/cycle1-dev/s1-pm && claude "/feasibility проект: {PROJECT}"
-  или запусти s1-pm через sdlc.sh → Запустить один агент → s1-pm
+  запусти s1-pm /feasibility для проекта {PROJECT} через выбранный runtime
+  путь в launcher: sdlc.sh → Запустить один агент → s1-pm
 ```
 
 ---
