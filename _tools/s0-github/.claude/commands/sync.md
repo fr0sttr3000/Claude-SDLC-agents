@@ -6,7 +6,7 @@ description: Синхронизировать артефакты проекта 
 
 Шаги:
 1. Перейди в папку проекта:
-   $SDLC_VAULT/projects/$ARGUMENTS
+   $SDLC_PROJECTS_DIR/$ARGUMENTS
 
 2. Покажи текущий статус: `git status`
 

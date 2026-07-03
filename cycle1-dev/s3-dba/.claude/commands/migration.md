@@ -6,10 +6,10 @@ description: Создать Alembic миграцию с runbook (upgrade + downg
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/data-formats.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/DBA-schema.sql (если существует)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/DBA-schema.sql (если существует)
 
 Создай файл DBA-[дата]-migration-runbook.md в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/
 
 # Migration Runbook — $ARGUMENTS
 Дата: [сегодня]

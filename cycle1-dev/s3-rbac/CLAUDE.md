@@ -10,10 +10,10 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай:
-  $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/
 
 ## Что проектирует агент
 

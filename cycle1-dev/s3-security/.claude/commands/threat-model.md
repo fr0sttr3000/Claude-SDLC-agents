@@ -6,10 +6,10 @@ description: Провести Threat Modeling (STRIDE + DREAD + OWASP Top 10)
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/:
 - SEC-[дата]-threat-model.md
 - SEC-[дата]-security-requirements.md
 

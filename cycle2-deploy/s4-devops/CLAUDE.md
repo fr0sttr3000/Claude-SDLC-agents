@@ -9,12 +9,12 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → Прочитай ПЕРВЫМ: operational.tier, topology, delivery_scope, alert_channel, existing_monitoring.
      → infrastructure_constraints определяют что именно реализовывать.
-  2. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  3. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/
+  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/SEC-security-requirements.md
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
 
 ## CI/CD Pipeline
 On PR: lint → unit-tests → build → SAST → secrets-scan

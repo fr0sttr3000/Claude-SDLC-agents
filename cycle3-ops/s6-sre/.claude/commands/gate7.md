@@ -6,10 +6,10 @@ description: Gate 7 — SLO Review, Auto-Heal проверка, Incident Runbook
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage6-deploy/outputs/SRE-*-post-deploy-report.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/DEVOPS-monitoring.yaml (если существует)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/SRE-*-post-deploy-report.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEVOPS-monitoring.yaml (если существует)
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage7-ops/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage7-ops/outputs/:
 - SRE-[дата]-autoheal-report.md
 - SRE-[дата]-ops-report.md
 - SRE-runbook-service-down.md

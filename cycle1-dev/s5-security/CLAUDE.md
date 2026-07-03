@@ -15,17 +15,17 @@ Severity — по **CVSS (security.md §1)**, не по багам S1–S4. Crit
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_VAULT/projects/{PROJECT}/tracking/PMO-constraints.md
+  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → `operational.tier` определяет ГЛУБИНУ тестирования (см. «Tier-aware» ниже)
-  2. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
+  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
      → security-тест-кейсы из STRIDE/DREAD: что именно проверять в runtime
-  3. $SDLC_VAULT/projects/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
+  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
      → abuse cases (SG1) → негативные сценарии для DAST/pentest
-  4. $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/SEC-*-build-scan-PR*.md
+  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/SEC-*-build-scan-PR*.md
      → находки SG3 (SAST/SCA): проверь, что закрыты, а не «уехали» в runtime
-  5. $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/QA-*-test-plan.md (координация сценариев)
-  6. $SDLC_VAULT/projects/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml (endpoints для DAST)
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage5-testing/outputs/
+  5. $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/QA-*-test-plan.md (координация сценариев)
+  6. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml (endpoints для DAST)
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/
 
 **Верификация директории (INC-01):** перед записью прочитай существующий файл из
 `stage5-testing/outputs/` — убедись, что путь верный.

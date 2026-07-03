@@ -6,18 +6,227 @@
 AGENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="$(dirname "$AGENTS")"
 NOTES="$VAULT/Local_Run"
+export AGENT_RUNTIME="${AGENT_RUNTIME:-}"
+AGENT_RUNNER="$AGENTS/_runtimes/agent-run.sh"
 
 # Конфигурация пути к локальным проектам.
 # Приоритет: env LOCALRUN_PROJECTS > config-файл > first-run wizard.
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sdlc-agents"
 CONFIG_FILE="$CONFIG_DIR/config"
-_env_localrun="${LOCALRUN_PROJECTS:-}"
-[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
-[[ -n "$_env_localrun" ]] && LOCALRUN_PROJECTS="$_env_localrun"
+PROJECTS=""
 
 # ─── цвета ────────────────────────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[0;33m'
 B='\033[0;34m'; C='\033[0;36m'; W='\033[1;37m'; M='\033[0;35m'; N='\033[0m'
+
+
+# ─── конфигурация runtime и локальных проектов ───────────────────────────────
+read_config_value() {
+  local key="$1"
+  [[ -f "$CONFIG_FILE" ]] || return 1
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      value=$0
+      sub(/^[^=]*=/, "", value)
+      sub(/^"/, "", value)
+      sub(/"$/, "", value)
+      print value
+      exit
+    }
+  ' "$CONFIG_FILE"
+}
+
+write_config_value() {
+  local key="$1" value="$2" tmp
+  mkdir -p "$CONFIG_DIR"
+  tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")" || return 1
+  if [[ -f "$CONFIG_FILE" ]]; then
+    awk -v key="$key" -v value="$value" '
+      BEGIN { written=0 }
+      index($0, key "=") == 1 { print key "=\"" value "\""; written=1; next }
+      { print }
+      END { if (written == 0) print key "=\"" value "\"" }
+    ' "$CONFIG_FILE" > "$tmp"
+  else
+    printf '%s="%s"\n' "$key" "$value" > "$tmp"
+  fi
+  mv "$tmp" "$CONFIG_FILE"
+}
+
+expand_path() {
+  local value="$1"
+  [[ "$value" == "~" ]] && value="$HOME"
+  [[ "$value" == "~/"* ]] && value="$HOME/${value#~/}"
+  echo "$value"
+}
+
+normalize_runtime() {
+  local runtime="${1:-}"
+  [[ -z "$runtime" ]] && return 1
+  runtime="${runtime,,}"
+  case "$runtime" in
+    claude|codex|gemini) echo "$runtime" ;;
+    gemeni|gqmeni) echo "gemini" ;;
+    *) return 1 ;;
+  esac
+}
+
+init_runtime() {
+  local requested="${1:-${AGENT_RUNTIME:-}}"
+  local normalized
+  if ! normalized="$(normalize_runtime "$requested")"; then
+    [[ -n "$requested" ]] && echo -e "${R}Неизвестный runtime: ${requested}${N}"
+    [[ -n "$requested" ]] && echo -e "Ожидается: ${C}claude${N}, ${C}codex${N} или ${C}gemini${N}"
+    return 1
+  fi
+  AGENT_RUNTIME="$normalized"
+  export AGENT_RUNTIME
+}
+
+runtime_label() {
+  case "$AGENT_RUNTIME" in
+    claude) echo "Claude" ;;
+    codex) echo "Codex" ;;
+    gemini) echo "Gemini" ;;
+    "") echo "не выбран" ;;
+    *) echo "$AGENT_RUNTIME" ;;
+  esac
+}
+
+runtime_bin() {
+  case "$AGENT_RUNTIME" in
+    claude) echo "${CLAUDE_BIN:-claude}" ;;
+    codex) echo "${CODEX_BIN:-codex}" ;;
+    gemini) echo "${GEMINI_BIN:-gemini}" ;;
+    *) echo "" ;;
+  esac
+}
+
+ensure_runtime_available() {
+  local bin
+  if [[ -z "${AGENT_RUNTIME:-}" ]]; then
+    echo -e "${R}Runtime не выбран.${N}"
+    return 1
+  fi
+  bin="$(runtime_bin)"
+  if [[ -z "$bin" ]] || ! command -v "$bin" >/dev/null 2>&1; then
+    echo -e "${R}Runtime '${AGENT_RUNTIME}' выбран, но команда '${bin}' не найдена в PATH.${N}"
+    echo -e "Установи CLI, выбери другой runtime в настройках или задай ${W}${AGENT_RUNTIME^^}_BIN${N}."
+    return 1
+  fi
+}
+
+load_runtime() {
+  local configured=""
+  if [[ -n "${AGENT_RUNTIME:-}" ]]; then
+    configured="$AGENT_RUNTIME"
+  else
+    configured="$(read_config_value AGENT_RUNTIME || true)"
+  fi
+  [[ -n "$configured" ]] && init_runtime "$configured"
+}
+
+select_runtime() {
+  local allow_back="${1:-yes}"
+  local choice prompt_suffix
+  while true; do
+    header
+    echo -e "${W}── Runtime AI-вендора ───────────────────────────────${N}"
+    echo
+    echo -e "Текущий runtime: ${C}$(runtime_label)${N}${AGENT_RUNTIME:+ ($AGENT_RUNTIME)}"
+    echo
+    echo -e "  ${Y}1)${N} Claude"
+    echo -e "  ${Y}2)${N} Codex"
+    echo -e "  ${Y}3)${N} Gemini"
+    if [[ "$allow_back" == "yes" ]]; then
+      echo -e "  ${Y}b)${N} Назад"
+      prompt_suffix="1-3/b"
+    else
+      prompt_suffix="1-3"
+    fi
+    echo
+    read -rp "$(echo -e "${W}Выбери runtime [${prompt_suffix}]:${N} ")" choice
+    case "$choice" in
+      1) AGENT_RUNTIME="claude" ;;
+      2) AGENT_RUNTIME="codex" ;;
+      3) AGENT_RUNTIME="gemini" ;;
+      b|B)
+        if [[ "$allow_back" == "yes" ]]; then
+          return 1
+        fi
+        echo -e "${R}Неверный выбор${N}"
+        sleep 0.5
+        continue
+        ;;
+      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5; continue ;;
+    esac
+    export AGENT_RUNTIME
+    write_config_value AGENT_RUNTIME "$AGENT_RUNTIME"
+    echo
+    echo -e "${G}✓ Runtime: ${W}$(runtime_label)${N}"
+    ensure_runtime_available || true
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+    return 0
+  done
+}
+
+ensure_runtime() {
+  load_runtime && return 0
+  select_runtime no
+}
+
+set_localrun_projects() {
+  local dir
+  dir="$(expand_path "$1")"
+  [[ -z "$dir" ]] && return 1
+  mkdir -p "$dir" || return 1
+  LOCALRUN_PROJECTS="$(cd "$dir" && pwd -P)"
+  PROJECTS="$LOCALRUN_PROJECTS"
+  export LOCALRUN_PROJECTS
+}
+
+load_localrun_projects() {
+  local configured=""
+  if [[ -n "${LOCALRUN_PROJECTS:-}" ]]; then
+    configured="$LOCALRUN_PROJECTS"
+  else
+    configured="$(read_config_value LOCALRUN_PROJECTS || true)"
+  fi
+  [[ -n "$configured" ]] && set_localrun_projects "$configured"
+}
+
+configure_localrun_projects() {
+  local input
+  while true; do
+    header
+    echo -e "${W}── Настройка каталога локальных GitHub-проектов ─────${N}"
+    echo
+    echo -e "Укажи каталог, куда Local Run будет клонировать и где будет искать репозитории."
+    echo -e "Launcher показывает только этот явно настроенный каталог и не подставляет путь по умолчанию."
+    [[ -n "${LOCALRUN_PROJECTS:-}" ]] && echo -e "Текущее значение env: ${C}${LOCALRUN_PROJECTS}${N}"
+    echo
+    read -rp "$(echo -e "${W}Путь (b — отмена):${N} ")" input
+    [[ "$input" == "b" || "$input" == "B" ]] && return 1
+    if [[ -z "$input" ]]; then
+      echo -e "${R}Путь обязателен. Launcher не подставляет каталог по умолчанию.${N}"
+      sleep 0.8
+      continue
+    fi
+    set_localrun_projects "$input" || { echo -e "${R}Не удалось настроить каталог: $input${N}"; sleep 1; continue; }
+    write_config_value LOCALRUN_PROJECTS "$LOCALRUN_PROJECTS"
+    echo
+    echo -e "${G}✓ Каталог локальных проектов: ${W}$LOCALRUN_PROJECTS${N}"
+    echo -e "  Изменить позже: настройки Local Run или env ${W}LOCALRUN_PROJECTS${N}"
+    echo
+    read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+    return 0
+  done
+}
+
+choose_runtime() {
+  select_runtime yes
+}
 
 # ─── описания агентов ─────────────────────────────────────────────────────────
 declare -A AGENT_DESC=(
@@ -42,6 +251,12 @@ header() {
   echo -e "${M}║${W}       Local Run — локальные проекты с GitHub        ${M}║${N}"
   echo -e "${M}║${R}           ⚠  git push ЗАПРЕЩЁН                      ${M}║${N}"
   echo -e "${M}╚══════════════════════════════════════════════════════╝${N}"
+  echo -e "  Runtime: ${C}$(runtime_label)${N} (${AGENT_RUNTIME})"
+  if [[ -n "${LOCALRUN_PROJECTS:-}" ]]; then
+    echo -e "  Projects: ${C}$LOCALRUN_PROJECTS${N}"
+  else
+    echo -e "  Projects: ${Y}не настроены${N}"
+  fi
   echo
 }
 
@@ -128,7 +343,7 @@ menu_clone() {
     echo -e "${G}✓ Готово. Проект: ${W}$folder${N}"
     echo
     echo -e "Следующий шаг — запустить анализ:"
-    echo -e "  ${C}cd \"$AGENTS/l1-analyze\" && claude /analyze $folder${N}"
+    echo -e "  ${C}AGENT_RUNTIME=$AGENT_RUNTIME bash \"$AGENTS/localrun.sh\"${N}"
     echo
     read -rp "$(echo -e "${W}Запустить полный pipeline сейчас? [y/N]:${N} ")" go
     if [[ "$go" == "y" || "$go" == "Y" ]]; then
@@ -162,23 +377,49 @@ run_agent() {
   local agent_dir
   agent_dir=$(find_agent_dir "$agent")
 
-  local claude_arg
+  if [[ ! -d "$agent_dir" ]]; then
+    echo -e "${R}Агент '$agent' не найден${N}"; return 1
+  fi
+
+  if [[ ! -x "$AGENT_RUNNER" ]]; then
+    echo -e "${R}Runtime dispatcher не найден или не исполняемый: $AGENT_RUNNER${N}"; return 1
+  fi
+
+  ensure_runtime_available || return 1
+
+  local prompt=""
   if [[ "$task" == /* ]]; then
-    claude_arg="$task $project"
+    local slash_task="${task#/}"
+    local cmd_name="${slash_task%% *}"
+    local cmd_args="${slash_task#"$cmd_name"}"
+    cmd_args="${cmd_args# }"
+    [[ -z "$cmd_args" ]] && cmd_args="$project"
+    local cmd_file="$agent_dir/.claude/commands/${cmd_name}.md"
+    if [[ -f "$cmd_file" ]]; then
+      local template
+      template=$(awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$cmd_file")
+      [[ -z "$template" ]] && template=$(grep -v '^---' "$cmd_file" | grep -v '^description:')
+      prompt="Проект: $project."$'\n\n'"${template//\$ARGUMENTS/$cmd_args}"
+    else
+      prompt="$task"
+    fi
   elif [[ -n "$task" ]]; then
-    claude_arg="$task для проекта $project"
-  else
-    claude_arg=""
+    prompt="$task для проекта $project"
   fi
 
   echo
   echo -e "${M}┌─ Агент ────────────────────────────────────────────┐${N}"
   echo -e "${M}│${N} ${W}$agent${N} — ${AGENT_DESC[$agent]}"
+  echo -e "${M}│${N} Runtime: ${W}$(runtime_label)${N} (${AGENT_RUNTIME})"
   echo -e "${M}│${N} Проект: ${W}$project${N}"
-  [[ -n "$claude_arg" ]] && echo -e "${M}│${N} Задача: ${C}$claude_arg${N}"
+  [[ -n "$prompt" ]] && echo -e "${M}│${N} Prompt: ${C}$prompt${N}"
   echo -e "${M}└────────────────────────────────────────────────────┘${N}"
   echo
-  echo -e "  ${Y}Enter${N} — запустить задачу (claude завершится автоматически)"
+  if [[ -n "$prompt" ]]; then
+    echo -e "  ${Y}Enter${N} — запустить задачу (выбранный runtime завершится автоматически)"
+  else
+    echo -e "  ${Y}Enter${N} — открыть интерактивный режим выбранного runtime"
+  fi
   echo -e "  ${Y}i${N}     — интерактивный диалог с агентом"
   echo -e "  ${Y}s${N}     — пропустить"
   echo -e "  ${Y}q${N}     — прервать"
@@ -194,28 +435,22 @@ run_agent() {
     i|I)
       echo
       echo -e "${C}Интерактивный режим — ${W}$agent${N}"
-      [[ -n "$claude_arg" ]] && echo -e "${Y}Задача шага:${N} $claude_arg"
-      echo -e "${Y}Для выхода: /exit или Ctrl+C${N}"
+      [[ -n "$prompt" ]] && echo -e "${Y}Задача шага:${N} $prompt"
+      echo -e "${Y}Для выхода используй команду выхода выбранного runtime.${N}"
       echo
-      echo -e "${M}── Агент инициирует диалог... ──────────────────────${N}"
-      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
-      echo
-      echo -e "${M}── Продолжение диалога ─────────────────────────────${N}"
-      (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
+      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "${prompt:-начни сессию}"
       echo
       echo -e "${G}✓ Сессия завершена${N}"
       ;;
     *)
-      if [[ -n "$claude_arg" ]]; then
-        echo -e "${C}Запускаю: ${W}claude \"$claude_arg\"${N}"
+      if [[ -n "$prompt" ]]; then
+        echo -e "${C}Запускаю ($(runtime_label)): ${W}$prompt${N}"
         echo
-        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "$claude_arg")
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode task --prompt "$prompt"
       else
-        echo -e "${C}Открываю диалог с агентом...${N}"
+        echo -e "${C}Открываю интерактивный режим выбранного runtime...${N}"
         echo
-        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude "начни сессию")
-        echo
-        (cd "$agent_dir" && AGENT_DIR="$agent_dir" env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT claude --continue)
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "начни сессию"
       fi
       echo
       echo -e "${G}✓ Агент завершил работу${N}"
@@ -296,7 +531,7 @@ menu_single_agent() {
   pick_local_project || { read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _; return; }
 
   # slash-команды
-  local cmd_dir="$AGENTS/$agent/.claude/commands"
+  local cmd_dir="$(find_agent_dir "$agent")/.claude/commands"
   local task
   if [[ -d "$cmd_dir" ]] && compgen -G "$cmd_dir/*.md" > /dev/null 2>&1; then
     echo
@@ -429,6 +664,33 @@ menu_list_projects() {
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
 }
 
+
+# ─── настройки ────────────────────────────────────────────────────────────────
+menu_settings() {
+  while true; do
+    header
+    echo -e "${W}── Настройки Local Run ──────────────────────────────${N}"
+    echo
+    echo -e "  Runtime:  ${C}$(runtime_label)${N} (${AGENT_RUNTIME})"
+    echo -e "  CLI:      ${C}$(runtime_bin)${N}"
+    echo -e "  Projects: ${C}${LOCALRUN_PROJECTS:-не настроены}${N}"
+    echo
+    echo -e "  ${Y}1)${N} Выбрать AI runtime"
+    echo -e "  ${Y}2)${N} Изменить каталог локальных проектов"
+    echo -e "  ${Y}3)${N} Проверить CLI выбранного runtime"
+    echo -e "  ${Y}b)${N} Назад"
+    echo
+    read -rp "$(echo -e "${W}Выбери [1-3/b]:${N} ")" choice
+    case "$choice" in
+      1) choose_runtime ;;
+      2) configure_localrun_projects ;;
+      3) ensure_runtime_available; read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _ ;;
+      b|B) return ;;
+      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
+    esac
+  done
+}
+
 # ─── главное меню ─────────────────────────────────────────────────────────────
 main_menu() {
   while true; do
@@ -438,6 +700,7 @@ main_menu() {
     echo -e "  ${Y}3)${N} Запустить один агент"
     echo -e "  ${Y}4)${N} Обновить заметки Obsidian (после git pull / GitHub Desktop)"
     echo -e "  ${Y}5)${N} Список проектов"
+    echo -e "  ${Y}6)${N} Настройки runtime/projects"
     echo -e "  ${Y}q)${N} Выход"
     echo
     echo -e "  ${R}⚠  git push ЗАПРЕЩЁН для всех проектов в ${PROJECTS}/${N}"
@@ -449,6 +712,7 @@ main_menu() {
       3) menu_single_agent ;;
       4) menu_update_notes ;;
       5) menu_list_projects ;;
+      6) menu_settings ;;
       q|Q) echo -e "${N}Выход."; exit 0 ;;
       *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
     esac
@@ -457,25 +721,13 @@ main_menu() {
 
 # ─── first-run wizard: спросить путь к локальным проектам ─────────────────────
 first_run_wizard() {
+  load_localrun_projects
   [[ -n "${LOCALRUN_PROJECTS:-}" ]] && return
-  header
-  echo -e "${W}── Первый запуск — настройка ─────────────────────────${N}"
-  echo
-  echo -e "Где хранятся твои локальные GitHub-проекты?"
-  echo -e "${C}Каталог, куда клонируются репозитории для локального запуска.${N}"
-  echo
-  read -rp "$(echo -e "${W}Путь [${HOME}/Projects/claude]:${N} ")" input
-  LOCALRUN_PROJECTS="${input:-$HOME/Projects/claude}"
-  mkdir -p "$CONFIG_DIR"
-  echo "LOCALRUN_PROJECTS=\"$LOCALRUN_PROJECTS\"" > "$CONFIG_FILE"
-  echo
-  echo -e "${G}✓ Сохранено в $CONFIG_FILE${N}"
-  echo -e "  Изменить позже: отредактируй файл или задай env ${W}LOCALRUN_PROJECTS${N}"
-  echo
-  read -rp "$(echo -e "${W}Нажми Enter для продолжения...${N} ")" _
+  configure_localrun_projects
 }
 
-first_run_wizard
+ensure_runtime || exit 1
+first_run_wizard || exit 1
 PROJECTS="$LOCALRUN_PROJECTS"
 export SDLC_VAULT="$VAULT"
 export LOCALRUN_PROJECTS

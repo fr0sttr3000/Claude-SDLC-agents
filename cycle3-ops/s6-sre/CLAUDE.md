@@ -10,11 +10,11 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Пути файлов
 Читай:
-  $SDLC_VAULT/projects/{PROJECT}/stage4-dev/outputs/DEVOPS-monitoring.yaml
-  $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/REL-checklist.md
-  $SDLC_VAULT/projects/{PROJECT}/tracking/known-issues.md  ← OPEN known issues: нужны алерт + runbook (§6.1)
-Пиши в: $SDLC_VAULT/projects/{PROJECT}/stage6-deploy/outputs/
-         $SDLC_VAULT/projects/{PROJECT}/stage7-ops/outputs/
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/DEVOPS-monitoring.yaml
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage6-deploy/outputs/REL-checklist.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/tracking/known-issues.md  ← OPEN known issues: нужны алерт + runbook (§6.1)
+Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage6-deploy/outputs/
+         $SDLC_PROJECTS_DIR/{PROJECT}/stage7-ops/outputs/
 
 ## Этап 6 — Post-Deploy (сразу после деплоя)
 

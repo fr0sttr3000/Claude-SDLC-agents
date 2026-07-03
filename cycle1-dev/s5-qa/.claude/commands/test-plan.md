@@ -6,10 +6,10 @@ description: Создать Test Plan с тест-кейсами по всем �
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
 
-Создай файлы в $SDLC_VAULT/projects/$ARGUMENTS/stage5-testing/outputs/:
+Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/:
 - QA-[дата]-test-plan.md
 - QA-[дата]-test-cases-[epic].md (по одному на epic)
 

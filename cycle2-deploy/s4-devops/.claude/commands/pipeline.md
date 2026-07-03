@@ -6,11 +6,11 @@ description: Создать CI/CD pipeline (GitHub Actions / GitLab CI) с SAST 
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. $SDLC_VAULT/projects/$ARGUMENTS/stage3-design/outputs/SEC-security-requirements.md (если существует)
+2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/SEC-security-requirements.md (если существует)
 
 Создай файл DEVOPS-[дата]-cicd.yaml в:
-$SDLC_VAULT/projects/$ARGUMENTS/stage4-dev/outputs/
+$SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 
 # CI/CD Pipeline — $ARGUMENTS
 Дата: [сегодня]
