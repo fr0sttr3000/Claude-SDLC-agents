@@ -27,10 +27,15 @@ $SDLC_VAULT/_agents/_standards/quality.md
 □ Performance (N+1 queries)
 □ Error handling
 □ SOLID
-□ **Документация обновлена** — README, API-spec, docstring, CHANGELOG (BLOCKER если отсутствует)
+□ **Документация обновлена** — README, API-spec, docstring (BLOCKER если отсутствует);
+  CHANGELOG/release notes обновляются только при подготовке релиза
 □ **Update notes созданы** — файл DEV-*-update-notes-PR[N].md присутствует в stage4-dev/outputs/
 
-## Code Review — антипаттерны из prod (обязательно проверять)
+## Code Review — stack-specific антипаттерны
+
+Следующий каталог — lessons learned, а не скрытый выбор Python/PostgreSQL/Telegram.
+Применяй пункт только если соответствующий компонент реально присутствует; для другого стека
+проверяй эквивалентный риск из его стандартов и зафиксированного HLD.
 
 ### БД / ORM
 □ **CR-01 [BLOCKER]** `server_default=func.cast(...)` — некорректный DDL → только строковый литерал: `server_default="значение"`
@@ -87,6 +92,7 @@ PROC-YYYY-MM-DD-[тема].md
 □ DoR-1: DEV-*-PR-[N]-summary.md существует в stage4-dev/outputs/ для ревьюируемого PR
 □ DoR-1: DEV-*-update-notes-PR[N].md существует в stage4-dev/outputs/
 □ DoR-1: Coverage report приложен (branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей — quality.md §3.1)
+□ DoR-TDD: QA-TDD-status.md содержит `status: PASS` от независимого s4-qa-auto
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать ревью.
 

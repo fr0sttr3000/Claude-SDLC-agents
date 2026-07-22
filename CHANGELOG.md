@@ -1,6 +1,8 @@
 ---
-date: 2026-07-03
-tags: [docs, changelog]
+date: 2026-07-22
+tags:
+  - docs
+  - changelog
 ---
 
 # CHANGELOG — Claude SDLC Agents
@@ -10,6 +12,53 @@ tags: [docs, changelog]
 ---
 
 ## [Unreleased]
+
+---
+
+## [2.000.004] — 2026-07-22
+
+### Added
+
+- Scoped Project/Cycle/Stage/Agent Review and Repair with exact Preview boundaries.
+- Capability-enforced read-only execution for Claude, Codex and Local `codex-oss` workers.
+- Behavioral validator, principles-consistency, worker-security, journal and Local Repositories regressions.
+- Missing shared commands: validator Review/Repair/DoR/DoD, Architecture API spec,
+  Kickoff context review, Tracker `/task-block`/`/backlog`, GitHub `/branch`.
+
+### Changed
+
+- Canon now defines Markdown-first governance while preserving native code/test/API/SQL/IaC formats.
+- Gate/DoR/DoD ownership and paths are aligned across Stage 1–7; Cycle 2 owns Stage 6,
+  Cycle 3 owns Stage 7, and `s6-release` signs Gate 6.
+- Agent contracts are applicability/stack-aware; threat severity is CVSS, migrations are
+  design-only in Stage 3, and QA Requirements contributes to rather than signs all of Gate 2.
+- Applicability contracts now cover non-API, non-DB, CLI/library, images-only and
+  operations-artifacts-only projects without hidden stack defaults.
+- README, GETTING_STARTED, OVERVIEW, root contract, adapters, roadmap and document map were
+  synchronized with the implemented Project Console and three active test-first cycles.
+- GitHub utility now requires staged-snapshot secret scanning and separate confirmations for
+  staging/commit/push/PR without exposing matching secret values.
+
+### Fixed
+
+- DoR/DoD validators no longer abort on the first counter increment and now validate correct
+  Gate 1–6 artifacts, release context and Stage 6/7 infrastructure evidence.
+- Review menu choices no longer execute the same shallow scan; Review is truly read-only.
+- Worker scopes cannot be `/`, HOME or outside the configured project root; unsupported worker
+  adapters fail instead of relying on prompt-only restrictions.
+- Execution Journal quotes YAML-sensitive values, rejects evidence-text step injection and
+  protects leases against PID reuse while preserving the exact failing step, agent and task.
+- Launcher menus reject unsafe indexes instead of dispatching an unintended action.
+- Local Repositories notes update now has an exact Preview, and the first skipped or failed
+  mandatory step returns incomplete instead of false success.
+- Unsafe `.env` source/eval/persistence, secret exposure guidance and build skip-tests defaults
+  were removed from active contracts/commands.
+
+### Compatibility
+
+- Claude, Codex, Gemini and registered Local hosts remain supported as primary profiles.
+- Gemini/custom Local profiles are primary-only until an enforceable read-only worker adapter exists.
+- No default model or runtime fallback was introduced.
 
 ---
 
@@ -483,7 +532,8 @@ tags: [docs, changelog]
 
 ---
 
-[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.003...HEAD
+[Unreleased]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.004...HEAD
+[2.000.004]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.003...v2.000.004
 [2.000.003]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.002...v2.000.003
 [2.000.002]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.001...v2.000.002
 [2.000.001]: https://github.com/fr0sttr3000/Claude-SDLC-agents/compare/v2.000.000...v2.000.001

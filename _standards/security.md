@@ -84,11 +84,11 @@ Risk-accept Medium допускается только с владельцем, 
 ### SG2 — Design (S3) — *перенесено из quality.md Gate 3*
 ```
 □ Threat model (STRIDE) по ARCH-HLD/api-spec: 0 открытых Critical/High угроз
-□ RBAC-*-model.md: все роли из BRD покрыты, иерархия описана
-□ RBAC-*-matrix.md: матрица полная (роль × ресурс × действие)
-□ RBAC-*-schema.sql: roles/permissions/role_permissions/user_roles + RLS
+□ Authorization model (RBAC/ABAC/ACL или иной выбранный механизм): все субъекты и действия из BRD покрыты
+□ Permission matrix/политики полны; `not-applicable` возможно только с явным threat-based обоснованием
+□ Enforcement реализован stack-native: SQL/RLS для PostgreSQL — один из вариантов, не default
 □ SoD-конфликты выявлены и задокументированы
-□ Owner-ресурсы защищены RLS-политиками
+□ Owner-ресурсы защищены deny-by-default policy в фактическом enforcement layer
 □ Key management: где хранятся ключи (pass), ротация, отзыв
 □ Data protection design: шифрование at-rest / in-transit по классификации данных
 ```
@@ -181,13 +181,24 @@ PROD → CVE-watch → patch SLA → secret rotation → security alerts
 
 ## 7. Запрещено (security BLOCKER)
 
+### Auto-Heal / Playbook Executor
+
+- Executor identity получает least privilege только на явно разрешённые
+  `Auto-Heal Authorization.allowed_actions` и только в указанных средах.
+- Все автоматические действия содержат audit event: actor, target, action,
+  reason/alert fingerprint, timestamp UTC и result — без секретов.
+- Playbook обязан быть идемпотентным, иметь retry limit и безопасную остановку.
+- Действие вне allowlist или без Operations Owner/escalation contract блокируется.
+- Секреты executor не записываются в playbook/monitoring config; источник — `pass`.
+
 ```
 ✗ Critical/High (CVSS ≥ 7.0) в релизе
 ✗ Секреты в коде, логах, .md, git-истории, Docker-образе, env-файле без pass
 ✗ Зависимости с известными Critical/High CVE без митигации
 ✗ Деплой без пройденного SG соответствующего этапа
 ✗ Threat model отсутствует или с открытыми Critical/High угрозами (Tier ≥ 1)
-✗ Owner-ресурсы без RLS-защиты
+✗ Owner/tenant-ресурсы без stack-native deny-by-default enforcement;
+  PostgreSQL RLS обязателен только если он выбран в HLD как слой enforcement
 ✗ Privacy-контроли отключены при классификации PII (§6 активен)
 ✗ Снижение security-уровня проекта ниже глобального минимума по tier (§2)
 ```

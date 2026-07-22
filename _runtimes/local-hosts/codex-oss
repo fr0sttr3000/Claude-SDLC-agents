@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+AGENT_DIR_VALUE=""
+MODE="task"
+ACCESS="write"
+PROMPT=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --agent-dir) AGENT_DIR_VALUE="${2:-}"; shift 2 ;;
+    --mode) MODE="${2:-}"; shift 2 ;;
+    --access) ACCESS="${2:-}"; shift 2 ;;
+    --prompt) PROMPT="${2:-}"; shift 2 ;;
+    *) echo "codex-oss: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+PROVIDER="${LOCAL_MODEL_PROVIDER:-}"
+MODEL="${LOCAL_MODEL:-}"
+CODEX_COMMAND="${LOCAL_CODEX_BIN:-codex}"
+WORKER_MODE="${SDLC_WORKER:-0}"
+declare -a WORKER_FLAGS=()
+
+[[ -d "$AGENT_DIR_VALUE" ]] || { echo "codex-oss: valid --agent-dir is required" >&2; exit 2; }
+case "$ACCESS" in write|read-only) ;; *) echo 'codex-oss: --access must be write or read-only' >&2; exit 2 ;; esac
+case "$PROVIDER" in
+  ollama|lmstudio) ;;
+  *) echo "codex-oss: LOCAL_MODEL_PROVIDER must be ollama or lmstudio" >&2; exit 2 ;;
+esac
+[[ -n "$MODEL" && "$MODEL" != *$'\n'* && "$MODEL" != *$'\r'* ]] || {
+  echo "codex-oss: exact LOCAL_MODEL is required" >&2
+  exit 2
+}
+command -v "$CODEX_COMMAND" >/dev/null 2>&1 || {
+  echo "codex-oss: command '$CODEX_COMMAND' was not found" >&2
+  exit 127
+}
+if [[ "$WORKER_MODE" == "1" || "$ACCESS" == read-only ]]; then
+  [[ "$MODE" == "task" ]] || {
+    echo "codex-oss: read-only worker supports task mode only" >&2
+    exit 2
+  }
+  WORKER_FLAGS=(--sandbox read-only --ephemeral)
+fi
+
+case "$MODE" in
+  task)
+    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" exec --oss --local-provider "$PROVIDER" -m "$MODEL" \
+      "${WORKER_FLAGS[@]}" --cd "$AGENT_DIR_VALUE" "$PROMPT"
+    ;;
+  session-start|interactive)
+    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" --oss --local-provider "$PROVIDER" -m "$MODEL" --cd "$AGENT_DIR_VALUE" "$PROMPT"
+    ;;
+  continue)
+    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" --oss --local-provider "$PROVIDER" -m "$MODEL" --cd "$AGENT_DIR_VALUE"
+    ;;
+  *)
+    echo "codex-oss: unsupported mode: $MODE" >&2
+    exit 2
+    ;;
+esac

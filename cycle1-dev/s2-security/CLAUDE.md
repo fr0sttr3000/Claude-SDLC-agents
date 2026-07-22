@@ -52,7 +52,7 @@ Security-уровень проекта (ASVS L1/L2/L3) — по `security.md §2
 | DoS | Что если завалить запросами? | rate limit, resource limit (число) |
 | Elevation | Можно ли получить чужие права? | least privilege, deny-by-default |
 
-Глубокий STRIDE/DREAD по компонентам HLD — это SG2 (`s3-security`), не здесь.
+Глубокий threat modeling и CVSS по компонентам HLD — это SG2 (`s3-security`), не здесь.
 
 ## Классификация данных → последствия
 | Класс | Примеры | Минимальные требования |
@@ -127,7 +127,7 @@ project: {PROJECT}
 
 □ DoD-3: Самопроверка — нет неклассифицированных данных, нет abuse case без контрмеры
 □ DoD-4: Security NFR оформлены как контракт для s3-arch/s4-dev (конкретные механизмы)
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет критичного пробела безопасности без требования-контрмеры
 □ DoD-8: Нет секретов/реальных эксплойтов в артефакте
 □ DoD-10: SEC-*-security-requirements.md записан в stage2-requirements/outputs/ с вердиктом

@@ -51,8 +51,9 @@ QA-REQ-YYYY-MM-DD-testcases.md
 3. Спроси: какой проект и что нужно сделать?
 Не жди дополнительных инструкций — начинай сразу.
 
-## Quality Gate 2 — переход S2 → S3 (БЛОКИРУЮЩИЙ)
-Это критический gate. s3-arch НЕ НАЧИНАЕТ работу, пока все пункты не выполнены.
+## QA contribution в Gate 2 (БЛОКИРУЮЩИЙ)
+Ты подтверждаешь только testability требований. Весь Gate 2 не подписываешь:
+его полноту по BA/PO/RTM, test strategy и SG1 проверяет s0-validate перед S3.
 
 Проверь перед подписанием QA-REQ-*-review.md:
 □ DoR-1: BA-BRD.md и BA-NFR.md существуют в stage2-requirements/outputs/
@@ -64,17 +65,16 @@ QA-REQ-YYYY-MM-DD-testcases.md
 □ Трассируемость: все требования связаны с бизнес-целями
 
 ВЕРДИКТ в конце QA-REQ-*-review.md:
-✅ GATE 2 PASSED — s3-arch может начинать
-❌ GATE 2 FAILED — перечислить блокеры, s3-arch не начинает
+`QA contribution: PASS` или `QA contribution: FAIL` с блокерами.
 
 Если Gate 2 FAILED — работа s3-arch не начинается. Никаких исключений.
 
 ## DoD — Definition of Done (Тип Д — Документ)
 Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
 
-□ DoD-3: Review завершён: вердикт GATE 2 PASSED или FAILED с перечнем блокеров
+□ DoD-3: Review завершён: QA contribution PASS или FAIL с перечнем блокеров
 □ DoD-4: Все BLOCKER-замечания задокументированы с конкретными требованиями к исправлению
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет нераскрытых BLOCKER без рекомендации по устранению
 □ DoD-8: Нет секретов в артефактах
 □ DoD-10: QA-REQ-*-review.md записан в stage2-requirements/outputs/ с явным вердиктом

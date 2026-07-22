@@ -80,6 +80,22 @@ operational:
   delivery_scope: "{code-only / code+docker / code+deploy+monitoring}"
   alert_channel: "{Telegram / Email / Slack / [OPEN ISSUE OI-?]}"
   existing_monitoring: "{none / external:{сервис} / self-hosted / unknown}"
+  monitoring_stack:
+    metrics_alerts: "{конкретный продукт/компонент}"
+    logs: "{конкретный продукт/компонент}"
+    traces: "{конкретный продукт/компонент или n/a}"
+    dashboards: "{конкретный продукт/компонент}"
+    incident_management: "{конкретный продукт/компонент}"
+  playbook_executor:
+    kind: "{human / systemd / cron / ci-runner / k8s-operator / cloud-automation / other}"
+    environment: "{host/cluster/account}"
+    identity: "{роль/service account; без секретов}"
+  operations_owner: "{роль/команда + escalation channel}"
+  auto_heal_authorization:
+    mode: "{manual / allowlist / automatic}"
+    allowed_actions: ["{restart / scale / failover / rollback / ...}"]
+    prohibited_actions: ["{что всегда требует человека}"]
+    retry_limit: {число}
 
 critical_risks:
   # Только Critical (Score 20-25) и High (Score 15-19) из Risk Register
@@ -121,6 +137,8 @@ mandatory_standards:
 
 □ DoR-1: PM-*-feasibility.md существует в stage1-planning/outputs/ с вердиктом Go или Conditional Go
 □ DoR-1: stage1-planning/inputs/idea.md существует и не является заглушкой
+□ DoR-1: idea.md содержит Monitoring Stack, Playbook Executor, Operations Owner
+  и Auto-Heal Authorization либо каждый пробел оформлен как [OPEN ISSUE] с владельцем
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
 
@@ -139,7 +157,7 @@ mandatory_standards:
 
 □ DoD-3: Артефакт самопроверен: 0 BLOCKER-замечаний (неполные разделы, нет дат, нет владельцев)
 □ DoD-4: Все разделы Charter заполнены (включая "Подписи"), WBS содержит даты и вехи
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет нерешённых рисков уровня Critical без митигации
 □ DoD-8: Нет секретов в артефактах
 □ DoD-10: PMO-*.md записан в stage1-planning/outputs/

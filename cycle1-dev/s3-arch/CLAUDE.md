@@ -7,6 +7,9 @@
 ## Стандарты
 $SDLC_VAULT/_agents/_standards/company.md
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/tdd.md
+$SDLC_VAULT/_agents/_standards/security.md
+$SDLC_VAULT/_agents/_standards/data-formats.md
 
 ## Пути файлов
 Читай — в следующем порядке:
@@ -20,14 +23,17 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Архитектурные принципы
 1. Design for failure
-2. API-first
+2. Contract-first; API spec обязателен только при наличии API
 3. Loose coupling, high cohesion
 4. Security by design
 5. Observability from day one
-6. Prefer managed services
+6. Managed и self-hosted варианты сравниваются по constraints, стоимости и рискам
 7. Evolutionary architecture → ADR для каждого решения
-8. Auto-heal by design — система восстанавливается без оператора:
-   watchdog, circuit breaker, DLQ, liveness probe — отражены в HLD
+8. Reliability by design — выбранные и применимые auto-heal capabilities,
+   их N/A и escalation отражены в HLD
+9. Monitoring и auto-heal проектируются под зафиксированные Monitoring Stack,
+   Playbook Executor, Operations Owner и Auto-Heal Authorization; смена стека
+   или исполнителя требует ADR/NFR update.
 
 ## Выбор паттернов — обязательная методология
 
@@ -55,9 +61,13 @@ $SDLC_VAULT/_agents/_standards/quality.md
 | Deployability | Rollback safely | Canary, Blue-Green, Expand-Contract |
 | Deployability | Observe state | Structured Logging, RED Metrics, Alerting |
 
-### Правило 3: NFR-порог → Паттерн
+### Правило 3: NFR-порог → кандидаты на tactics/patterns
 
-| NFR-порог | Обязательные паттерны |
+Таблица ниже — примеры для обсуждения, а не автоматический mapping. Точный pattern
+выбирается после сравнения вариантов, topology/stack constraints и подтверждения ADR;
+не добавляй все перечисленные patterns только из-за одного числового порога.
+
+| NFR-порог | Кандидаты на паттерны |
 |-----------|----------------------|
 | availability ≥ 99.9% | Restart Policy + Liveness Probe + SLO Alerting |
 | availability ≥ 99.99% | + Auto Rollback + Multi-instance |
@@ -69,9 +79,11 @@ $SDLC_VAULT/_agents/_standards/quality.md
 | Есть фоновые воркеры/очереди | Watchdog + DLQ |
 | Есть финансовые операции | Idempotency + Transactions + Soft Delete |
 
-### Правило 4: Топология деплоя → Фильтр паттернов
+### Правило 4: Топология деплоя → фильтр применимости
 Deployment Constraint читается из BRD (зафиксирован s2-ba) и отражается в HLD.
 Gate 6 проверяет только паттерны, применимые к задокументированной топологии.
+Названия Docker/K8s/serverless в таблице — примеры реализаций. Используй фактический
+runtime проекта; если topology не сопоставляется однозначно — OPEN ISSUE, не default.
 
 | Паттерн | Single-container | Multi-instance (K8s) | Serverless |
 |---------|:----------------:|:-------------------:|:----------:|
@@ -153,10 +165,13 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 □ DoR-0: tracking/PMO-constraints.md существует — прочитать ДО всего остального
 □ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/, все FR имеют ID и AC
 □ DoR-1: BA-NFR.md существует, все NFR с числовыми порогами (не "быстро", а конкретный порог)
-□ DoR-1: BA-NFR.md содержит NFR по Operational Tier из Handoff (если Tier ≥ 1: /health, /metrics, logging)
+□ DoR-1: BA-*-RTM.md существует и связывает бизнес-цели, FR/NFR, AC и planned tests
+□ DoR-1: BA-NFR.md содержит согласованные operational capabilities без silent stack defaults
 □ DoR-1: PO-backlog.md существует, все Must-stories с AC в формате Given/When/Then
 □ DoR-2: Нет требований с маркерами "и/или" / "обычно" / "при необходимости"
-□ DoR-5: QA-REQ-*-review.md существует с вердиктом "GATE 2 PASSED", 0 открытых BLOCKER
+□ DoR-5: QA-REQ-*-review.md содержит `QA contribution: PASS`, 0 открытых BLOCKER
+□ DoR-5: QA-*-test-strategy.md существует; planned levels/types трассируются к RTM/NFR
+□ DoR-5: SEC-*-security-requirements.md (SG1) существует с применимыми abuse cases
 □ DoR-6: Scope ясен из PMO-constraints.md, архитектурный стек согласован с командой
 
 Если Gate 2 не пройден → отказать в начале работы, сообщить какие артефакты отсутствуют.
@@ -164,18 +179,14 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 ### ВЫХОД (вклад в Gate 3): перед завершением
 □ ARCH-HLD.md содержит C4 диаграммы и обоснование решений
 □ ADR написан для каждого нетривиального архитектурного решения
-□ ARCH-api-spec.yaml существует и покрывает все endpoints из BRD
-□ Обязательные паттерны надёжности из quality.md §5 учтены в дизайне:
-  - Timeout на всех внешних вызовах
-  - Retry + circuit breaker
-  - Health checks (/health, /ready)
-  - Structured logging с correlation_id
-□ Auto-heal паттерны отражены в HLD (BLOCKER):
-  - Watchdog-процесс для критичных воркеров/очередей
-  - Circuit breaker для каждой внешней зависимости
-  - DLQ для асинхронных задач (если есть очереди)
-  - Liveness/Readiness probe в топологии деплоя
+□ ARCH-api-spec.yaml существует и покрывает endpoints, если проект имеет API; иначе N/A с HLD evidence
+□ Применимые reliability/observability tactics из NFR отражены в HLD; каждый N/A обоснован
+□ Auto-heal design существует только для выбранных capabilities, executor и authorization
 □ NFR из BA-NFR.md адресованы в архитектуре (каждый NFR → решение)
+□ HLD показывает Monitoring Stack, точку исполнения playbooks, trust boundary
+  executor identity и границы разрешённых auto-heal действий
+□ Alert routing design реализует стабильный dedup_key, grouping, inhibition,
+  flap control и resolve semantics средствами выбранного стека
 □ Артефакты записаны в stage3-design/outputs/
 
 ## DoD — Definition of Done (Тип Д — Документ)
@@ -183,10 +194,10 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 
 □ DoD-3: HLD проверен: C4-диаграммы полные, ADR написан для каждого нетривиального решения
 □ DoD-4: Все NFR из BA-NFR.md адресованы в архитектуре — каждый NFR имеет решение
-□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет открытых архитектурных рисков уровня Critical без митигации
 □ DoD-8: Нет секретов в артефактах (api-spec.yaml, HLD)
-□ DoD-10: ARCH-HLD.md + ARCH-api-spec.yaml + ARCH-ADR-*.md записаны в stage3-design/outputs/
+□ DoD-10: ARCH-HLD.md + применимый API spec/N-A evidence + ARCH-ADR-*.md записаны в stage3-design/outputs/
 
 Авто-проверка: s0-validate /dod-check [PROJECT] D 3
 

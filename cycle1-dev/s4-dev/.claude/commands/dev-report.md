@@ -1,13 +1,22 @@
 ---
-description: Создать Dev Report по завершённому PR / спринту
+description: Выполнить Green/Repair по Red tests и создать Dev Report
 ---
 
-Создай Dev Report для проекта $ARGUMENTS.
+Выполни Green/Repair и затем создай Dev Report для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
+2. $SDLC_VAULT/_agents/_standards/tdd.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/quality-gates.md
+4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/QA-TDD-status.md
+5. Red tests и test command из QA TDD evidence
+6. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-*-HLD.md и API spec (если применимо)
+7. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/PO-*-backlog.md и BA-RTM
+
+Если `QA-TDD-status.md` не содержит `status: RED` для первой реализации либо `status: FAIL`
+для Repair — BLOCKED. Не меняй тесты/AC ради Green. В каталоге кода реализуй минимальный Green
+или точечный Repair, запусти только developer-side checks и оставь независимый итоговый Run
+агенту `s4-qa-auto`.
 
 Создай файл DEV-[дата]-PR-[N]-summary.md в:
 $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
@@ -44,7 +53,7 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 □ Нет игнорированных исключений (bare except/pass)
 □ README обновлён (если изменились команды/env/конфигурация)
 □ API-spec обновлён (если менялись endpoints)
-□ CHANGELOG.md обновлён
+□ CHANGELOG/release notes не изменялись: они принадлежат release preparation
 □ Update Notes созданы: DEV-*-update-notes-PR[N].md
 □ Нет хардкода ролей в бизнес-логике
 

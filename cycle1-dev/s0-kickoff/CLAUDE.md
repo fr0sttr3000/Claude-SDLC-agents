@@ -108,7 +108,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ---
 
-### Блок 3: Технические ограничения (11 вопросов)
+### Блок 3: Технические и операционные ограничения (15 вопросов)
 
 **Q3.1** Предпочтения по стеку? (или "оставить выбор архитектору")
 
@@ -161,6 +161,37 @@ $SDLC_VAULT/_agents/_standards/quality.md
 - B) Да, внешний сервис (Grafana Cloud / Datadog / UptimeRobot / Better Uptime)
 - C) Да, своя инфраструктура (Prometheus + Grafana на другом сервере)
 - D) Не знаю — разберёмся на этапе архитектуры
+
+**Q3.11 Monitoring Stack.** Назови фактический или требуемый стек по слоям:
+- сбор метрик и alert rules;
+- логи;
+- traces (если нужны);
+- dashboards;
+- alert routing / incident management.
+
+Ответ «не выбран» допустим только как `[OPEN ISSUE]` с владельцем и сроком.
+Не подставляй Prometheus/Grafana или другой стек по умолчанию.
+
+**Q3.12 Playbook Executor.** Кто или что будет выполнять локальные playbooks
+мониторинга и auto-heal?
+- конкретный пользователь/on-call вручную;
+- systemd/cron на указанном host;
+- CI runner;
+- Kubernetes operator/automation controller;
+- cloud automation service;
+- другое — указать host/среду и identity.
+
+**Q3.13 Operations Owner.** Кто отвечает за эксплуатацию, принимает escalation
+и подтверждает результат playbook? Укажи роль/команду и контактный канал.
+
+**Q3.14 Auto-Heal Authorization.** Какие действия разрешены:
+- только после ручного подтверждения;
+- автоматически по allowlist;
+- полностью автоматически.
+
+Для автоматических действий перечисли границы: restart/scale/failover/rollback,
+целевые среды, service account/роль, лимит повторов и действия, которые всегда
+требуют человека.
 
 После ответов — резюме и подтверждение.
 
@@ -259,6 +290,10 @@ Recovery Expectation: {Q3.7 — A/B/C/D + формулировка}
 Alert Channel: {Q3.7b — Telegram / Email / Slack / [OPEN ISSUE] | н/п если Q3.7=A}
 Monitoring Expectation: {Q3.8 — A/B/C + формулировка}
 Existing Monitoring: {Q3.10 — none / external / self-hosted / unknown | н/п если Q3.8=A}
+Monitoring Stack: {Q3.11 — metrics/logs/traces/dashboards/alerting/incident management}
+Playbook Executor: {Q3.12 — actor/automation + host/environment + identity}
+Operations Owner: {Q3.13 — role/team + escalation channel}
+Auto-Heal Authorization: {Q3.14 — manual / allowlist / automatic + permitted actions/boundaries}
 Delivery Scope: {Q3.9 — A/B/C + формулировка}
 
 ## Стейкхолдеры
@@ -361,9 +396,10 @@ Q1.1: {вопрос} → {ответ}
   3) Приоритизация беклога           → обновит: s2-po /stories
   4) Изменение NFR / масштаба / SLA  → обновит: s2-ba
   5) Scope Out — что убираем         → обновит: s2-ba + s2-po
-  6) Полный перезапуск (новое интервью с нуля)
+  6) Monitoring / playbooks / operations → обновит: s2-ba + s3-arch + s4-devops + s6-sre
+  7) Полный перезапуск (новое интервью с нуля)
 
-Выбор [1-6]:
+Выбор [1-7]:
 ```
 
 ### Шаг 3: Целевое интервью по выбранным разделам
@@ -387,6 +423,13 @@ Q1.1: {вопрос} → {ответ}
 #### Если выбраны 5 (Scope Out):
 - Что решено убрать и почему?
 - Есть ли зависимые истории в беклоге, которые тоже нужно удалить/пересмотреть?
+
+#### Если выбраны 6 (Monitoring / Operations):
+- Какой точный Monitoring Stack используется по слоям?
+- Кто/что является Playbook Executor и в какой среде он работает?
+- Кто Operations Owner и куда выполняется escalation?
+- Каков Auto-Heal Authorization: manual/allowlist/automatic и какие действия разрешены?
+- Какие dedup/grouping/inhibition возможности поддерживает выбранный alert stack?
 
 ### Шаг 4: Вывод REFRESH
 
@@ -415,6 +458,10 @@ sections: [new-features, nfr, scope-out]
 ---
 ## Новые функции для добавления в беклог
 ## Изменения NFR
+## Monitoring Stack
+## Playbook Executor
+## Operations Owner
+## Auto-Heal Authorization
 ## Убираем из scope
 ## Открытые вопросы [OPEN ISSUE]
 ## Следующий шаг
@@ -427,7 +474,7 @@ sections: [new-features, nfr, scope-out]
 ✅ Входные данные для обновления записаны.
 Файлы:
   + stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md   (если выбраны 1)
-  + stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md (если выбраны 2-5)
+  + stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md (если выбраны 2-6)
 
 Следующие шаги:
   [1] → s1-pm /vision      (если выбраны видение/OKR)

@@ -29,7 +29,7 @@ Preconditions / Test Data / Steps / Expected Result
 S1 Critical → fix 4ч / S2 High → 1 день / S3 Medium → sprint / S4 Low → backlog
 
 ## Go/No-Go
-GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off (реальная система, не эмулятор)
+GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off в репрезентативной среде
 
 ## Обязательные типы тест-кейсов (из prod-багов)
 
@@ -54,7 +54,8 @@ GO: 0 S1 + 0 S2 + Pass Rate ≥ 98% + UAT sign-off (реальная систе�
 - TC: пользователь меняет username в Telegram → при следующем `/start` username в БД обновляется
 
 ## UAT — требования к sign-off
-- UAT проводится в **реальной системе** (не эмулятор, не тестовый стенд)
+- UAT проводится в репрезентативной безопасной среде с реальным build и интеграциями;
+  production не используется без отдельной явной authorization
 - До Go/No-Go: владелец лично выполняет acceptance scenarios и подписывает QA-go-no-go.md
 - Без UAT sign-off — релиз не разрешён, даже при 100% unit-тестов
 
@@ -81,7 +82,7 @@ QA-YYYY-MM-DD-go-no-go.md
 □ DoR-1: Contract-тесты (consumer-driven) есть и проходят, сверены с ARCH-api-spec.yaml (§3.1, при наличии API)
 □ DoR-1: SAST/secrets-scan без Critical/High
 □ DoR-1: DoD выполнен для каждого PR (все 11 пунктов, включая DoD-11)
-□ DoR-1: tests/test_env_format.py, test_db_format.py, test_api_format.py существуют и проходят
+□ DoR-1: применимые env/db/api format tests существуют и проходят; N/A имеет HLD evidence
 
 Если Gate 4 не пройден → записать нарушения в `tracking/dor-violations.md`, сообщить пользователю какие пункты отсутствуют. Пользователь перезапускает s4-dev / s4-techlead для устранения. Не начинать тестирование.
 
@@ -94,8 +95,8 @@ QA-YYYY-MM-DD-go-no-go.md
   трассировка полная по BA-RTM.md, 0 непокрытых Must-FR (ISO 25010 — quality.md §4.1)
 □ Pass Rate ≥ 98% (считать от общего числа TC, не только запущенных)
 □ 0 открытых S1 и S2 багов
-□ UAT sign-off получен — в живой системе, не эмуляторе
-□ PERF-report.md существует с вердиктом PASS или CONDITIONAL PASS
+□ UAT sign-off получен в согласованной репрезентативной среде
+□ PERF-report.md существует с PASS/CONDITIONAL PASS либо NOT_APPLICABLE с BA/HLD evidence
 □ AUTO-*-coverage.md существует, automation coverage ≥ 95%
 □ Регрессионный прогон пройден (все sprint N-1 тест-кейсы)
 

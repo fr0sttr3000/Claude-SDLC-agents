@@ -4,6 +4,8 @@
 > Каждый агент читает его перед работой. Правила не опциональны.
 >
 > Смежные стандарты:
+> - `$SDLC_VAULT/_agents/_standards/tdd.md` — обязательный test-first порядок,
+>   Red evidence и repair loop для кода, инфраструктуры, monitoring и playbooks
 > - `$SDLC_VAULT/_agents/_standards/data-formats.md` — форматы данных (БД-типы, env, API-контракт, тесты форматов)
 > - `$SDLC_VAULT/_agents/_standards/security.md` — **параллельный Security-трек (SG1–SG5)**: severity по CVSS,
 >   threat model, RBAC, SAST/SCA/secrets, pentest, privacy. Переход = зелёный Quality Gate **И** Security Gate.
@@ -23,7 +25,7 @@ DoR **бинарен**: нет понятия "почти готово" или "
 | DoR-4 | NFR задокументированы с числовыми порогами | S2→S3 | s2-ba | s2-ba | 🤖 частично |
 | DoR-5 | Нет открытых BLOCKER-вопросов | S2→S3 | s2-ba, s2-po | s2-qa-req | 🤖 авто |
 | DoR-6 | Агент/команда назначены, scope ясен | Все | s1-pmo | Агент-получатель | 👤 вручную |
-| DoR-7 | Threat Model начат (для этапов 3+) | S3+ | s3-security | s3-arch | 🤖 авто |
+| DoR-7 | Security evidence последовательно: SG1 до начала S3; SG2 до начала S4 | S3/S4 | s2-security / s3-security | s3-arch / s4-dev | 🤖 авто |
 | DoR-8 | Rollback-план описан и протестирован | S6 | s4-devops | s6-release | 🤖 авто |
 
 > 🤖 авто — проверяется `s0-validate /dor-check [N]` (dor-check.sh)
@@ -34,7 +36,7 @@ DoR **бинарен**: нет понятия "почти готово" или "
 DoR должен быть выполнен **до старта этапа**, а не параллельно с ним:
 - DoR-1, DoR-6: за 0 часов (проверяется в момент старта)
 - DoR-2, DoR-3, DoR-4, DoR-5: до `/sprint-init` спринта, в котором начинается S3
-- DoR-7: до первого артефакта s3-arch
+- DoR-7: SG1 — до первого артефакта s3-arch; SG2 threat model — после HLD/API spec, но до S4
 - DoR-8: до подписания REL-checklist.md
 
 ### Правило возврата
@@ -73,7 +75,7 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 | DoD-2 | Тесты по пирамиде (unit/integration/contract): branch ≥80% изм. кода + mutation ≥60% критичных модулей (§3.1) | Агент-исполнитель | s4-techlead | 🤖 авто |
 | DoD-3 | Code review пройден: 0 открытых BLOCKER и MAJOR | Агент-исполнитель | s4-techlead | 👤 вручную |
 | DoD-4 | Документация обновлена (README/API-spec/docstring) | Агент-исполнитель | Агент-получатель | 👤 вручную |
-| DoD-5 | CHANGELOG.md обновлён | Агент-исполнитель | s4-techlead | 🤖 авто |
+| DoD-5 | При подготовке релиза обновлены CHANGELOG.md и release notes; вне release preparation — N/A | s6-release / release-prep | s6-release | 🤖 авто |
 | DoD-6 | Update notes написаны (DEV-*-update-notes-PR[N].md) | s4-dev | s4-techlead | 🤖 авто |
 | DoD-7 | Нет известных S1/S2 багов без митигации | Агент-исполнитель | s5-qa | 👤 вручную |
 | DoD-8 | Секреты не в коде, не в логах, не в артефактах | Агент-исполнитель | s4-techlead | 🤖 авто |
@@ -93,7 +95,7 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 | DoD-2 тесты по пирамиде + пороги §3.1 | ✅ | ❌ | ⚠️ тест миграций вместо unit |
 | DoD-3 code review | ✅ | ✅ | ✅ |
 | DoD-4 документация обновлена | ✅ | ✅ | ✅ |
-| DoD-5 CHANGELOG обновлён | ✅ | ✅ | ✅ |
+| DoD-5 release docs (только release preparation) | ⚠️ N/A вне релиза | ⚠️ N/A вне релиза | ⚠️ N/A вне релиза |
 | DoD-6 update notes (DEV-*) | ✅ | ❌ | ❌ |
 | DoD-7 нет S1/S2 багов | ✅ | ✅ | ✅ |
 | DoD-8 секреты | ✅ | ✅ | ✅ |
@@ -101,7 +103,8 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 | DoD-10 артефакт в outputs/ | ✅ | ✅ | ✅ |
 | DoD-11 тесты форматов | ✅ | ❌ | ✅ |
 
-**Тип К — Код** (s4-dev): все 11 пунктов обязательны.
+**Тип К — Код** (s4-dev): оцениваются все 11 пунктов; обязательны все применимые
+(DoD-5 имеет `N/A` вне явно объявленной release preparation).
 
 **Тип Д — Документ** (s1-pm, s1-pmo, s1-finance, s2-ba, s2-po, s2-qa-req, s3-arch, s3-rbac, s3-security, s5-qa, s5-qa-auto, s5-perf, s6-release, s6-sre):
 обязательны DoD-3, DoD-4, DoD-5, DoD-7, DoD-8, DoD-10 — итого 6 пунктов.
@@ -127,22 +130,23 @@ DoD **бинарен**: нет "Done minus docs", "Done кроме тестов"
 Если DoD-10 не выполнен — DoR-1 следующего этапа гарантированно провален.
 Агент-получатель, обнаружив отсутствие файлов в предыдущем outputs/, записывает нарушение в `tracking/dor-violations.md` и сообщает пользователю. Агенты не взаимодействуют напрямую — только через файлы.
 
-### Технический долг — исключительные случаи пропуска DoD
+### Технический долг не заменяет DoD
 
-DoD бинарен. Пропуск пункта DoD допускается **только в исключительных случаях** с явным одобрением пользователя и обязательной фиксацией.
-
-**Правило:** если DoD-пункт осознанно пропущен — это технический долг (TD). Задача может быть переведена в DONE только при одновременной записи в `tracking/tech-debt.md`.
+DoD бинарен. Запись в `tracking/tech-debt.md` документирует отложенное улучшение, но не
+разрешает объявить применимый проваленный DoD-пункт выполненным. Задача остаётся IN_PROGRESS
+или BLOCKED, пока критерий не выполнен либо владелец стандарта не изменит его применимость
+отдельным от задачи governance-решением.
 
 Запись обязана содержать:
 - Какой DoD-пункт нарушен
 - Конкретную причину (не "нет времени", а реальное ограничение)
-- Кто одобрил исключение
+- Кто подтвердил регистрацию долга (это не waiver для gate)
 - План устранения и дедлайн (не позже следующего спринта)
 
 **Последствия незакрытого TD:**
 - TD со статусом OPEN и просроченным дедлайном → блокирует `/sprint-close`
 - Накопление > 3 открытых TD → блокирует старт нового спринта
-- TD без плана устранения → не принимается, пропуск DoD не разрешён
+- TD без плана устранения → не принимается
 
 Шаблон: `_standards/tech-debt-template.md`
 Файл проекта: `$SDLC_PROJECTS_DIR/{PROJECT}/tracking/tech-debt.md` (создаётся s0-tracker при `/sprint-init`)
@@ -203,7 +207,8 @@ Cosmic Ray — Python, Stryker — JS/TS, PIT — Java). Порог **≥ 60% д
 формат полей; contract-тест проверяет **взаимные ожидания** consumer и provider (форма
 запроса/ответа, семантика, версионирование). Это разные контроли — оба обязательны при наличии API.
 
-**Кто пишет:** unit / integration / contract — `s4-dev` (Тип К, DoD-2); E2E-автоматизация —
+**Кто пишет:** unit / integration / contract — `s4-qa-auto` **до production-кода**
+по `tdd.md`; `s4-dev` реализует Green/Repair, но не подписывает тестовый вердикт. E2E-автоматизация —
 `s5-qa-auto`; performance — `s5-perf`. Отчёт о покрытии агрегирует `s5-qa-auto` в `AUTO-*-coverage.md`.
 
 ---
@@ -249,20 +254,20 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 Проверяет: **s4-dev** и **s4-techlead** перед началом работы
 ```
 □ ARCH-HLD.md существует, ADR написаны для всех ключевых решений
-□ ARCH-api-spec.yaml существует
-□ DBA-schema.sql или DBA-schema.dbml существует
-□ DEVOPS-cicd.yaml (шаблон CI/CD) существует
+□ ARCH-api-spec.yaml существует при наличии API; иначе HLD содержит явное N/A evidence
+□ Для выбранного data store существует stack-native schema/migration design либо явное
+  обоснованное `applicability: not-applicable`; реализация миграции следует только после Red
+□ QA-*-test-strategy.md существует и связывает Must-FR/NFR с уровнями тестов и Red-критериями
 
 # Безопасность — Security Gate SG2 (security.md §3)
-□ Security Gate SG2 (Design) пройден: threat model 0 Critical/High + RBAC/matrix/RLS + SoD
+□ Security Gate SG2 (Design) пройден: threat model 0 Critical/High + применимый
+  authorization enforcement (RBAC/ABAC/ACL и stack-native эквивалент) + SoD
   (детали и чек-лист — в security.md §3 SG2; владелец s3-security + s3-rbac)
 
 # Форматы данных (data-formats.md §5 s3-dba / §6 Gate 3)
-□ DBA-schema: все datetime — TIMESTAMPTZ (никогда WITHOUT TIME ZONE)
-□ DBA-schema: все PK — UUID v4, деньги — NUMERIC(p,s) (не FLOAT)
-□ DBA-schema: все JSONB-поля с задокументированной структурой (пример JSON)
-□ DBA-schema: все ENUM-типы с перечислением допустимых значений
-□ ENV-спецификация: все переменные задокументированы с типом и форматом
+□ Для SQL/PostgreSQL применены требования TIMESTAMPTZ/NUMERIC/JSONB/ENUM из data-formats.md;
+  для другого store зафиксирован эквивалент с теми же инвариантами времени, точности и schema
+□ При наличии env/config: все переменные задокументированы с типом и форматом; иначе N/A
 ```
 
 ### Gate 4 (S4 → S5)
@@ -271,6 +276,7 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 □ Все PR из спринта закрыты (0 IN_PROGRESS у s4-dev)
 □ Все PR прошли code review (TL-*-review-PR*.md для каждого PR)
 □ DEV-*-update-notes-PR*.md существуют для каждого PR
+□ QA-TDD-status.md содержит status: PASS; Red evidence и test command зафиксированы
 □ Unit-тесты: branch-покрытие ≥ 80% изм. кода + mutation ≥ 60% критичных модулей, все проходят (§3.1)
 □ Integration/component-тесты существуют и проходят для каждого внешнего адаптера (БД, API-клиент, очередь) (§3.1)
 □ Contract-тесты (consumer-driven) существуют и проходят, сверены с ARCH-api-spec.yaml (§3.1, при наличии API)
@@ -279,13 +285,11 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
 □ DoD выполнен для каждого PR (все 11 пунктов, включая DoD-11)
 
 # Форматы данных (data-formats.md §6 Gate 4)
-□ tests/test_env_format.py существует и все тесты проходят
-□ tests/test_db_format.py существует и все тесты проходят
-□ tests/test_api_format.py существует и все тесты проходят
-□ Нет Mapped[datetime] без TIMESTAMP(timezone=True) (grep / code review)
-□ Нет list/set env-переменных без JSON-validator mode="before" (code review)
-□ README содержит таблицу ENV-переменных с типами и форматами
-□ Тест migration upgrade→downgrade→upgrade прошёл на чистой БД
+□ Применимые env/db/api format tests существуют и проходят; N/A имеет HLD/ADR evidence
+□ Для SQLAlchemy/PostgreSQL нет Mapped[datetime] без TIMESTAMP(timezone=True)
+□ Для pydantic-settings нет list/set env без JSON-validator mode="before"
+□ При наличии env README содержит таблицу переменных с типами и форматами
+□ При наличии migrations upgrade→downgrade→upgrade прошёл на чистой БД
 ```
 
 ### Gate 5 (S5 → S6)
@@ -296,8 +300,8 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
   с результатом PASS; трассировка полная по BA-RTM.md (0 непокрытых Must-FR) (ISO 25010 — §4.1)
 □ 0 открытых S1 багов, 0 открытых S2 багов
 □ Pass Rate ≥ 98%
-□ UAT sign-off получен (реальная система, не эмулятор)
-□ PERF-report.md существует с вердиктом PASS или CONDITIONAL PASS
+□ UAT sign-off получен в согласованной репрезентативной среде с реальным build
+□ PERF-report.md содержит PASS/CONDITIONAL PASS либо NOT_APPLICABLE с BA/HLD evidence
 □ Security Gate SG4 пройден: SEC-*-pentest-report.md с вердиктом PASS (DAST/pentest, 0 Critical/High по CVSS)
   (владелец s5-security; детали — security.md §3 SG4)
 □ AUTO-*-coverage.md существует, ≥ 95% автоматизировано
@@ -305,15 +309,19 @@ S6 Deploy ──[Gate 6]──► PRODUCTION
   tracking/known-issues.md (Workaround + Detection signal + → tech-debt) (§6.1) — иначе No-Go
 ```
 
-### Gate 6 (S6 → PRODUCTION)
-Проверяет: **s6-sre** перед деплоем
+### Gate 6 (S6 → release-ready / разрешённая доставка)
+Проверяет: **s6-release** в Cycle 2 перед завершением выбранного delivery scope
 ```
+□ stage6-deploy/outputs/DEPLOY-TDD-status.md содержит status: PASS
+□ Поставка соответствует актуальному tracking/SDLC-goals.md
 □ REL-checklist.md заполнен полностью
 □ REL-*-release-notes-v*.md существует
 □ CHANGELOG.md обновлён (версия закрыта)
-□ Rollback-план задокументирован и проверен
-□ On-call назначен, мониторинг настроен
-□ DEVOPS-runbook.md актуален под новую версию
+□ Для runtime/deploy action rollback-план задокументирован и проверен; artifacts-only имеет version fallback
+□ Operations owner/observability существуют только для выбранного operational handoff; иначе N/A
+□ Monitoring Stack, Playbook Executor и Auto-Heal Authorization заполнены для выбранных capabilities
+□ Выбранные alerts/dedup прошли fire drill; если alerts не заказаны — N/A с goal evidence
+□ DEVOPS-runbook.md актуален, если выбран operations-pack/execute-deploy; иначе N/A
 □ Release notes содержат секцию «Известные проблемы» из known-issues.md (все OPEN с impact) (§6.1)
 □ Security Gate SG4 (Pre-Prod) подтверждён: SEC-*-pentest-report.md с вердиктом PASS
   (исполняется в S5; владелец s5-security; детали — security.md §3 SG4)
@@ -332,16 +340,17 @@ Quality Gates покрывают характеристики качества �
 |--------------------------------|--------------|--------|
 | **Functional Suitability** (полнота / корректность / уместность) | Gate 2 (FR с AC), **Gate 5 (Must-FR ↔ acceptance ↔ RTM)** | ✅ |
 | **Performance Efficiency** (time / resource / capacity) | §3 NFR (p95/p99/error rate), Gate 5 (PERF-report), s5-perf | ✅ |
-| **Compatibility** (co-existence / interoperability) | Contract-тесты §3.1 (interoperability API) | ⚠️ co-existence не гейтится → roadmap п.4 |
-| **Interaction Capability** (ex-Usability) | — | ❌ не гейтится → roadmap п.3 / п.25 (accessibility) |
+| **Compatibility** (co-existence / interoperability) | Contract-тесты §3.1 (interoperability API) | ⚠️ co-existence не гейтится → [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]] |
+| **Interaction Capability** (ex-Usability) | — | ❌ не гейтится → [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]] |
 | **Reliability** (maturity / availability / fault tolerance / recoverability) | §3 NFR (availability/RTO/RPO), §5 паттерны + auto-heal, §6 Gate 7 | ✅ |
 | **Security** (confidentiality / integrity / non-repudiation / accountability / authenticity) | security.md SG1–SG5, §8 | ✅ |
-| **Maintainability** (modularity / reusability / analysability / modifiability / testability) | DoD-1 (complexity ≤10, SRP), §3.1 (testability) | ⚠️ только complexity → roadmap п.12–15 |
-| **Flexibility** (ex-Portability: adaptability / scalability / installability / replaceability) | §5 (Deployment Constraint / топология), auto-heal scale-out | ⚠️ installability не гейтится → roadmap п.5 |
+| **Maintainability** (modularity / reusability / analysability / modifiability / testability) | DoD-1 (complexity ≤10, SRP), §3.1 (testability) | ⚠️ только complexity → [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]] |
+| **Flexibility** (ex-Portability: adaptability / scalability / installability / replaceability) | §5 (Deployment Constraint / топология), auto-heal scale-out | ⚠️ installability не гейтится → [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]] |
 | **Safety** (новое в 2023) | — | ❌ для большинства проектов не применимо; для critical-систем — по решению s1-pmo |
 
 > **Quality-in-use** (effectiveness / efficiency / satisfaction / freedom from risk / context coverage)
-> частично закрыт UAT (Gate 5) и SLO/error budget (Gate 7); системного гейта нет → roadmap п.27.
+> частично закрыт UAT (Gate 5) и SLO/error budget (Gate 7); системного гейта нет →
+> [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]].
 
 Маппинг трека безопасности на NIST SSDF / OWASP SAMM / ASVS / SDL / SLSA — в `security.md §5`.
 
@@ -349,14 +358,15 @@ Quality Gates покрывают характеристики качества �
 
 ## 5. Обязательные паттерны надёжности
 
-Каждая система, независимо от масштаба, обязана реализовать:
+Каждая система обязана рассмотреть перечисленные capabilities и реализовать применимые согласно
+NFR, topology и выбранному стеку. `not-applicable` требует явного обоснования в HLD/ADR:
 
 ### 5.1 Устойчивость к отказам
 ```
-□ Timeout на КАЖДОМ внешнем вызове (default: 30 сек, для БД: 10 сек)
+□ Timeout на каждом внешнем вызове; точное значение из NFR/dependency SLA
 □ Retry с exponential backoff: 3 попытки, factor 2 (1s → 2s → 4s)
-□ Circuit breaker для внешних зависимостей (порог: 5 ошибок за 30 сек)
-□ Graceful shutdown: дождаться завершения текущих запросов (до 30 сек)
+□ Circuit breaker для внешних зависимостей с threshold/recovery из NFR
+□ Graceful shutdown завершает текущую работу в deadline из NFR/runtime contract
 □ Health checks: /health (liveness) и /ready (readiness)
 ```
 
@@ -368,6 +378,30 @@ Quality Gates покрывают характеристики качества �
 □ Алерты: на нарушение SLO, не на симптомы
 □ НЕ логировать: пароли, токены, PII, тела запросов с секретами
 ```
+
+#### Alert Deduplication — обязательный контракт
+
+Правила алертов проектируются под фактический `Monitoring Stack` проекта и
+обязаны реализовать дедупликацию до выхода в production:
+
+```
+□ dedup_key/fingerprint стабилен и состоит из environment + service + alertname
+  + нормализованного resource + root-cause/SLO; timestamp и текущее значение
+  метрики в ключ не входят
+□ group_by и group_wait/group_interval объединяют один burst в один incident/notification
+□ inhibition подавляет downstream-симптомы при активном root-cause alert
+□ flap control использует устойчивый for/pending window и не открывает новый
+  incident при каждом кратком переходе
+□ repeat_interval ограничивает повторы, но state change и escalation доставляются сразу
+□ resolved notification закрывает тот же incident по тому же fingerprint
+□ silence имеет owner, причину и срок окончания; бессрочные silence запрещены
+□ разные environment, service или root cause не схлопываются
+```
+
+Fire drill обязан доказать: один причинный сбой → один incident/notification,
+симптомы inhibited/grouped, recovery закрывает тот же incident. Реализация
+(Prometheus Alertmanager, Grafana, Datadog, Zabbix, cloud-native или иная)
+выбирается из `Monitoring Stack`, а не подставляется по умолчанию.
 
 ### 5.3 Операционная готовность
 ```
@@ -386,15 +420,16 @@ Quality Gates покрывают характеристики качества �
 □ Миграции: всегда с downgrade(), тестировать upgrade+downgrade+upgrade
 ```
 
-### 5.5 Auto-Heal — ОБЯЗАТЕЛЬНО для каждой системы
+### 5.5 Auto-Heal — обязательная оценка применимости
 
 Auto-heal — способность системы обнаруживать неисправность и восстанавливаться без ручного вмешательства.
 Цикл: **Detect → Isolate → Recover → Verify**
 
-> **Применимость паттернов зависит от топологии деплоя.**
+> **Применимость capabilities зависит от цели, topology и authorization.**
 > Deployment Constraint фиксируется в BA-NFR.md (s2-ba) и отражается в ARCH-HLD.md (s3-arch).
 > Пункты ниже помечены: [SC] = single-container / [MI] = multi-instance / [SL] = serverless.
-> Неприменимый пункт = не BLOCKER, но причина должна быть задокументирована в runbook.
+> Реализуются только явно выбранные capabilities. Неприменимый пункт = не BLOCKER,
+> но причина и evidence должны быть задокументированы в HLD/runbook.
 
 #### Уровень инфраструктуры (s4-devops, stage4)
 ```
@@ -409,7 +444,7 @@ Auto-heal — способность системы обнаруживать н�
 #### Уровень приложения (s4-dev, stage4)
 ```
 □ [SC,MI,SL] Circuit breaker: при N ошибках за T сек — открыть цепь, вернуть fallback
-  (порог по умолчанию: 5 ошибок за 30 сек, восстановление через 60 сек)
+  (точные N/T/recovery thresholds только из BA-NFR/project quality gates)
   Применяется только если есть внешние зависимости (API, БД, очереди)
 □ [SC,MI] Watchdog-процесс: периодически проверяет критичные подсистемы,
   перезапускает зависшие воркеры/очереди
@@ -430,25 +465,31 @@ Auto-heal — способность системы обнаруживать н�
   отсутствие метки → алерт + автоперезапуск
 ```
 
-**Запрещено:** система без auto-heal выходит в prod. Если auto-heal не реализован —
-это BLOCKER в Gate 6 и Gate 7.
+**Запрещено:** выпускать выбранную auto-heal capability без tests, точных thresholds,
+owner, authorization и rollback. Если безопасного/полезного автоматического действия
+нет, требуется обоснованное N/A; уведомление и escalation остаются обязательными по NFR.
 
 ---
 
 ## 6. Quality Gate 7 — Эксплуатация (ОБЯЗАТЕЛЬНЫЙ)
 
-Этап 7 (stage7-ops) — обязательный, не опциональный. Закрывается после деплоя.
+Gate 7 обязателен для маршрута с cycle3_enabled=yes. Если Cycle 3 не выбран,
+Stage 7 не запускается, а решение и исключённый scope остаются в актуальном goal profile.
 
 ```
-□ Monitoring dashboard активен: RED-метрики видны в реальном времени
-□ Алерты настроены на SLO breach (не на симптомы), протестированы (fire drill)
-□ Auto-heal реализован и проверен: намеренный kill процесса → авторестарт < 30 сек
-□ Runbook для каждого типа инцидента задокументирован в stage7-ops/outputs/
-□ Error budget рассчитан и виден (текущий остаток на месяц)
-□ On-call ротация определена (кто дежурит, как escalate)
+□ stage7-ops/outputs/OPS-TDD-status.md содержит status: PASS
+□ Ops-конфигурация соответствует актуальному tracking/SDLC-goals.md
+□ Выбранный monitoring/dashboard deliverable активен и проверен; иначе N/A evidence
+□ Выбранные alerts трассируются к SLO/NFR и протестированы (fire drill)
+□ Дедупликация протестирована: стабильный fingerprint, grouping, inhibition,
+  flap control, resolve и отсутствие cross-service/cross-environment collapsing
+□ Выбранный auto-heal проверен безопасным failure scenario против точного NFR threshold
+□ Runbook создан для каждого применимого failure mode из goal/NFR/known issues
+□ Error budget рассчитан за выбранное NFR reporting window, если SLO governance включён
+□ Operations owner/on-call/escalation определены для выбранного operational scope
 □ Для каждой OPEN-записи known-issues.md с user-facing impact: алерт настроен и протестирован
   (fire drill), SRE-runbook-KI-*.md существует, auto-remediation где возможно (§6.1)
-□ SRE-*-ops-report.md создан в stage7-ops/outputs/ через 7 дней после деплоя
+□ SRE-*-ops-report.md создан в stage7-ops/outputs/ по cadence из goal/NFR, если выбран reporting
 ```
 
 Без закрытого Gate 7 следующий релиз этого проекта — заблокирован.
@@ -536,7 +577,7 @@ Gate 7 — алерт + runbook для каждой OPEN-записи (s6-sre).
 
 - **DRE < 90%** → гейты пропускают дефекты: ретро + усиление соответствующего уровня тестов (§3.1).
 - **Escaped Defect S1/S2** → обязательный post-mortem (s6-sre) + новое правило в backlog
-  (петля «инцидент → gate», roadmap п.28).
+  (петля «инцидент → gate», [[plans/roadmap#Пробелы покрытия ISO/IEC 25010]]).
 - `s0-tracker` агрегирует defect-метрики в `cycle-summary.md` рядом с DORA (§7.2).
 
 ---
@@ -553,7 +594,7 @@ Gate 7 — алерт + runbook для каждой OPEN-записи (s6-sre).
 ✗ Игнорирование ошибок (pass / catch without logging)
 ✗ Деплой без rollback-плана
 ✗ Переход в следующий этап без закрытого Quality Gate
-✗ UAT в симуляторе/эмуляторе вместо реальной системы
+✗ UAT только на mock/simulator без репрезентативного real-build evidence
 ✗ Закрытие задачи без DoD (все 11 пунктов)
 ✗ Line coverage вместо branch как сигнал покрытия; критичный модуль без mutation-тестов (§3.1)
 ✗ Внешний адаптер (БД/API/очередь) без integration-теста; внешний API без contract-теста (§3.1)
@@ -562,7 +603,7 @@ Gate 7 — алерт + runbook для каждой OPEN-записи (s6-sre).
   (Workaround + Detection signal) — это «проигнорированный», а не «известный» дефект (§6.1)
 ✗ Critical/High уязвимости в релизе
 ✗ Нефункциональные тесты в prod-ветке
-✗ Система в prod без auto-heal (применимого к её топологии деплоя)
+✗ Выбранная auto-heal capability без tests/authorization/rollback либо N/A без evidence
 ✗ Система в prod без алертов на SLO breach
 ✗ Архитектурный паттерн без обоснования через Quality Attribute и NFR
 ✗ Паттерн добавлен "про запас" без привязки к конкретной проблеме из BRD/NFR
@@ -570,11 +611,11 @@ Gate 7 — алерт + runbook для каждой OPEN-записи (s6-sre).
 ✗ Следующий релиз без закрытого Gate 7 предыдущего
 
 # Запреты форматов данных (data-formats.md)
-✗ TIMESTAMP WITHOUT TIME ZONE — всегда TIMESTAMPTZ
+✗ Для выбранного PostgreSQL stack: TIMESTAMP WITHOUT TIME ZONE вместо TIMESTAMPTZ
 ✗ FLOAT/DOUBLE для денег — только NUMERIC(p,s)
 ✗ list/set/frozenset env-переменных в формате CSV (1,2,3) — только JSON ([1,2,3])
 ✗ Mapped[datetime] без TIMESTAMP(timezone=True) в ORM-маппинге
-✗ JSONB-поля без задокументированной структуры (пример JSON обязателен)
-✗ Проект с DB/ENV без тестов форматов (test_env_format.py, test_db_format.py)
+✗ Для выбранного PostgreSQL stack: JSONB-поля без задокументированной структуры
+✗ Проект с применимыми DB/ENV/API contracts без соответствующих format tests
 ✗ ENV-переменные без спецификации типа и формата в README/BRD
 ```

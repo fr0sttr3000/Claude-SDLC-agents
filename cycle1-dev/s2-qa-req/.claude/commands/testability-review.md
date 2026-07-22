@@ -1,5 +1,5 @@
 ---
-description: Проверить требования на тестируемость и вынести Gate 2 вердикт
+description: Проверить требования на тестируемость и подготовить QA contribution для Gate 2
 ---
 
 Проведи Testability Review требований для проекта $ARGUMENTS.
@@ -31,7 +31,7 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
 | Уровень | ID | Описание | Рекомендация |
 |---------|----|---------  |--------------|
 
-## Gate 2 — Переход S2 → S3
+## QA contribution для Gate 2
 
 □ DoR-1: BA-BRD.md и BA-NFR.md существуют в stage2-requirements/outputs/
 □ DoR-2: Все требования SMART, без размытых формулировок
@@ -41,6 +41,9 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
 □ Testability: каждое требование можно автоматически протестировать
 □ Трассируемость: все требования связаны с бизнес-целями
 
-## ВЕРДИКТ
-✅ GATE 2 PASSED — s3-arch может начинать
-❌ GATE 2 FAILED — [список блокеров, s3-arch не начинает]
+## ВЕРДИКТ QA
+`QA contribution: PASS` — testability checks пройдены.
+`QA contribution: FAIL` — [список блокеров].
+
+Не подписывай весь Gate 2: финальный Gate 2 требует также BA-BRD/NFR/RTM,
+backlog, test strategy и SG1 evidence; его полноту проверяет s0-validate перед S3.

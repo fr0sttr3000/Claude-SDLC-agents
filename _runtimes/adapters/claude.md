@@ -11,7 +11,8 @@ The adapter uses:
 - root `CLAUDE.md`
 - nearest agent `CLAUDE.md`
 - `.claude/commands/*.md`
-- `claude "$PROMPT"` for task mode
-- `claude "начни сессию"` and `claude --continue` for interactive mode
+- `claude --print --no-session-persistence "$PROMPT"` for task mode
+- read-only task mode additionally limits tools to `Read,Glob,Grep` and uses `dontAsk`
+- normal interactive/continue mode remains available only for write-capable actions
 
 No SDLC logic is stored in this adapter. It only describes how the universal contract is executed by Claude Code.

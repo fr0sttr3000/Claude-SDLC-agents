@@ -18,6 +18,12 @@ TYPE="${2:?Укажи тип: K|D|I}"
 STAGE="${3:?Укажи этап: 1..7}"
 PR_NUM="${4:-}"
 
+[[ -d "$PROJECT_PATH" ]] || { echo "Проект не найден: $PROJECT_PATH" >&2; exit 2; }
+[[ "$TYPE" =~ ^(K|D|I)$ ]] || { echo 'Тип должен быть K, D или I' >&2; exit 2; }
+[[ "$STAGE" =~ ^[1-7]$ ]] || { echo 'Этап должен быть целым числом 1..7' >&2; exit 2; }
+[[ -z "$PR_NUM" || "$PR_NUM" =~ ^[0-9]+$ ]] || { echo 'PR_NUM должен быть числом' >&2; exit 2; }
+PROJECT_PATH="$(cd "$PROJECT_PATH" && pwd -P)"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -26,10 +32,10 @@ NC='\033[0m'
 
 PASS=0; FAIL=0; WARN=0; SKIP=0
 
-pass() { echo -e "  ${GREEN}✅ $1${NC}"; ((PASS++)); }
-fail() { echo -e "  ${RED}❌ $1${NC}"; ((FAIL++)); }
-warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; ((WARN++)); }
-skip() { echo -e "  ${BLUE}—  $1 (не применимо для типа ${TYPE})${NC}"; ((SKIP++)); }
+pass() { echo -e "  ${GREEN}✅ $1${NC}"; PASS=$((PASS + 1)); }
+fail() { echo -e "  ${RED}❌ $1${NC}"; FAIL=$((FAIL + 1)); }
+warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; WARN=$((WARN + 1)); }
+skip() { echo -e "  ${BLUE}—  $1${NC}"; SKIP=$((SKIP + 1)); }
 
 STAGE_DIR="stage${STAGE}"
 case "${STAGE}" in
@@ -123,13 +129,37 @@ if [ "${TYPE}" = "K" ]; then
     warn "Contract-тесты не обнаружены — обязательны при наличии внешнего API (consumer-driven, §3.1)"
   fi
 elif [ "${TYPE}" = "I" ]; then
-  # Для инфраструктуры — тест миграций
-  MIGRATION_TEST=$(find "${PROJECT_PATH}" -name "test_migration*" -o -name "*migration*test*" 2>/dev/null | head -1 || true)
-  if [ -n "${MIGRATION_TEST}" ]; then
-    pass "Тест миграций найден: ${MIGRATION_TEST##*/}"
-  else
-    fail "Тест миграций не найден (upgrade→downgrade→upgrade)"
-  fi
+  case "$STAGE" in
+    3)
+      MIGRATION_TEST=$(find "${PROJECT_PATH}" -type f \( -name "test_migration*" -o -name "*migration*test*" \) -print -quit 2>/dev/null)
+      if [ -n "${MIGRATION_TEST}" ]; then
+        pass "Тест миграций найден: ${MIGRATION_TEST##*/}"
+      elif find "${OUTPUTS}" -type f -name 'DBA-*not-applicable*.md' -exec grep -Eqi 'applicability:[[:space:]]*not-applicable|status:[[:space:]]*not-applicable' {} \; -print -quit 2>/dev/null | grep -q .; then
+        skip 'Тест миграций — data-store явно not-applicable'
+      else
+        fail "Тест миграций не найден (upgrade→downgrade→upgrade)"
+      fi
+      ;;
+    6)
+      if grep -Eqi '^status:[[:space:]]*PASS' "${OUTPUTS}/DEPLOY-TDD-status.md" 2>/dev/null &&
+         find "${OUTPUTS}" -type f -name 'DEPLOY-*test-report*.md' -print -quit 2>/dev/null | grep -q .; then
+        pass 'Deploy tests и DEPLOY-TDD PASS подтверждены'
+      else
+        fail 'Нужны DEPLOY test report и DEPLOY-TDD-status: PASS'
+      fi
+      ;;
+    7)
+      if grep -Eqi '^status:[[:space:]]*PASS' "${OUTPUTS}/OPS-TDD-status.md" 2>/dev/null &&
+         find "${OUTPUTS}" -type f -name 'OPS-*test-report*.md' -print -quit 2>/dev/null | grep -q .; then
+        pass 'Ops tests и OPS-TDD PASS подтверждены'
+      else
+        fail 'Нужны OPS test report и OPS-TDD-status: PASS'
+      fi
+      ;;
+    *)
+      fail 'Тип И допустим только для применимой инфраструктурной задачи Stage 3, 6 или 7'
+      ;;
+  esac
 else
   skip "DoD-2 unit tests — не применимо для Тип Д"
 fi
@@ -171,21 +201,24 @@ echo ""
 echo "  [DoD-4] Документация обновлена"
 warn "DoD-4 требует ручной проверки (README/API-spec/docstring)"
 
-# ── DoD-5: CHANGELOG ───────────────────────────────────────────────
+# ── DoD-5: release docs ────────────────────────────────────────────
 echo ""
-echo "  [DoD-5] CHANGELOG.md обновлён"
-CHANGELOG=$(find "${PROJECT_PATH}" -maxdepth 3 -name "CHANGELOG.md" 2>/dev/null | head -1 || true)
-if [ -n "${CHANGELOG}" ]; then
-  # Проверяем что файл не пустой и содержит запись с датой
-  ENTRIES=$(grep -cE "^## \[|^## v[0-9]|^### [0-9]{4}-[0-9]{2}" "${CHANGELOG}" 2>/dev/null || true)
-  if [ "${ENTRIES}" -gt 0 ]; then
-    pass "CHANGELOG.md существует, содержит ${ENTRIES} версий/секций"
-  else
-    warn "CHANGELOG.md найден, но записи не распознаны — проверить формат"
-  fi
-else
-  fail "CHANGELOG.md не найден в корне проекта"
-fi
+echo "  [DoD-5] Release documentation"
+case "${SDLC_RELEASE_PREPARATION:-no}" in
+  yes)
+    CHANGELOG_FILE=''
+    [[ -f "${PROJECT_PATH}/CHANGELOG.md" ]] && CHANGELOG_FILE="${PROJECT_PATH}/CHANGELOG.md"
+    RELEASE_NOTES=$(find "${PROJECT_PATH}/stage6-deploy/outputs" -type f -name 'REL-*release-notes-v*.md' -print -quit 2>/dev/null)
+    [[ -n "$CHANGELOG_FILE" ]] && pass "CHANGELOG найден: ${CHANGELOG_FILE#"$PROJECT_PATH/"}" || fail 'CHANGELOG.md не найден'
+    [[ -n "$RELEASE_NOTES" ]] && pass "Release notes найдены: ${RELEASE_NOTES##*/}" || fail 'REL-*-release-notes-v*.md не найден'
+    ;;
+  no)
+    skip 'DoD-5 — N/A вне подготовки релиза (release preparation явно не запущена)'
+    ;;
+  *)
+    fail 'SDLC_RELEASE_PREPARATION должен быть yes или no'
+    ;;
+esac
 
 # ── DoD-6: Update notes (только Тип К) ────────────────────────────
 echo ""
@@ -251,7 +284,7 @@ fi
 echo ""
 echo "  [DoD-10] Артефакт передан в outputs/"
 if [ -d "${OUTPUTS}" ]; then
-  FILE_COUNT=$(find "${OUTPUTS}" -name "*.md" -o -name "*.yaml" -o -name "*.sql" -o -name "*.py" 2>/dev/null | wc -l || true)
+  FILE_COUNT=$(find "${OUTPUTS}" -type f 2>/dev/null | wc -l || true)
   if [ "${FILE_COUNT}" -gt 0 ]; then
     pass "${FILE_COUNT} файл(ов) в ${STAGE_DIR}/outputs/"
   else
@@ -264,21 +297,23 @@ fi
 # ── DoD-11: Тесты форматов (Тип К и И) ────────────────────────────
 echo ""
 echo "  [DoD-11] Тесты форматов данных"
-if [ "${TYPE}" = "K" ] || [ "${TYPE}" = "I" ]; then
+if [ "${TYPE}" = "I" ] && [ "$STAGE" != 3 ]; then
+  skip "DoD-11 format tests — не применимо к Stage $STAGE delivery/operations evidence"
+elif [ "${TYPE}" = "K" ] || [ "${TYPE}" = "I" ]; then
   TESTS_DIR="${PROJECT_PATH}/tests"
   ENV_TEST=$([ -f "${TESTS_DIR}/test_env_format.py" ] && echo "✅" || echo "❌")
   DB_TEST=$([ -f "${TESTS_DIR}/test_db_format.py" ] && echo "✅" || echo "❌")
   API_TEST=$([ -f "${TESTS_DIR}/test_api_format.py" ] && echo "✅" || echo "❌")
   MISSING=0
-  [ "${ENV_TEST}" = "❌" ] && ((MISSING++))
-  [ "${DB_TEST}" = "❌" ] && ((MISSING++))
-  [ "${API_TEST}" = "❌" ] && ((MISSING++))
+  [ "${ENV_TEST}" = "❌" ] && MISSING=$((MISSING + 1))
+  [ "${DB_TEST}" = "❌" ] && MISSING=$((MISSING + 1))
+  [ "${API_TEST}" = "❌" ] && MISSING=$((MISSING + 1))
   if [ "${MISSING}" -eq 0 ]; then
     pass "test_env_format.py ✅ test_db_format.py ✅ test_api_format.py ✅"
   elif [ "${MISSING}" -lt 3 ]; then
     warn "test_env_format ${ENV_TEST} | test_db_format ${DB_TEST} | test_api_format ${API_TEST} — проверить применимость"
   else
-    fail "Все тесты форматов отсутствуют в tests/"
+    warn "Format tests отсутствуют — вручную подтвердить N/A для env, data store и API"
   fi
 else
   skip "DoD-11 тесты форматов — только для Тип К и И"
@@ -292,12 +327,12 @@ echo -e "  ✅ ${PASS} прошло  ⚠️  ${WARN} предупреждени�
 if [ "${FAIL}" -gt 0 ]; then
   echo ""
   echo -e "  ${RED}DoD НЕ ПРОЙДЕН — задача остаётся IN_PROGRESS.${NC}"
-  echo "  При осознанном пропуске — зафиксировать в tracking/tech-debt.md"
+  echo "  Устрани failed пункты и повтори проверку; tech debt не является waiver."
   echo "╚═══════════════════════════════════════════════════════════════╝"
   exit 1
 else
   echo ""
-  echo -e "  ${GREEN}DoD PASSED (авто). Пункты 👤 требуют ручного подтверждения.${NC}"
+  echo -e "  ${GREEN}DoD auto-check PASSED. Полный DoD подписывается только после ручных пунктов.${NC}"
   echo "╚═══════════════════════════════════════════════════════════════╝"
   exit 0
 fi
