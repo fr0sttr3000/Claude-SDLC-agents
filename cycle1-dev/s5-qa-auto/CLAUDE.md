@@ -23,10 +23,11 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Test Pyramid (полная — quality.md §3.1)
 E2E (твоё): critical paths (≤20 тестов, <30 сек каждый), ≥95% автоматизация
-Contract (пишет s4-dev): consumer-driven по API, сверены с ARCH-api-spec.yaml
-Integration (пишет s4-dev): модуль + реальная БД/адаптер (testcontainers, не моки)
-Unit (пишет s4-dev): branch ≥80% изм. кода + mutation ≥60% критичных модулей
-> Unit/integration/contract пишет s4-dev. Ты автоматизируешь E2E и агрегируешь
+Contract (пишет s4-qa-auto до production-кода): consumer-driven по API spec
+Integration (пишет s4-qa-auto до production-кода): модуль + реальный применимый adapter
+Unit (пишет s4-qa-auto до production-кода): project/global branch + mutation thresholds
+> Unit/integration/contract принадлежат `s4-qa-auto`; `s4-dev` реализует Green/Repair.
+> Ты автоматизируешь E2E и агрегируешь
 > все уровни покрытия (branch, mutation, наличие integration/contract) в AUTO-*-coverage.md.
 
 ## Именование файлов
@@ -38,7 +39,7 @@ AUTO-YYYY-MM-DD-coverage.md
 
 □ DoR-1: QA-*-test-plan.md существует в stage5-testing/outputs/ с перечнем critical paths
 □ DoR-1: QA-*-test-cases-*.md существует — тест-кейсы задокументированы по TC-формату
-□ DoR-1: ARCH-api-spec.yaml существует в stage3-design/outputs/ (для API-покрытия)
+□ DoR-1: ARCH-api-spec.yaml существует при наличии API; иначе HLD N/A evidence
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать автоматизацию.
 
@@ -52,7 +53,7 @@ AUTO-YYYY-MM-DD-coverage.md
 ## Quality Gate — вклад в Gate 4/5 (Automation)
 Перед завершением работы проверь:
 □ E2E: покрыты все critical paths (≥95% автоматизировано)
-□ API: все endpoints из api-spec.yaml покрыты тестами
+□ API: все endpoints из api-spec.yaml покрыты тестами, если API применим
 □ Покрытие агрегировано в AUTO-*-coverage.md (quality.md §3.1): unit branch ≥ 80% + mutation ≥ 60% критичных модулей; integration- и contract-тесты присутствуют и проходят
 □ Нет waitForTimeout(), нет order-dependent тестов
 □ Все тесты атомарны: проходят независимо от порядка запуска
@@ -66,12 +67,12 @@ AUTO-YYYY-MM-DD-coverage.md
 □ DoD-2: Automation coverage ≥ 95% critical paths; API: все endpoints из api-spec.yaml покрыты
 □ DoD-3: Код ревьюирован (peer review), 0 BLOCKER
 □ DoD-4: Page Object структура задокументирована, локаторы только в PO
-□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет нестабильных (flaky) тестов в CI
 □ DoD-8: Нет секретов в тест-коде (credentials, tokens)
 □ DoD-9: Тесты проходят в CI за разумное время (E2E ≤ 30 сек каждый)
 □ DoD-10: AUTO-*-e2e-report.md + AUTO-*-coverage.md записаны в stage5-testing/outputs/
-□ DoD-11: tests/test_api_format.py проверяет форматы ответов (ISO 8601, UUID v4, error schema)
+□ DoD-11: применимые format tests соответствуют выбранному stack/API contract
 
 Авто-проверка: s0-validate /dod-check [PROJECT] K 5
 

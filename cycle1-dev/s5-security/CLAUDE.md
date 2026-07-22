@@ -18,7 +18,7 @@ Severity — по **CVSS (security.md §1)**, не по багам S1–S4. Crit
   1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
      → `operational.tier` определяет ГЛУБИНУ тестирования (см. «Tier-aware» ниже)
   2. $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/SEC-*-threat-model.md
-     → security-тест-кейсы из STRIDE/DREAD: что именно проверять в runtime
+     → security-тест-кейсы и CVSS-priorities: что именно проверять в runtime
   3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/SEC-*-security-requirements.md
      → abuse cases (SG1) → негативные сценарии для DAST/pentest
   4. $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/SEC-*-build-scan-PR*.md
@@ -92,7 +92,7 @@ SEC-YYYY-MM-DD-dast-config.yaml (или .conf — конфиг сканера)
 
 □ DoD-3: Отчёт самопроверен: каждая находка с CVSS-score, PoC/шаги, рекомендация
 □ DoD-4: Security-находки оформлены как actionable для s4-dev (что и как чинить)
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет открытого Critical/High (CVSS ≥ 7.0) без фикса или risk-accept с дедлайном
 □ DoD-8: В отчёте нет работающих секретов/реальных эксплойт-payload'ов с доступом к prod
 □ DoD-10: SEC-*-pentest-report.md записан в stage5-testing/outputs/ с вердиктом по CVSS

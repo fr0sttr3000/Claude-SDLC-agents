@@ -1,488 +1,157 @@
----
-date: 2026-07-03
-tags: [docs, getting-started]
----
-
-# Руководство по первому запуску
-
-> Claude SDLC Agents — автоматизированная SDLC-система.
-> Этот документ проведёт тебя от установки до первого запущенного цикла через Claude, Codex или Gemini.
-
----
-
-## Содержание
-
-1. [Предварительные требования](#1-предварительные-требования)
-2. [Установка](#2-установка)
-3. [Структура системы](#3-структура-системы)
-   - [Выбор runtime](#31-выбор-runtime)
-4. [Первый проект — пошагово](#4-первый-проект--пошагово)
-5. [Kickoff — ключевой шаг](#5-kickoff--ключевой-шаг)
-6. [Обновление существующего проекта](#6-обновление-существующего-проекта)
-7. [Цикл 1 — Разработка](#7-цикл-1--разработка)
-8. [Типичные ошибки](#8-типичные-ошибки)
-9. [Кастомизация под свой стек](#9-кастомизация-под-свой-стек)
-
----
-
-## 1. Предварительные требования
-
-| Компонент | Версия | Назначение |
-|-----------|--------|-----------|
-| Claude Code CLI / Codex CLI / Gemini CLI | последняя | нужен хотя бы один выбранный runtime |
-| `bash` | 4.0+ | лаунчер sdlc.sh |
-| `pass` | любая | хранение секретов (обязательно) |
-| [Obsidian](https://obsidian.md) | любая | просмотр артефактов (рекомендуется) |
-| `git` | 2.x+ | синхронизация через s0-github |
-
-### Установка pass (если не установлен)
-
-```bash
-# Ubuntu / Debian
-sudo apt install pass
-
-# macOS
-brew install pass
-
-# Инициализировать хранилище
-gpg --gen-key               # создать GPG-ключ
-pass init "your@email.com"  # инициализировать pass
-```
-
----
-
-## 2. Установка
-
-### Вариант А — в Obsidian vault (рекомендуется)
-
-```bash
-# Создай структуру vault
-mkdir -p ~/Documents/ObsidianVault/Claude
-cd ~/Documents/ObsidianVault/Claude
-
-# Клонируй агентов
-git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
-```
-
-Открой папку `Claude/` в Obsidian как vault — все артефакты, Dashboard'ы и документация сразу видны в интерфейсе.
-
-### Вариант Б — отдельная папка
-
-```bash
-git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git sdlc-agents
-cd sdlc-agents/_agents
-```
-
-### Проверка установки
-
-```bash
-cd _agents
-bash sdlc.sh
-```
-
-При первом запуске launcher попросит явно выбрать режим проектов: каталог с несколькими проектами или папку одного проекта. Он не выбирает каталог проектов автоматически. Затем должно появиться главное меню. Если ошибка — проверь, что выбранный runtime установлен: `claude --version`, `codex --version` или `gemini --version`.
-
----
-
-## 3. Структура системы
-
-```
-Claude/
-├── _agents/                ← этот репозиторий
-│   ├── sdlc.sh             ← главный лаунчер (запускай отсюда)
-│   ├── localrun.sh         ← лаунчер Local Run
-│   ├── AGENTS.md           ← Codex adapter
-│   ├── GEMINI.md           ← Gemini adapter
-│   ├── _contract/          ← Universal Runtime Contract
-│   ├── _runtimes/          ← dispatcher claude/codex/gemini
-│   ├── _standards/         ← стандарты (читаются всеми агентами)
-│   ├── _tools/             ← утилиты для всех циклов (s0-github, s0-secrets)
-│   ├── plans/              ← планы развития системы
-│   │   ├── principles.md   ← принципы разработки
-│   │   └── roadmap.md      ← roadmap изменений
-│   ├── cycle1-dev/         ← Цикл 1: Разработка
-│   │   ├── s0-kickoff/     ← онбординг новых проектов
-│   │   ├── s0-tracker/     ← трекинг спринтов и задач
-│   │   ├── s0-validate/    ← валидация структуры
-│   │   ├── s1-*/           ← этап 1: планирование
-│   │   ├── s2-*/           ← этап 2: требования
-│   │   ├── s3-*/           ← этап 3: дизайн
-│   │   ├── s4-*/           ← этап 4: разработка
-│   │   ├── s5-*/           ← этап 5: тестирование
-│   │   └── l*/             ← Local Run (оснастка разработчика)
-│   ├── cycle2-deploy/      ← Цикл 2: Деплой (s4-devops, s6-release)
-│   └── cycle3-ops/         ← Цикл 3: Эксплуатация (s6-sre)
-│
-└── SDLC_PROJECTS_DIR/       ← настраивается при первом запуске
-    └── {PROJECT}/
-        ├── Dashboard.md
-        ├── stage1-planning/inputs/    ← входные данные (заполняет kickoff)
-        ├── stage1-planning/outputs/   ← артефакты агентов
-        ├── stage2-requirements/...
-        └── tracking/                  ← спринты и задачи
-```
-
-> Подробнее об архитектуре — [[README#Архитектура]] · Принципы — [[plans/principles]]
-
----
-
-## 3.1 Выбор runtime
-
-Runtime выбирается явно. При чистом первом запуске launcher спросит runtime и сохранит выбор; позже его можно сменить в меню `7) Настройки` или задать через env:
-
-```bash
-bash sdlc.sh
-```
-
-Явный выбор runtime без интерактивного шага:
-
-```bash
-AGENT_RUNTIME=claude bash sdlc.sh
-AGENT_RUNTIME=codex bash sdlc.sh
-AGENT_RUNTIME=gemini bash sdlc.sh
-```
-
-Та же переменная работает для Local Run:
-
-```bash
-AGENT_RUNTIME=codex bash localrun.sh
-```
-
-Новые SDLC-правила, агенты и команды добавляй в канонические файлы (`CLAUDE.md`, `_standards/*.md`, `.claude/commands/*.md`), а не только в runtime-specific адаптеры. Тогда проект остаётся доступным Claude, Codex и Gemini.
-
----
-
-## 4. Первый проект — пошагово
-
-### Шаг 1. Запусти лаунчер
-
-```bash
-cd _agents
-bash sdlc.sh
-```
-
-Из терминала или shell-команды выбранного AI runtime:
-```
-! bash "/полный/путь/до/_agents/sdlc.sh"
-```
-
-### Шаг 2. Создай проект
-
-```
-Главное меню → 3) Создать новый проект
-```
-
-Введи имя проекта (латиница, без пробелов, например `my-app`).
-
-Лаунчер создаёт структуру `stage1..stage7` и сразу предлагает запустить Kickoff. **Соглашайся** — это ключевой шаг.
-
-### Шаг 3. Пройди Kickoff-интервью
-
-```
-Главное меню → 0) Kickoff → 1) Новый проект
-```
-
-Агент `s0-kickoff` задаёт вопросы последовательно — 4 блока, ~15 вопросов. Отвечай подробно: чем точнее ответы, тем качественнее все последующие артефакты.
-
-> Подробнее о Kickoff — в [разделе 5](#5-kickoff--ключевой-шаг).
-
-### Шаг 4. Настрой секреты (если нужно)
-
-```
-Главное меню → 2) Один агент → s0-secrets → /add
-```
-
-Все секреты (API ключи, токены, пароли БД) хранятся только в `pass`. Агенты берут секреты через `pass sdlc/projects/{PROJECT}/ключ`.
-
-### Шаг 5. Запусти Цикл 1 — Разработка
-
-```
-Главное меню → 1) Запустить цикл → 1) Разработка (Цикл 1) → выбери проект
-```
-
-Лаунчер спросит какие необязательные шаги включить (валидация структуры, инициализация спринта) — выбирай по потребности.
-
-Цикл 1 пройдёт 22 шага последовательно. Каждый шаг — это отдельный агент, который читает артефакты предыдущего и создаёт свои. Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы, в разработке.
-
----
-
-## 5. Kickoff — ключевой шаг
-
-`s0-kickoff` решает главную проблему пустого проекта: агенты обрабатывают документы, но не собирают информацию через диалог. Kickoff заполняет этот пробел.
-
-### Почему это важно
-
-Без kickoff:
-- `s1-pm` читает пустой `idea.md` → создаёт Feasibility Study на 100% предположениях
-- `s2-ba` создаёт BRD без реальных требований → NFR не проходят Gate 2
-- `s2-po` создаёт беклог из воздуха → истории не отражают реальных потребностей
-
-С kickoff:
-- Все 4 блока данных (продукт, бизнес, техника, приоритеты) заполнены
-- Числовые NFR зафиксированы на этапе интервью (RPS, SLA, доступность)
-- Scope Out определён заранее — не нужно переделывать беклог
-- `s1-pm` получает богатый входной файл → качественный Feasibility Study
-
-### Как работает интервью
-
-Агент задаёт вопросы по одному, ждёт ответа:
-
-```
-Блок 1 из 4 — Продукт
-
-Q1.1: Как называется проект?
-> my-app
-
-Q1.2: Опиши продукт одним предложением — что он делает и для кого?
-> Платформа для управления задачами команды с интеграцией в Slack
-
-Q1.3: Какую конкретную проблему он решает?
-> ...
-```
-
-После каждого блока — резюме и подтверждение. Если ответ неточный — агент уточняет перед переходом дальше.
-
-### Что создаёт Kickoff
-
-**Режим NEW:**
-```
-stage1-planning/inputs/
-  idea.md                           ← заполненный (не заглушка)
-  PM-input-interview-YYYY-MM-DD.md  ← полный протокол интервью
-```
-
-После завершения: `s1-pm /feasibility` для проекта готов к запуску.
-
-### Запуск Kickoff через universal dispatcher
-
-```bash
-AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh \
-  --agent-dir _agents/cycle1-dev/s0-kickoff \
-  --mode task \
-  --prompt "/new my-project"
-```
-
-Обычный путь остаётся через меню: `bash sdlc.sh → 0) Kickoff`.
-
----
-
-## 6. Обновление существующего проекта
-
-Когда проект уже запущен и нужно обновить беклог, изменить приоритеты или добавить новые требования — используй `/refresh`.
-
-### Запуск
-
-```
-Главное меню → 0) Kickoff → 2) Обновить существующий
-```
-
-Агент покажет текущий статус проекта:
-
-```
-Проект: my-app
-─────────────────────────────────
-Этап 1 (Планирование):  ✅ Done
-Этап 2 (Требования):    ✅ Done
-Этап 3 (Дизайн):        ✅ Done
-Этап 4 (Разработка):    🔄 In Progress
-...
-Последние артефакты:
-  - PO-2026-05-10-backlog.md (12 историй)
-  - BA-2026-05-10-BRD.md
-```
-
-Затем предложит меню:
-
-```
-Что нужно обновить? (можно выбрать несколько через запятую)
-
-  1) Продуктовое видение и OKR
-  2) Новые функции в беклог
-  3) Приоритизация беклога
-  4) Изменение NFR / масштаба / SLA
-  5) Scope Out — что убираем
-  6) Полный перезапуск (новое интервью)
-```
-
-### Что создаёт Refresh
-
-```
-stage1-planning/inputs/
-  PM-input-refresh-YYYY-MM-DD.md   ← изменения в видении/OKR (если выбраны 1)
-
-stage2-requirements/inputs/
-  BA-input-refresh-YYYY-MM-DD.md   ← новые требования/NFR/scope (если выбраны 2-5)
-```
-
-После Refresh — запусти соответствующих агентов:
-- Видение изменилось → `s1-pm /vision`
-- Новые функции → `s2-ba` + `s2-po /stories`
-- Только приоритеты → `s2-po /stories`
-
----
-
-## 7. Цикл 1 — Разработка
-
-> Деплой (Цикл 2) и эксплуатация (Цикл 3) — отдельные циклы в реальной среде, в разработке. Цикл 1 производит код и всю документацию.
-
-### Структура Цикла 1 (22 шага)
-
-```
-[Онбординг]  s0-kickoff             → idea.md + PM-input-interview.md
-
-Этап 1: Планирование
-  Шаг  1   s1-pm /feasibility       → PM-feasibility.md (вердикт Go/No-Go)
-  Шаг  2   s1-pm /vision            → PM-vision.md (OKR, North Star)
-  Шаг  3   s1-pmo /charter          → PMO-charter.md
-  Шаг  4   s1-pmo /risks            → PMO-risk-register.md
-  Шаг  5   s1-finance               → FIN-business-case.md
-            ── Quality Gate 1 ──►
-
-Этап 2: Требования
-  Шаг  6   s2-ba /extract-requirements → BA-BRD.md (черновик)
-  Шаг  7   s2-ba /brd               → BA-BRD.md + BA-NFR.md + BA-RTM.md
-  Шаг  8   s2-po /stories           → PO-backlog.md
-  Шаг  9   s2-qa-req                → QA-REQ-review.md (Gate 2 блокируется BLOCKER)
-            ── Quality Gate 2 ──►
-
-Этап 3: Дизайн
-  Шаг 10   s3-arch /hld             → ARCH-HLD.md + ARCH-api-spec.yaml
-  Шаг 11   s3-arch /adr             → ARCH-ADR-*.md
-  Шаг 12   s3-security              → SEC-threat-model.md (Critical/High блокируют Gate 3)
-  Шаг 13   s3-rbac /rbac-model      → RBAC-model.md + RBAC-matrix.md + RBAC-schema.sql
-  Шаг 14   s3-dba /schema           → DBA-schema.sql + DBA-migrations/
-            ── Quality Gate 3 ──►
-
-Этап 4: Разработка
-  Шаг 15   s4-dev                   → код + DEV-update-notes-PR[N].md
-  Шаг 16   s4-techlead              → TL-review-PR[N].md (Gate 4 блокируется BLOCKER)
-            ── Quality Gate 4 ──►
-
-Этап 5: Тестирование
-  Шаг 17   s5-qa /test-plan         → QA-test-plan.md
-  Шаг 18   s5-qa-auto               → E2E/API тесты (coverage ≥95%)
-  Шаг 19   s5-perf                  → PERF-load-report.md
-  Шаг 20   s5-qa /go-no-go          → QA-go-no-go.md (Gate 5)
-            ── Quality Gate 5 ──►
-
-Финал
-  Шаг 21   s0-tracker /report       → цикл-план vs факт
-  Шаг 22   s0-github /push          → push артефактов в GitHub
-```
-
-### Quality Gates — что блокирует переход
-
-| Gate | Блокирующие условия |
-|------|-------------------|
-| Gate 1→2 | Нет Feasibility Study / Charter / Risk Register |
-| Gate 2→3 | BLOCKER в QA-REQ-review / NFR без чисел / нет RTM |
-| Gate 3→4 | Critical/High в Threat Model / нет RBAC artifacts / нет DB schema |
-| Gate 4→5 | Открытые PR / coverage < 80% / BLOCKER в code review / нет Update Notes |
-| Gate 5→6 | Go/No-Go = NO-GO / UAT не пройден / PERF FAIL |
-| Gate 6→PROD | Нет Release Checklist / Rollback план не проверен |
-| Gate 7 | Auto-Heal не подтверждён / SLO breach без алерта |
-
----
-
-## 8. Типичные ошибки
-
-### "Агент пишет только предположения [ASSUMPTION]"
-**Причина:** Kickoff не запущен или `idea.md` заполнен как заглушка.
-**Решение:** `sdlc.sh → 0) Kickoff → /new` → пройди интервью полностью.
-
-### "Gate X не пройден"
-**Причина:** Предыдущий агент не создал обязательный артефакт.
-**Решение:** Проверь `stage{N}-*/outputs/` — найди какой файл отсутствует. Запусти нужного агента напрямую.
-
-### "SettingsError при загрузке .env"
-**Причина:** `list[int]` в `.env` в CSV-формате: `IDS=1,2,3` вместо `IDS=[1,2,3]`.
-**Решение:** Исправить `.env` — JSON-формат для всех list/set/frozenset. Подробнее: `_standards/data-formats.md §2.2`.
-
-### "asyncpg ошибка timezone"
-**Причина:** `datetime` без timezone передаётся в поле `TIMESTAMP WITH TIME ZONE`.
-**Решение:** Добавить `tzinfo=timezone.utc` к datetime объектам. ORM: использовать `mapped_column(TIMESTAMP(timezone=True))`.
-
-### "Агент не видит артефакты предыдущего"
-**Причина:** Передаётся относительный путь, а не абсолютный.
-**Решение:** Используй абсолютные пути через `$SDLC_PROJECTS_DIR/{PROJECT}/stage{N}/outputs/`.
-
----
-
-## 9. Кастомизация под свой стек
-
-### Ознакомься с принципами системы
-
-Перед стартом прочитай [`plans/principles.md`](plans/principles.md) — принципы разработки (SDD, TDD, Shift Left, Quality Gates и др.).
-
-### Заполни стандарты компании
-
-```bash
-# Заполни перед первым использованием
-nano _agents/_standards/company.md
-```
-
-Укажи:
-- Технологический стек (Python, Go, TypeScript, etc.)
-- Роли в команде и ставки (для финансовых расчётов)
-- Compliance-требования (если есть)
-
-> Методология разработки — в [`plans/principles.md`](plans/principles.md), не в `company.md`.
-
-### Настрой NFR-дефолты
-
-В `_standards/quality.md` измени дефолты под свои нужды:
-```markdown
-## NFR-дефолты
-- Availability: ≥ 99.9%           ← измени если нужно
-- Response time p95: < 500 ms     ← измени если нужно
-- Test coverage: ≥ 80%            ← измени если нужно
-```
-
-### Добавь необязательные шаги в sdlc.sh
-
-В `sdlc.sh` в массиве `OPTIONAL_AGENTS_DEF` добавь нужные шаги:
-```bash
-"agent-name|/command|before|Описание шага"
-```
-
-### Прямой запуск агента через dispatcher
-
-```bash
-AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh \
-  --agent-dir _agents/cycle1-dev/s1-pm \
-  --mode task \
-  --prompt "/feasibility my-app"
-
-AGENT_RUNTIME=gemini _agents/_runtimes/agent-run.sh \
-  --agent-dir _agents/cycle1-dev/s1-pm \
-  --mode interactive \
-  --prompt "начни сессию"
-```
-
-Через интерактивный launcher: `bash sdlc.sh → 7) Настройки → выбрать runtime`.
-
----
-
-## Краткая шпаргалка
-
-```bash
 # Первый запуск
-bash sdlc.sh → 3) новый проект → 0) Kickoff /new → 1) Запустить цикл → 1) Разработка
 
-# Обновить беклог существующего проекта
-bash sdlc.sh → 0) Kickoff → 2) /refresh
+Это пошаговое руководство для пользователя, который впервые открывает SDLC Agent System.
+Cycle 1 содержит 28 обязательных шагов; launcher показывает их до запуска и не разрешает
+пропуск обязательного шага как success.
 
-# Запустить один агент
-bash sdlc.sh → 2) один агент → выбрать → выбрать проект
+## 1. Запустите launcher
 
-# Проверить структуру проекта
-bash sdlc.sh → 6) валидация → /validate
+Перейдите в `_agents` и выполните:
 
-# Прямой запуск агента через dispatcher
-AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s0-kickoff --mode task --prompt "/new my-project"
-AGENT_RUNTIME=codex _agents/_runtimes/agent-run.sh --agent-dir _agents/cycle1-dev/s1-pm --mode task --prompt "/feasibility my-project"
+```bash
+bash sdlc.sh
 ```
 
----
+Команда не начинает разработку. До появления Project Console wizard только сохраняет настройки.
+Для изолированной проверки без старого config можно использовать:
 
-*Claude SDLC Agents — [README](README.md) · [OVERVIEW](OVERVIEW.md) · [CHANGELOG](CHANGELOG.md)*
+```bash
+XDG_CONFIG_HOME="$(mktemp -d)" \
+SDLC_PROJECTS_DIR="$TEST_PROJECTS" \
+bash sdlc.sh
+```
+
+## 2. Выберите вид
+
+- Подробный — объясняет результат, scope и следующий шаг. Рекомендуется новичку.
+- Краткий — те же actions и клавиши, но меньше текста.
+
+Позже вид переключается клавишей `v`; functionality не меняется.
+
+## 3. Укажите Projects
+
+Выберите каталог, внутри которого находятся несколько SDLC Projects, либо один конкретный
+Project. В single mode launcher всё равно передаёт агентам parent directory через
+`SDLC_PROJECTS_DIR` и имя через `SDLC_SINGLE_PROJECT`.
+
+Project name — безопасное имя каталога без `/` и `..`. После выбора launcher показывает absolute
+path. Выбор Project только открывает его Console.
+
+## 4. Настройте primary AI
+
+Primary выполняет этап, пишет artifacts и отвечает за результат. Выберите Claude, Codex,
+Gemini либо Local. Для Local нужны:
+
+- agent host (`codex-oss` встроен);
+- provider (`ollama` или `lmstudio` для встроенного host);
+- точный model id, существующий у provider.
+
+Модель по умолчанию не выбирается, а недоступный profile не заменяется другим.
+
+Затем выберите routing:
+
+1. одна модель для всех шагов (`single`);
+2. разные profiles по Cycle/Stage (`per-stage`);
+3. базовый profile и overrides отдельных Agents (`per-agent`);
+4. собрать назначения каждого шага перед Preview (`ask`).
+
+Routing меняет только исполнителя, не состав и порядок SDLC.
+
+## 5. Настройте AI-помощников
+
+- Off — primary работает один.
+- Auto — native subagents выбранного runtime, если capability поддерживается.
+- Supervisor + Worker — отдельный exact worker profile для bounded read-only задач.
+
+Worker не пишет Project и не закрывает gates. Enforced workers: Claude, Codex, Local
+`codex-oss`. Gemini и custom local hosts пока можно использовать primary, но не worker.
+
+## 6. Выберите Project
+
+Появится `LAUNCHER ГОТОВ`. Здесь можно:
+
+- выбрать существующий Project;
+- создать новый (`n`);
+- открыть Локальные репозитории (`l`);
+- изменить launcher settings (`g`);
+- выйти (`q`).
+
+После выбора Project появляется сообщение `КОНТЕКСТ ПРОЕКТА ОТКРЫТ`; работа всё ещё не запущена.
+
+## 7. Выберите первое действие
+
+Рекомендуемый новый Project:
+
+1. `1 Kickoff` — заполнить/обновить idea, constraints и infrastructure questions.
+2. Вернуться в Console. Успешный Kickoff не стартует development сам.
+3. При необходимости `3 Review` — проверить входы read-only.
+4. `8 Goal/Cycle 2/Cycle 3` — выбрать, что должно готовиться после development.
+5. `9 AI routing/workers` — проверить назначения Project.
+6. `5 Режим цели` либо `6 Один Cycle`.
+
+Если нужно только проверить/починить существующий Project, используйте `3 Review`, затем `4 Repair`
+с тем же scope. Если нужен только один агент/команда — `7 Один Agent`.
+
+## 8. Понимайте Preview
+
+Перед execution проверьте:
+
+- правильный Project и absolute path;
+- `SCOPE` — что войдёт;
+- `EXCLUDED` — что точно не войдёт;
+- ordered steps;
+- primary/supervisor и worker profiles;
+- exact Local model;
+- `Fallback OFF`.
+
+`r` подтверждает показанный план, `b` возвращает без запуска. Review запускается read-only;
+Repair/Cycle пишут только после подтверждения.
+
+## Частые сценарии
+
+### Только Cycle 1
+
+Project Console → `6 Один Cycle` → Cycle 1. Cycle 2/3 исключены независимо от Goal route.
+
+### Cycle 1 и подготовка доставки
+
+Сначала `8` настройте Cycle 2 deliverables/infrastructure/authorization, затем `5 Режим цели`
+и выберите route Cycle 1 → 2.
+
+### Изменить доставку после разработки
+
+Откройте тот же Project → `8` → частично измените Cycle 2/3 → `6` → запустите только нужный
+Cycle. Полный Cycle 1 повторять не нужно.
+
+### Проверить один Agent
+
+`3 Review` → Agent scope → exact agent id. Это не запуск роли на запись.
+
+### Исправить один Agent scope
+
+Сначала Agent Review, затем `4 Repair` → тот же agent id. Preview покажет исключённые scopes.
+
+### Локально запустить repository
+
+Project Console → `l Локальные репозитории`. Это отдельная developer utility:
+Clone/Pull → Analyze → Install & configure → Build → Start & smoke. Git push запрещён.
+
+## Если запуск прерван
+
+В Project Console выберите `0`. Launcher покажет immutable plan/state/events. Retry создаёт
+child run с доказанного следующего шага. Он не продолжает vendor chat и не считает RUNNING/
+UNKNOWN успешным.
+
+## Диагностика
+
+- Runtime binary не найден: установите exact CLI или выберите другой profile; fallback не будет.
+- Local model недоступен: исправьте provider/model id; другой model не выбирается.
+- Worker profile отклонён: используйте Claude, Codex или Local codex-oss.
+- Review на Gemini: назначьте `s0-validate` поддержанный read-only profile через per-agent route.
+- Gate/DoR BLOCKED: откройте evidence и Repair; не ослабляйте threshold/test.
+- Full Local pipeline неполный: запустите пропущенный/упавший шаг; skip не является success.
+- Batch update Local notes неполный: продолжите с первого пропущенного/упавшего агента;
+  launcher не запускает следующие notes steps после такого результата.
+
+Далее: [полный README](README.md), [архитектура](OVERVIEW.md),
+[принципы](plans/principles.md), [карта документов](plans/document-map.md).

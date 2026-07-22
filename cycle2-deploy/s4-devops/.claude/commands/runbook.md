@@ -1,74 +1,28 @@
 ---
-description: Создать Runbook деплоя с rollback-процедурой и observability
+description: Создать stack-native runbook и operations package после RED
 ---
 
-Создай Runbook деплоя для проекта $ARGUMENTS.
+# /runbook
 
-Прочитай:
-1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEVOPS-cicd.yaml (если существует)
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
+Создай только выбранные профилем runbook/operations-pack результаты для
+проекта $ARGUMENTS.
 
-Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/:
-- DEVOPS-[дата]-runbook.md
-- DEVOPS-[дата]-monitoring.yaml
+Если operations-pack/execute-deploy/runtime handoff неприменимы (например,
+images-only), не создавай фиктивный runbook: запиши N/A и version fallback в
+deploy intake/test evidence и заверши шаг без лишнего deliverable.
 
-# Runbook — $ARGUMENTS
-Дата: [сегодня]
-Агент: s4-devops
+Прочитай tracking/SDLC-goals.md, DEPLOY-TDD-status.md: RED, deploy test plan,
+HLD, NFR/SLO и созданные delivery artifacts.
 
-## Pre-Deployment Checklist
-□ Backup БД сделан и restore протестирован
-□ Rollback-команды подготовлены и проверены
-□ SLO определён, Error Budget рассчитан
-□ Мониторинг настроен (алерты на SLO breach)
-□ Release Checklist от s6-release получен
+Runbook должен отражать фактический stack и содержать применимые:
 
-## Deployment Steps
-```bash
-# 1. Pull новой версии
-docker pull image:vX.Y.Z
+- prerequisites, exact identities и границы authorization;
+- versioned deployment steps без secrets;
+- migration/backup/restore и проверяемый rollback;
+- rollout thresholds и stop conditions;
+- validation/smoke команды и ожидаемый evidence;
+- monitoring/alert handoff только для выбранного stack;
+- escalation, owner и явно обоснованные N/A.
 
-# 2. Миграции БД
-docker compose run --rm app alembic upgrade head
-
-# 3. Canary deploy (10%)
-# ...
-
-# 4. Full rollout
-docker compose up -d --scale app=N
-```
-
-## Rollback Procedure (конкретные команды)
-```bash
-# Trigger: error_rate > 5% за 2 мин | pod restarts > 3 за 10 мин | p95 > 3× baseline
-docker compose stop app
-docker compose run --rm app alembic downgrade -1
-docker pull image:vPREV
-docker compose up -d
-```
-
-## Observability Baseline
-| Endpoint | Назначение | SLO |
-|----------|-----------|-----|
-| /health | Liveness probe | всегда 200 |
-| /ready | Readiness probe | 200 когда ready |
-| /metrics | Prometheus | — |
-
-Logging: структурированный JSON с trace_id, пишем в stdout.
-
-## Алерты (настроить на SLO breach, не на симптомы)
-| Условие | Действие | Эскалация |
-|---------|---------|-----------|
-| error_rate > 5% за 2 мин | Rollback | немедленно |
-| p95 > 3× baseline за 5 мин | Rollback | немедленно |
-| pod restarts > 3 за 10 мин | Rollback | немедленно |
-| error_budget < 20% | Заморозить деплои | жёлтый алерт |
-
-## Runbook Checklist — Gate 6
-□ Runbook написан ДО деплоя
-□ Rollback-процедура с конкретными командами
-□ Backup и restore протестированы
-□ Алерты на SLO breach (не на CPU/RAM симптомы)
-□ Auto-Heal: restart policy + liveness probe + resource limits
-□ DEVOPS-*-runbook.md передан s6-sre
+Docker, Kubernetes, Prometheus, Grafana и любой cloud service не являются
+defaults. Не выполняй live deploy/rollback. Запиши goal_profile_revision.

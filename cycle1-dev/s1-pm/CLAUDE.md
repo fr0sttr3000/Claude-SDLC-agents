@@ -46,90 +46,29 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ---
 
-## Operational Tier Selection — Матрица выбора уровня надёжности
+## Operational capabilities — выбор без технологических defaults
 
-На основе Q3.6 (Topology) + Q3.7 (Recovery) + Q3.8 (Monitoring) + Q3.9 (Delivery Scope) определи Operational Tier и зафикси его в Technical Feasibility.
+На основе Topology, Recovery Expectation, Monitoring Expectation, Delivery Scope и
+существующей инфраструктуры сформируй перечень требуемых **capabilities**, но не
+выбирай инструменты за пользователя. Возможные capabilities: health/readiness,
+structured logs, metrics/traces, alert routing, incident runbooks, backup/restore,
+auto-recovery, capacity/DR evidence. Каждый пункт получает `required`, `optional`
+или `N/A` с причиной и измеримым ожидаемым результатом.
 
-### Матрица: Topology × Recovery → базовый тир
+Operational Tier допустим только как пользовательская метка согласованного набора,
+а не как скрытая таблица, автоматически добавляющая Docker, Kubernetes, Prometheus,
+Grafana, конкретный SLO или каналы оповещения. Точные topology, stack, thresholds,
+executor, owner и authorization запрашиваются у пользователя и записываются в
+PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/BLOCKED.
 
-| Q3.6 Topology | Q3.7 Recovery | Базовый тир |
-|--------------|--------------|-------------|
-| single-container | A (restart only) | **Tier 0 — Minimal** |
-| single-container | B (restart + notify) | **Tier 1 — Basic** |
-| single-container | C/D (full + reports) | **Tier 2 — Standard** |
-| multi-instance | A/B | **Tier 1 — Basic** |
-| multi-instance | C/D | **Tier 3 — Full** |
-| serverless | any | **Tier 1 — Basic** (платформа берёт restart на себя) |
+### Валидация противоречий
 
-### Что включает каждый тир
-
-**Tier 0 — Minimal**
-- `restart: unless-stopped` в docker-compose
-- `HEALTHCHECK` в Dockerfile
-- Логи доступны через `docker logs`
-- _Подходит:_ внутренний инструмент, best-effort доступность, команда сама следит
-
-**Tier 1 — Basic**
-- Всё из Tier 0
-- `/health` endpoint (liveness)
-- Структурированные логи (JSON) с уровнями ERROR/WARN/INFO
-- Алерт на падение контейнера (email / Telegram / Slack)
-- _Подходит:_ небольшой продакшн, команда реагирует вручную
-
-**Tier 2 — Standard**
-- Всё из Tier 1
-- `/metrics` endpoint (Prometheus-совместимый)
-- `/ready` endpoint (readiness)
-- Дашборд метрик (Grafana или аналог)
-- SLO-алерты (не "сервис упал", а "error rate > 1% за 5 мин")
-- Incident runbook (что делать при срабатывании алерта)
-- Отчёт о сбое (structured incident report)
-- _Подходит:_ B2C продакшн с SLA, команда дежурит
-
-**Tier 3 — Full**
-- Всё из Tier 2
-- Circuit Breaker для внешних зависимостей
-- DLQ для асинхронных задач (если есть очереди)
-- Watchdog для фоновых воркеров
-- Postmortem-шаблон и процесс разбора инцидентов
-- Readiness probe (трафик не идёт на нездоровый инстанс)
-- _Подходит:_ критичный SaaS, финансовые операции, 24/7 с SLA ≥ 99.9%
-
-### Корректировка тира по Q3.8 (Monitoring)
-
-| Q3.8 | Корректировка |
-|------|--------------|
-| A (нет мониторинга) | Тир не повышается. Если базовый тир ≥ 1 — предупредить: «мониторинг требует метрик» |
-| B (базовый) | Тир ≥ 1. Если был Tier 0 → поднять до Tier 1 |
-| C (полный) | Тир ≥ 2. Если был Tier 0/1 → поднять до Tier 2 |
-
-### Корректировка по Q3.9 (Delivery Scope)
-
-| Q3.9 | Что входит в работу |
-|------|-------------------|
-| A (только код) | s4-devops не в scope. Документировать требования к деплою, не реализовывать |
-| B (код + docker config) | s4-devops пишет Dockerfile + docker-compose. Мониторинг — не в scope |
-| C (код + деплой + мониторинг) | s4-devops реализует полный Tier согласно матрице |
-
-### Корректировка по Q3.10 (Existing Monitoring)
-
-| Q3.10 | Влияние на тир |
-|-------|---------------|
-| A (с нуля) | Развернуть полный стек согласно Tier |
-| B (внешний сервис) | Интегрироваться с существующим (Grafana Cloud / Datadog API). Не разворачивать дублирующий стек |
-| C (своя инфраструктура) | Подключиться к существующему Prometheus/Grafana. Добавить только /metrics endpoint в приложение |
-| D (неизвестно) | Зафиксировать как [OPEN ISSUE] — решить до s4-devops |
-
-### Валидация противоречий (проверять до начала работы)
-
-Перед запуском любой секции проверь следующие комбинации — при обнаружении вынести на `edit` до продолжения:
-
-| Противоречие | Сообщение стейкхолдеру |
-|-------------|----------------------|
-| Q3.8=C (полный мониторинг) + Q3.9=A (только код) | «Вы хотите полный мониторинг, но деплой и настройку берёте на себя. Кто будет настраивать prometheus.yml, дашборды и alerting rules? Уточните scope.» |
-| Q3.7=C/D (отчёты/postmortem) + Q3.9=A (только код) | «Отчёты о сбоях и postmortem требуют настроенной системы логирования. Кто её настраивает?» |
-| Q3.8=C (полный мониторинг) + Q3.10=D (неизвестно) | «Нельзя проектировать стек мониторинга без понимания существующей инфраструктуры. Нужно уточнить Q3.10 до продолжения.» |
-| Q3.6=A (single-container) + Q3.8=C (полный мониторинг) | «Полный мониторинг требует Prometheus + Grafana — это дополнительные контейнеры. Деплой становится docker-compose (3 сервиса), не одиночным контейнером. Подтвердить?» |
+- Требуемая capability вне Delivery Scope → уточнить владельца и handoff.
+- Recovery action без executor/owner/authorization → BLOCKED.
+- Monitoring capability без существующего или выбранного стека → BLOCKED.
+- SLO/rollback threshold без измеримого NFR → BLOCKED.
+- Выбранный стек противоречит topology/infrastructure constraints → вынести варианты
+  и trade-offs на подтверждение пользователя, не заменять стек самостоятельно.
 
 ### Обязательное действие в Feasibility
 
@@ -285,7 +224,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 □ DoD-3: Артефакт самопроверен: 0 BLOCKER-формулировок ("быстро", "удобно", без чисел)
 □ DoD-4: Все числа помечены [DATA] или [ASSUMPTION], нет голых утверждений
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет нерешённых BLOCKER-вопросов без митигации
 □ DoD-8: Нет секретов (токенов, паролей) в артефактах
 □ DoD-10: PM-*.md записан в stage1-planning/outputs/

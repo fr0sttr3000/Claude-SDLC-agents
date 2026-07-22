@@ -1,31 +1,41 @@
 ---
-date: 2026-07-03
+date: 2026-07-21
 tags: [plans, roadmap]
 ---
 
 # Roadmap — SDLC Agent System
+
+> Активные и долгосрочные планы хранятся только здесь. Устойчивые принципы проекта —
+> в [[principles]], связи документов и правила синхронизации — в [[document-map]].
 
 ## Концепция: 3 цикла
 
 | Цикл | Суть | Среда |
 |------|------|-------|
 | Цикл 1 — Dev | Разработка: код, тесты, документация | Локальная |
-| Цикл 2 — Deploy | Деплой кода в любую нужную среду | Реальная |
-| Цикл 3 — Ops | Эксплуатация задеплоенного кода | Реальная (прод) |
+| Цикл 2 — Deploy | Подготовка выбранных delivery artifacts и, при authorization, deploy | Явно выбранная |
+| Цикл 3 — Ops | Подготовка/проверка выбранных operational capabilities и evidence | Явно выбранная |
 
-Агенты Цикла 2 и 3 работают в реальной среде. Агенты Цикла 1 — только разработка, никакого деплоя в прод.
+Текущий baseline: Цикл 1 содержит 28 обязательных шагов плюс отдельно выбираемые
+необязательные шаги. Циклы 2/3 имеют активную test-first orchestration, revisioned Goal,
+частичную перенастройку и отдельные Stage 6/Stage 7 границы. Дальнейшие роли и расширение
+покрытия перечислены ниже как backlog, а не как отсутствие работающих циклов.
+
+Cycle 2/3 не предполагают live environment автоматически. Images/config/runbooks могут
+готовиться offline; live deploy/ops выполняются только при выбранном deliverable,
+точной среде, identity, authorization и rollback. Cycle 1 не выполняет deploy.
 
 ### Этапы Цикла 1
 
 | Этап                       | Назначение                                                                                                                                                                                  | Агенты                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| S0 — Discovery & Tracking  | Исследование проблемы и валидация гипотез (до старта S1) + оперативный трекинг спринтов и задач на протяжении всего цикла + контроль структуры артефактов                                   | `s0-kickoff`, `s0-tracker`, `s0-validate` + *(новый агент discovery)* |
+| S0 — Discovery & Tracking  | Исследование проблемы и валидация гипотез (до старта S1) + оперативный трекинг спринтов и задач на протяжении всего цикла + контроль структуры артефактов                                   | `s0-kickoff`, `s0-tracker`, `s0-validate` + *(запланирован discovery-агент)* |
 | S1 — Планирование          | Оценка реализуемости (4 оси), Product Vision, Project Charter, Risk Register, PMO-constraints, ROI/NPV/TCO, бюджет — стратегические governance-документы, создаются один раз в начале цикла | `s1-pm`, `s1-pmo`, `s1-finance`                                       |
-| S2 — Требования            | BRD, User Stories, Testability                                                                                                                                                              | `s2-ba`, `s2-po`, `s2-qa-req`                                         |
+| S2 — Требования            | BRD, User Stories, Testability, Test Strategy                                                                                                                                               | `s2-ba`, `s2-po`, `s2-qa-req`, `s2-test-strategy`                     |
 | S3 — Дизайн                | HLD, Security, RBAC, DB Schema                                                                                                                                                              | `s3-arch`, `s3-security`, `s3-rbac`, `s3-dba`                         |
-| S4 — Разработка            | Код, Code Review                                                                                                                                                                            | `s4-dev`, `s4-techlead`                                               |
+| S4 — Разработка            | TDD Red/Green/Run/Repair, код, Code Review                                                                                                                                                  | `s4-qa-auto`, `s4-dev`, `s4-techlead`                               |
 | S5 — Тестирование          | Test Plan, E2E, Load, Go/No-Go                                                                                                                                                              | `s5-qa`, `s5-qa-auto`, `s5-perf`                                      |
-| **S6 — Подготовка релиза** | Release Notes, Dev Checklist                                                                                                                                                                | *(новый агент — см. план)*                                            |
+| **Финал Цикла 1 — подготовка релиза** | Release Notes и итоговый комплект разработки                                                                                                                                          | *(запланирован `s5-release-prep` — см. план)*                         |
 
 > **Local Run** (`l1-l4`) — оснастка разработчика для локального запуска проектов. Не этап цикла.
 
@@ -44,10 +54,28 @@ tags: [plans, roadmap]
 
 **Universal Runtime Contract (v2.000.003)**
 - Добавлен vendor-neutral слой `_contract/` с правилом: канон = `_standards/*.md`, root `CLAUDE.md`, agent `CLAUDE.md`, `.claude/commands/*.md`, `projects/`
-- Добавлен runtime dispatcher `_runtimes/agent-run.sh` и adapters для Claude/Codex/Gemini
-- `sdlc.sh` и `localrun.sh` запускают агентов через `AGENT_RUNTIME=claude|codex|gemini`, сохранённый config или меню; автоматического выбора Claude нет
+- Добавлен runtime dispatcher `_runtimes/agent-run.sh` и cloud adapters для Claude/Codex/Gemini
+- `sdlc.sh` и `localrun.sh` запускают агентов через явный `AGENT_RUNTIME`, сохранённый
+  config или меню; автоматического выбора runtime нет
 - Добавлены `AGENTS.md`, `GEMINI.md`, `.codex/config.toml` как bridge/adapters без дублирования SDLC-логики
 - Документация синхронизирована под multi-runtime режим
+
+**Локальные модели, TDD, subagents и operational-контракт**
+
+- [x] Добавлены exact local profiles: built-in `codex-oss` для Ollama/LM Studio и registry
+  executable agent hosts для vLLM, llama.cpp и OpenAI-compatible endpoints
+- [x] Добавлен hybrid routing `single|per-stage|per-agent|ask`; default model и silent fallback
+  между model/provider/runtime запрещены
+- [x] Добавлен обязательный TDD standard и orchestration:
+  Specify → Red → Green → Run → Repair → Refactor, независимый PASS/FAIL и BLOCKED по лимиту
+- [x] Добавлены `s2-test-strategy` и `s4-qa-auto`; Cycle 1 расширен до 28 обязательных шагов
+- [x] Добавлен `off|auto|cross-runtime` subagent contract: режим Supervisor + Worker хранит
+  exact worker profile/task policy, запускает workers через отдельный read-only dispatcher,
+  показывает supervisor/worker в Preview; primary остаётся writer и gate signer
+- [x] Kickoff спрашивает Monitoring Stack, Playbook Executor, Operations Owner и
+  Auto-Heal Authorization; поля проходят через PMO/BA/Architecture к DevOps/SRE
+- [x] Monitoring создаётся под фактический стек; добавлены stable alert fingerprint,
+  grouping/inhibition/flap/repeat/resolve/silence rules и stack-specific fire drill
 
 **Quality Gates overhaul (v2.000.002)** — улучшения относительно ISO 25010 / ISTQB / DORA / SRE / ITIL:
 - Пирамида тестов (§3.1): branch coverage ≥80% (вместо line) + mutation score ≥60% критичных + уровни integration/contract; пороги растут по tier
@@ -57,9 +85,60 @@ tags: [plans, roadmap]
 - Known Issues operational contract / KEDB (§6.1): реестр `known-issues.md` + per-KI runbook + targeted-алерт + auto-remediation + Patch SLA; шаблоны `known-issues-template.md`, `runbook-KI-template.md`
 - Распространено по агентам s4-dev/s4-techlead/s5-qa/s5-qa-auto/s0-tracker/s0-validate/s6-release/s6-sre + `dod-check.sh`
 
+**Follow-up quality audit (2026-07-21, без release preparation)**
+
+- [x] Проверены 170 regular files и 64 runtime-adapter symlinks, включая 76 command templates.
+- [x] Устранены unsafe menu indexes и потеря failing step/agent/task в Execution Journal.
+- [x] Gate/agent contracts согласованы для non-API, non-DB, CLI/library, images-only
+  и operations-artifacts-only сценариев через явное applicability/N/A evidence.
+- [x] Удалены скрытые PostgreSQL/RLS/UUID/performance/ops threshold defaults;
+  точные значения берутся из HLD/NFR/goal/project gates.
+- [x] Local notes update получил exact Preview и incomplete semantics на первом skip/failure.
+- [x] Все tests/*.sh и syntax всех 19 shell/runtime entry points проходят.
+- [x] CHANGELOG и release notes не изменялись: новый релиз в рамках аудита не готовился.
+
 ---
 
 ### 🔄 Запланировано
+
+#### Порядок развития
+
+1. Завершить недостающие роли и связи Цикла 1: discovery, UX/UAT, static QA,
+   полный контур S5 и release preparation.
+2. Устранить документированные пробелы покрытия ISO/IEC 25010.
+3. Укреплять Cycle 2 дополнительными delivery adapters/evidence только по подтверждённым use cases.
+4. Укреплять Cycle 3 дополнительными operations capabilities только по подтверждённым use cases.
+
+Порядок внутри крупных блоков уточняется зависимостями конкретных агентов. Работающий baseline
+Cycle 2/3 не блокируется будущим расширением Cycle 1.
+
+#### ✅ UX launcher-а — единый Project Console
+
+Редизайн реализован в `sdlc.sh` и `localrun.sh`. Временный UX design package
+после синхронизации общей документации вынесен из продуктового репозитория в
+неавторитетный архив; фактическое использование описывают README,
+GETTING_STARTED и OVERVIEW.
+
+- [x] Один основной `Project Console`, без выбора разных оболочек.
+- [x] Подробный и краткий виды с одинаковыми actions, keys и navigation order.
+- [x] Первый запуск явно предлагает выбрать вид; `v` переключает его позднее.
+- [x] Project selector предшествует project-scoped actions и показывает absolute path.
+- [x] Kickoff имеет явный выход в только C1, Goal route, input review или Console.
+- [x] Goal route, One Cycle, One Agent, Review, Repair и Utilities разделены.
+- [x] Понятный user label `Локальные репозитории`; `Local Run` остаётся internal name.
+- [x] Простой explicit AI assignment и advanced matrix сохраняют Claude/Codex/Gemini/Local,
+  exact local model и запрет silent fallback.
+- [x] Общая Проверка запуска и per-project Execution Journal реализованы.
+- [x] CJM, feature parity, acceptance и tests-before-code обновлены.
+- [x] Behavioral tests написаны и зафиксированы в Red до production code.
+- [x] Новый UI реализован без удаления runtime/model/routing/goal/local-repository функций.
+- [x] README/GETTING_STARTED/OVERVIEW синхронизированы; system contract smoke включает
+  UI/navigation, Preview, Journal, Local Repositories и advanced parity regression.
+- [x] Project-scoped AI routing, frozen step profiles, per-run lease, evidence-first
+  child retry и One Agent Preview закрывают финальный feature-parity audit.
+
+CHANGELOG и
+release notes не обновляются до release preparation.
 
 #### ✅ Новый агент в Цикле 1: s0-quality-gates (этап S0) — СДЕЛАНО
 
@@ -81,38 +160,46 @@ tags: [plans, roadmap]
 
 #### Рефакторинг Цикла 1
 
-**✅ Сделано (v2.000.000):** `sdlc.sh` приведён к модели 3 циклов.
-- [x] `CYCLE_AGENTS` разделён на `CYCLE1_AGENTS` (22 шага), `CYCLE2_AGENTS`, `CYCLE3_AGENTS`
+**✅ Сделано (v2.000.000, затем расширено):** launcher приведён к модели 3 циклов.
+- [x] `CYCLE_AGENTS` разделён на `CYCLE1_AGENTS`, `CYCLE2_AGENTS`, `CYCLE3_AGENTS`; текущий Цикл 1 расширен до 28 обязательных шагов
 - [x] Главное меню: пункт «Запустить цикл» с подменю выбора (Разработка / Деплой / Эксплуатация / Всё сразу)
-- [x] Циклы 2/3 — заглушки «в разработке»
+- [x] Циклы 2/3 отделены от Цикла 1 и реализованы как самостоятельные test-first workflows
 - [x] Меню одиночного запуска сгруппировано по циклам + Tools + Local Run
 - [x] Обновлены `CLAUDE.md`, `OVERVIEW.md`, `README.md`, `GETTING_STARTED.md`
 
-**Проблема (осталось):** `s4-devops`, `s6-release`, `s6-sre` в своих `CLAUDE.md` описывают работу в реальной prod-среде — это логика Циклов 2 и 3, не Цикла 1.
+**Границы baseline закрыты:** `s4-devops` работает в Cycle 2 / Stage 6 и даёт delivery
+evidence для Gate 6; `s6-release` владеет release preparation/checklist и Gate 6;
+`s6-sre` работает только в Cycle 3 / Stage 7. Перенос release preparation в Cycle 1
+остаётся отдельным будущим изменением ниже и не меняет текущий ownership до реализации.
 
-Нужно:
-- [ ] `cycle2-deploy/s4-devops/CLAUDE.md` — переписать под роль: пишет инфра-код (Dockerfile, CI/CD, monitoring) + деплоит в реальную среду
-- [ ] `cycle2-deploy/s6-release/CLAUDE.md` — переписать под роль: release management в реальной среде
-- [ ] `cycle3-ops/s6-sre/CLAUDE.md` — переписать под роль: реальная эксплуатация (мониторинг, SLO, инциденты)
+#### Новый агент в Цикле 1: discovery (этап S0)
 
-#### Новый агент в Цикле 1: s2-test-strategy (этап S2)
+Discovery упомянут в целевой модели S0, но пока не специфицирован и не реализован.
+
+- [ ] Определить имя и границы роли, не дублирующие интервью `s0-kickoff`
+- [ ] Определить входы, выходной артефакт и критерии завершения discovery
+- [ ] Зафиксировать место запуска до S1 и связь с feasibility
+- [ ] После утверждения добавить agent contract, command template и шаг workflow
+
+#### ✅ Новый агент в Цикле 1: s2-test-strategy (этап S2) — СДЕЛАНО
 
 > ⚠️ **Сверка с реализованным:** уровни/типы тестов и пороги покрытия уже формализованы в
 > `quality.md §3.1` (пирамида unit/integration/contract/e2e, branch+mutation). Этот агент НЕ должен
 > их дублировать — его зона: риск-матрица, выбор инструментов, привязка типов к конкретным требованиям
 > (применение §3.1 к проекту), а не переопределение порогов.
 
-`s2-qa-req` только проверяет тестируемость требований. Никто не определяет стратегию тестирования: типы, уровни, инструменты, риски, валидацию бизнес-функций. Стратегия должна закладываться в S2 (Shift Left), а не в S5.
+`s2-qa-req` проверяет тестируемость требований, а `s2-test-strategy` определяет применение
+глобального test standard к конкретному проекту в S2 (Shift Left).
 
 Агент добавляется после `s2-qa-req`.
 
-- [ ] Создать агента `cycle1-dev/s2-test-strategy/`
-- [ ] Роль: QA Strategist — определяет стратегию тестирования на основе требований
-- [ ] Читает: BRD, NFR, PO-backlog, UAT acceptance criteria
-- [ ] Артефакты: `QA-YYYY-MM-DD-test-strategy.md` в `stage2-requirements/outputs/`
-- [ ] Содержание: типы тестирования (unit/integration/E2E/UAT), уровни покрытия, риск-матрица, критерии валидации бизнес-функций, инструменты
-- [ ] `s5-qa` читает test-strategy из S2 и строит test plan на её основе
-- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` после `s2-qa-req:/testability-review`
+- [x] Создать агента `cycle1-dev/s2-test-strategy/`
+- [x] Роль: QA Strategist — определяет стратегию тестирования на основе требований
+- [x] Читает: BRD, NFR, PO-backlog и применимые acceptance criteria
+- [x] Артефакт: `QA-YYYY-MM-DD-test-strategy.md` в `stage2-requirements/outputs/`
+- [x] Содержание: уровни тестирования, risk matrix, traceability, инструменты и Red plan
+- [x] Downstream QA/SDET/Dev читают test-strategy
+- [x] Шаг `s2-test-strategy:/strategy` добавлен после `s2-qa-req:/testability-review`
 
 ---
 
@@ -132,7 +219,7 @@ Security был вшит в Quality Gates (threat model в Gate 3, SAST в Gate 
 Изначально стояла дилемма «перенести `s3-security` в S2 или создать `s2-security`». Выбран **split, а не перенос**: безопасность раскладывается на два уровня вместо перемещения одного агента.
 
 - [x] Создан `s2-security` для **раннего (requirements-level) анализа**: abuse cases, классификация данных, ASVS, security NFR (SG1, S2) — shift-left
-- [x] В S3 остаётся **design-level**: `s3-security` делает STRIDE/DREAD по HLD-компонентам (SG2), развивая security-требования из SG1
+- [x] В S3 остаётся **design-level**: `s3-security` делает threat modeling с CVSS по HLD-компонентам (SG2), развивая security-требования из SG1
 - [x] Цепочка зависимостей обновлена: `s3-security` читает `SEC-*-security-requirements.md` (SG1) как вход; security NFR из S2 идут к `s3-arch`
 - [x] `CYCLE1_AGENTS` обновлён: `s2-security:/security-requirements` после `s2-qa-req`
 
@@ -171,26 +258,27 @@ Security был вшит в Quality Gates (threat model в Gate 3, SAST в Gate 
 
 ---
 
-#### Новый агент в Цикле 1: s4-qa-auto — TDD (этап S4)
+#### ✅ Новый агент в Цикле 1: s4-qa-auto — TDD (этап S4) — СДЕЛАНО
 
-Автотесты сейчас пишутся в S5 после кода. Применяем TDD: тесты пишутся ДО кода в S4.
-`s5-qa-auto` остаётся только для E2E и высокоуровневой автоматизации.
+Unit/integration/contract tests теперь пишутся до production-кода в S4.
+`s5-qa-auto` остаётся владельцем E2E и высокоуровневой автоматизации.
 
 Поток S4 после изменения:
 ```
-s4-qa-auto  → пишет unit + integration тесты на основе требований (Red)
-s4-dev      → пишет код чтобы тесты прошли (Green → Refactor)
-s4-qa       → статический анализ, линтеры, coverage
-s4-techlead → code review
+s4-qa-auto /write-tests → тесты + доказанный Red
+s4-dev /dev-report      → Green/Repair
+s4-qa-auto /run-tests   → независимый PASS или FAIL → повторный Repair/Run
+s4-techlead /review     → code review после PASS
 ```
 
-- [ ] Создать агента `cycle1-dev/s4-qa-auto/`
-- [ ] Роль: SDET (TDD) — пишет unit и integration тесты до написания кода
-- [ ] Читает: BRD, PO-backlog, test-strategy из S2, API spec из S3
-- [ ] Артефакты: тесты в репозитории проекта + `QA-YYYY-MM-DD-tdd-report.md` в `stage4-dev/outputs/`
-- [ ] `s4-dev` получает тесты от `s4-qa-auto` и пишет код чтобы они прошли
-- [ ] Добавить шаг в `CYCLE1_AGENTS` в `sdlc.sh` перед `s4-dev:/dev-report`
-- [ ] Обновить `s5-qa-auto`: убрать unit/integration, оставить только E2E и API автоматизацию
+- [x] Создать агента `cycle1-dev/s4-qa-auto/`
+- [x] Роль: SDET (TDD) — пишет unit/integration/contract tests до production-кода
+- [x] Читает: BRD, PO-backlog, test-strategy из S2, API spec из S3
+- [x] Артефакты: тесты + `QA-YYYY-MM-DD-tdd-report.md` + `QA-TDD-status.md`
+- [x] `s4-dev` допускается только при RED и выполняет Green/Repair
+- [x] Добавлены шаги `/write-tests` до `s4-dev` и `/run-tests` после него
+- [x] FAIL запускает bounded repair loop, PASS разрешает `s4-techlead`, exhaustion = BLOCKED
+- [x] `s5-qa-auto` сохраняет E2E/API high-level automation
 
 ---
 
@@ -301,21 +389,37 @@ s4-techlead → code review
 
 ---
 
-#### Разработка Цикла 2 (Deploy) — 🔮 Долгосрочный план
+#### Пробелы покрытия ISO/IEC 25010
 
-> Разрабатывается отдельно, после завершения Цикла 1. Не в текущем приоритете.
+`_standards/quality.md §4.1` фиксирует характеристики, которые сейчас покрыты частично или не
+гейтятся. Ранее стандарт ссылался на потерянные номера пунктов roadmap; канонический backlog
+восстановлен здесь.
 
-- [ ] Определить агентов и их задачи
-- [ ] Написать `CLAUDE.md` для `s4-devops` и `s6-release` под Цикл 2
-- [ ] Создать лаунчер `cycle2.sh` или интегрировать в `sdlc.sh`
-- [ ] Определить gates между Циклом 1 и Циклом 2
+- [ ] **Compatibility / co-existence:** определить проверку совместной работы с другими системами в целевой среде
+- [ ] **Interaction Capability / Usability:** определить измеримые usability-критерии и владельца проверки
+- [ ] **Accessibility:** определить применимость, стандарт и gate-критерии по risk/tier проекта
+- [ ] **Maintainability:** расширить контроль за пределы complexity/SRP — modularity, reusability, analysability и modifiability
+- [ ] **Flexibility / installability:** определить проверку установки, обновления и заменяемости компонентов
+- [ ] **Quality-in-use:** определить, нужен ли отдельный системный gate поверх UAT и SLO/error budget
+- [ ] **Incident → gate feedback loop:** формализовать, как escaped defect или post-mortem усиливает конкретный gate/стандарт
 
 ---
 
-#### Разработка Цикла 3 (Ops) — 🔮 Долгосрочный план
+#### ✅ Разработка Цикла 2 (Deploy) — СДЕЛАНО
 
-> Разрабатывается отдельно, после завершения Цикла 2. Не в текущем приоритете.
+- [x] Единый revisioned goal profile с infrastructure/deliverable interview
+- [x] Смысловой UI маршрута: только 1 / 1→2 / 1→2→3 / своя комбинация,
+      включение/выключение отдельного цикла и нумерованный выбор deliverables
+- [x] Частичная поздняя корректировка Cycle 2 без повторного Cycle 1
+- [x] Intake → tests/RED → delivery → tests/PASS/repair
+- [x] Интеграция в `sdlc.sh`, DEPLOY-TDD status и Gate 6 blocker
+- [x] Bounded read-only subagents без нового постоянного агента
 
-- [ ] Определить агентов и их задачи
-- [ ] Написать `CLAUDE.md` для `s6-sre` под Цикл 3
-- [ ] Определить gates между Циклом 2 и Циклом 3
+---
+
+#### ✅ Разработка Цикла 3 (Ops) — СДЕЛАНО
+
+- [x] Частично обновляемый revisioned Cycle 3 goal profile
+- [x] Intake → ops tests/RED → configuration → PASS/repair
+- [x] OPS-TDD blocker перед Post-Deploy и Gate 7
+- [x] Bounded read-only subagents для observability/incident/DR/capacity audit

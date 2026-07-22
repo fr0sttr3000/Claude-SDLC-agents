@@ -9,42 +9,45 @@ description: Провести нагрузочное тестирование (s
 2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
 3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-api-spec.yaml (если существует)
 
-Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/:
+Создай применимые файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/:
 - PERF-[дата]-report.md
-- PERF-[дата]-k6-load.js
+- PERF-[дата]-k6-load.js, только если k6 соответствует выбранному workload/tooling
 
 # Performance Report — $ARGUMENTS
 Дата: [сегодня]
 Агент: s5-perf
 
-## NFR Thresholds (из BA-NFR.md или дефолты)
+## NFR Thresholds
+
+Перенеси точные метрики, пороги и единицы из BA-NFR.md и
+tracking/quality-gates.md. Project gates могут только ужесточать global minimum.
+Если обязательный порог отсутствует — верни BLOCKED; не подставляй локальные defaults.
+
 | Метрика | Порог |
 |---------|-------|
-| p50 | < 100ms |
-| p95 | < 300ms |
-| p99 | < 1000ms |
-| error_rate | < 0.1% |
+| {метрика из NFR} | {точный порог + единица + source} |
 
 ## Типы тестов — результаты
 
-### 1. Smoke Test (1 VU, 1 мин)
+Выполняй типы, выбранные project test strategy. Для каждого неприменимого типа
+укажи N/A с BA/HLD evidence. Если performance testing целиком неприменим,
+создай PERF-report с verdict NOT_APPLICABLE и не генерируй фиктивный k6 script.
+
+### 1. Smoke Test
 Цель: система запускается без ошибок
 Результат: PASS / FAIL
 
 ### 2. Load Test (ожидаемая нагрузка)
 | Метрика | Результат | Порог | Статус |
 |---------|---------|-------|--------|
-| p50 | | < 100ms | |
-| p95 | | < 300ms | |
-| p99 | | < 1000ms | |
-| error_rate | | < 0.1% | |
-| RPS | | | |
+| {метрика} | {измерение} | {порог из NFR/gates} | |
 
 ### 3. Stress Test (предельная нагрузка)
 Деградация начинается при: [N] VU / [M] RPS
 Точка отказа: [N] VU / [M] RPS
 
-### 4. Soak Test (нормальная нагрузка, 1+ час)
+### 4. Soak Test
+Длительность и нагрузка: {точные значения из test strategy/NFR}
 Утечки памяти: PASS / FAIL
 Деградация производительности: PASS / FAIL
 
@@ -57,14 +60,15 @@ description: Провести нагрузочное тестирование (s
 [Полный k6 скрипт для воспроизведения тестов]
 
 ## Gate 5 Checklist
-□ Все 4 типа тестов выполнены: smoke, load, stress, soak
-□ NFR пороги проверены: p95 < 300ms, p99 < 1000ms, error < 0.1%
+□ Все применимые типы из project test strategy выполнены; N/A обоснованы
+□ Все применимые NFR/project thresholds проверены; источник каждого числа указан
 □ Красные флаги проверены и задокументированы
 □ Baseline зафиксирован для сравнения в следующем спринте
 □ PERF-report.md передан в stage5-testing/outputs/
 
 ## ВЕРДИКТ
-**PASS** / **CONDITIONAL PASS** / **FAIL**
+**PASS** / **CONDITIONAL PASS** / **FAIL** / **NOT_APPLICABLE**
 Обоснование: ...
 
 FAIL → Gate 5 заблокирован. CONDITIONAL PASS допустим с явным планом устранения.
+NOT_APPLICABLE допустим только с BA/HLD evidence отсутствия performance/load target.

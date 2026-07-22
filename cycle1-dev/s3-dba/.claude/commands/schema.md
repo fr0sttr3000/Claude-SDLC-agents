@@ -1,8 +1,8 @@
 ---
-description: Спроектировать схему базы данных (PostgreSQL, TIMESTAMPTZ, UUID v4)
+description: Спроектировать data-store schema в нативном формате выбранного stack
 ---
 
-Спроектируй схему базы данных для проекта $ARGUMENTS.
+Спроектируй data-store schema для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
@@ -10,34 +10,24 @@ description: Спроектировать схему базы данных (Post
 3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
 4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
 
-Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/:
-- DBA-[дата]-schema.sql
-- DBA-[дата]-schema.dbml
+Сначала определи из HLD/ADR:
+- нужен ли persistent data store;
+- точный engine/версию и schema/migration format;
+- identifier, datetime, money, deletion и consistency contracts.
 
-# Требования к схеме (строго обязательны)
+Если persistent data store не нужен, создай DBA-[дата]-not-applicable.md с причиной
+и HLD evidence. Иначе создай DBA-[дата]-schema в нативном формате выбранного
+engine; SQL/DBML создавай только если они применимы.
 
-## Стандарты полей
-- PK: `UUID DEFAULT gen_random_uuid()` — никогда SERIAL/INTEGER
-- Timestamps: `created_at TIMESTAMPTZ DEFAULT NOW()`, `updated_at TIMESTAMPTZ`, `deleted_at TIMESTAMPTZ` (soft delete)
-- Naming: snake_case, таблицы во мн. числе
-- NOT NULL по умолчанию, NULL только с явным обоснованием
+# Обязательные гарантии
 
-## Критические правила (баги из prod)
-- Все datetime: `TIMESTAMP WITH TIME ZONE` (TIMESTAMPTZ) — никогда WITHOUT TIME ZONE
-- Деньги/финансы: `NUMERIC(12,2)` — никогда FLOAT/REAL/DOUBLE
-- VARCHAR: всегда с явным лимитом `VARCHAR(N)`, не голый VARCHAR
-- Функциональные индексы: только IMMUTABLE функции
+- Типы, nullability, identifiers и constraints трассируются к BRD/HLD.
+- Временные значения сохраняют согласованную timezone semantics.
+- Деньги/точные величины не используют тип с потерей точности.
+- Migration strategy содержит проверяемые forward/rollback действия.
+- Retention/deletion выбираются из requirements; soft delete не является default.
+- Stack-specific правила data-formats.md применяются только к соответствующему stack.
 
-## Обязательная документация в схеме
-- Каждое JSONB-поле: комментарий с примером структуры `-- {"key": "value"}`
-- Каждый ENUM-тип: перечислены все значения + способ добавления нового
-- Каждый CHECK constraint: задокументирован с причиной ограничения
-
-## Gate 3 — DBA Checklist
-□ Все таблицы: PK UUID, created_at, updated_at, deleted_at
-□ Все datetime: TIMESTAMPTZ — grep "WITHOUT TIME ZONE" = 0
-□ Деньги/финансы: NUMERIC — grep "FLOAT\|REAL\|DOUBLE" = 0
-□ Функциональные индексы: только IMMUTABLE функции
-□ Каждое JSONB-поле: комментарий с примером JSON
-□ Каждый VARCHAR: явный лимит
-□ DBA-schema.sql/.dbml переданы в stage3-design/outputs/
+В Gate 3 checklist укажи выбранный engine/format, identifier strategy,
+применимые format checks, migration evidence и обоснованные N/A. Не подставляй
+PostgreSQL, SQLAlchemy, UUID, TIMESTAMPTZ или soft delete без выбора проекта.

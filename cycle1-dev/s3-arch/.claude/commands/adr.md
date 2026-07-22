@@ -1,11 +1,15 @@
 ---
-description: Создать Architecture Decision Record
+description: Создать ADR из HLD candidates или для явно указанного решения
 ---
 
-Создай ADR для решения: $ARGUMENTS
-(формат: "project-name: решение для документирования")
+Первый токен $ARGUMENTS — PROJECT. Остаток, если он есть, — точное решение для
+standalone ADR. Launcher может передать только PROJECT.
 
-Прочитай существующие ADR в:
-$SDLC_PROJECTS_DIR/[project]/stage3-design/outputs/ARCH-ADR-*.md
+Прочитай ARCH-HLD.md и существующие ADR в:
+$SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/.
 
-Создай новый ADR. Матрица: минимум 3 варианта по 6 критериям.
+Если решение явно передано — создай ADR для него. Если передан только PROJECT,
+извлеки из HLD все ADR candidates/нетривиальные решения и создай недостающие ADR.
+Не выдумывай candidate, которого нет в HLD. Для каждого ADR сравни минимум три
+реально применимых варианта по проектным критериям; если вариантов меньше,
+зафиксируй evidence и причину, а не добавляй фиктивный вариант.

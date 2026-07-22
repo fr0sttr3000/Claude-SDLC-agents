@@ -2,16 +2,22 @@
 
 > Единственный источник истины по форматам данных в системе.
 > Читается агентами: **s2-ba, s3-dba, s4-dev, s5-qa-auto**.
-> Правила не опциональны — нарушение = BLOCKER.
+> Применимые правила не опциональны — нарушение = BLOCKER. Конкретный data stack,
+> ORM и стратегия идентификаторов берутся из HLD/ADR проекта, без silent defaults.
 
 ---
 
-## 1. Типы данных: БД ↔ ORM ↔ Python — обязательное соответствие
+## 1. Типы данных: БД ↔ ORM ↔ язык — обязательное соответствие
+
+Таблица ниже применяется только если выбран PostgreSQL + SQLAlchemy + Python.
+Для другого stack используй его нативные типы с теми же гарантиями контракта
+(timezone, точность денег, ограничения строк и проверяемая schema). UUID v4
+проверяется только если эта стратегия идентификаторов явно выбрана в HLD/ADR.
 
 | PostgreSQL | SQLAlchemy ORM | Python | Правило |
 |-----------|----------------|--------|---------|
 | `TIMESTAMPTZ` | `TIMESTAMP(timezone=True)` | `datetime` (aware, UTC) | **ВСЕГДА WITH TIME ZONE** |
-| `UUID` | `UUID` / `String(36)` | `uuid.UUID` | PK только UUID v4 |
+| `UUID` | `UUID` / `String(36)` | `uuid.UUID` | UUID v4 только при выбранном UUID-v4 contract |
 | `VARCHAR(N)` | `String(N)` | `str` | Лимит N — обязателен |
 | `TEXT` | `Text()` | `str` | Только для неограниченного текста |
 | `INTEGER` | `Integer()` | `int` | Счётчики, малые числа |
@@ -88,7 +94,7 @@ def parse_list(cls, v):
 | Тип данных | Формат в JSON | Пример |
 |-----------|--------------|--------|
 | Дата/время | ISO 8601 UTC | `"2026-05-10T12:00:00Z"` |
-| UUID | строка UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
+| Identifier | формат из API contract; например UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
 | Деньги | строка с 2 знаками | `"12.50"` (не `12.5`, не `float`) |
 | Булево | `true` / `false` | не `1`/`0`, не `"yes"`/`"no"` |
 | Enum | строка-значение | документировать в OpenAPI `enum: [...]` |
@@ -142,8 +148,9 @@ class TestEnvFormat:
 
     def test_bool_var_rejects_numeric(self, monkeypatch):
         """bool-переменные: '1'/'0' недопустимы (если не сконфигурировано)"""
-        # Документировать поведение явно в README
-        pass
+        monkeypatch.setenv("DEBUG", "1")
+        with pytest.raises(ValidationError):
+            Settings()
 
     def test_url_var_valid_format(self, monkeypatch):
         """URL-переменные валидируются как корректный URL"""
@@ -203,7 +210,7 @@ class TestDBFormat:
             await db_session.commit()
 
     async def test_pk_uuid_v4_format(self, db_session):
-        """Primary Key: всегда UUID v4"""
+        """PK соответствует явно выбранному UUID-v4 contract"""
         record = await create_test_record(db_session)
         pk = record.id
         parsed = uuid.UUID(str(pk))
@@ -274,8 +281,8 @@ class TestAPIFormat:
         dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
         assert dt.tzinfo is not None
 
-    async def test_uuid_response_valid_format(self, client):
-        """UUID в ответах API: строка UUID v4"""
+    async def test_identifier_matches_api_contract(self, client):
+        """Identifier соответствует выбранному API contract; ниже пример UUID v4"""
         response = await client.get("/items/1")
         item_id = response.json()["id"]
         parsed = uuid.UUID(item_id)
@@ -330,23 +337,22 @@ class TestAPIFormat:
 
 ### s3-dba — при проектировании схемы
 ```
-□ Все datetime: TIMESTAMP WITH TIME ZONE (TIMESTAMPTZ) — без исключений
-□ Все PK: UUID v4 (тип UUID, не VARCHAR)
-□ Деньги/финансы: NUMERIC(p,s), не FLOAT/DOUBLE
-□ JSONB-поля: задокументирована структура с примером
-□ ENUM-типы: перечислены значения, путь изменения через миграцию описан
-□ VARCHAR-поля: указан лимит N
-□ CHECK constraints задокументированы (диапазоны, паттерны)
-□ Функциональные индексы: только IMMUTABLE функции
+□ Сначала зафиксированы выбранный data store и применимость SQL/PostgreSQL-правил
+□ Для PostgreSQL: datetime = TIMESTAMPTZ, деньги = NUMERIC(p,s), JSONB schema документирована
+□ Для другого store: зафиксированы stack-native эквиваленты timezone, decimal precision,
+  identifier, enum/schema validation и migration rollback; молчаливый PostgreSQL default запрещён
+□ PK/identifier strategy обоснована требованиями и совместимостью, а не выбрана скрытым default
 ```
 
 ### s4-dev — при реализации
+Проверяй только применимые к выбранному stack пункты; неприменимые фиксируй N/A
+со ссылкой на HLD/ADR.
 ```
-□ tests/test_env_format.py создан и содержит тесты из §4.1
-□ tests/test_db_format.py создан и содержит тесты из §4.2
-□ tests/test_api_format.py создан и содержит тесты из §4.3
-□ Все ORM-поля datetime: mapped_column(TIMESTAMP(timezone=True), ...)
-□ Все list/set env-переменные: validator с mode="before", обрабатывает str/list
+□ tests/test_env_format.py создан при наличии pydantic-settings и содержит тесты из §4.1
+□ tests/test_db_format.py создан при наличии SQLAlchemy/asyncpg и содержит тесты из §4.2
+□ tests/test_api_format.py создан при наличии HTTP API и содержит тесты из §4.3
+□ Для SQLAlchemy/PostgreSQL ORM datetime: mapped_column(TIMESTAMP(timezone=True), ...)
+□ Для pydantic-settings list/set env: validator с mode="before", обрабатывает str/list
 □ ENV-спецификация в README: таблица с типом и форматом каждой переменной
 □ Нет Mapped[datetime] без явного TIMESTAMP(timezone=True)
 ```
@@ -365,18 +371,16 @@ class TestAPIFormat:
 
 ### Gate 3 (S3 → S4) — дополнительные чеклисты форматов
 ```
-□ DBA-schema: все datetime TIMESTAMPTZ, все PK UUID, NUMERIC для денег
-□ DBA-schema: все JSONB-поля с задокументированной структурой
-□ DBA-schema: все ENUM-типы перечислены с допустимыми значениями
+□ Для выбранного PostgreSQL: datetime TIMESTAMPTZ и NUMERIC для денег
+□ PK соответствует выбранной в HLD/ADR стратегии; UUID v4 не является default
+□ Для выбранного PostgreSQL: JSONB/ENUM задокументированы согласно schema contract
 □ ENV-спецификация: все переменные задокументированы с форматами (s2-ba → s3-arch)
 ```
 
 ### Gate 4 (S4 → S5) — дополнительные чеклисты форматов
 ```
-□ tests/test_env_format.py существует, все тесты проходят
-□ tests/test_db_format.py существует, все тесты проходят
-□ tests/test_api_format.py существует, все тесты проходят
-□ Нет Mapped[datetime] без TIMESTAMP(timezone=True) (grep/SAST)
-□ Нет list/set env без JSON-validator (grep/code review)
+□ Применимые format tests существуют и проходят; N/A имеет HLD/ADR evidence
+□ Для SQLAlchemy/PostgreSQL нет Mapped[datetime] без TIMESTAMP(timezone=True)
+□ Для pydantic-settings нет list/set env без JSON-validator
 □ README содержит таблицу ENV с типами и форматами
 ```
