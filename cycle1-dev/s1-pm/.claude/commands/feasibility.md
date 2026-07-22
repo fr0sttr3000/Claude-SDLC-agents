@@ -14,6 +14,8 @@ description: Запустить полный или частичный Feasibili
 - **scope:minimal** — только Executive Summary + Топ-5 рисков + ВЕРДИКТ
 
 Если PROJECT не указан → спроси: «Для какого проекта запускаем Feasibility Study?»
+После разбора используй только переменную {PROJECT} для путей. Флаги не являются
+частью имени каталога.
 
 ---
 
@@ -21,7 +23,7 @@ description: Запустить полный или частичный Feasibili
 
 Прочитай:
 1. `$SDLC_VAULT/_agents/_standards/company.md`
-2. Все файлы из `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/inputs/`
+2. Все файлы из `$SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/`
 
 Из `idea.md` извлеки и запомни:
 - `## As-Is` → для Technical и Economic секций
@@ -61,7 +63,7 @@ description: Запустить полный или частичный Feasibili
 
 ## Шаг 4 — Создать артефакт
 
-Файл: `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PM-{ДАТА}-feasibility.md`
+Файл: `$SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/PM-{ДАТА}-feasibility.md`
 
 ---
 

@@ -1,17 +1,24 @@
 ---
-description: Провести Threat Modeling (STRIDE + DREAD + OWASP Top 10)
+description: Провести Threat Modeling (STRIDE + CVSS + OWASP)
 ---
 
 Проведи Threat Modeling для проекта $ARGUMENTS.
 
 Прочитай:
-1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
+1. $SDLC_VAULT/_agents/_standards/security.md
+2. $SDLC_VAULT/_agents/_standards/quality.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/PMO-constraints.md
+4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-*-BRD.md
+5. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-*-NFR.md
+6. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/SEC-*-security-requirements.md (SG1)
+7. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-*-HLD.md
+8. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-*-api-spec.yaml (если применимо)
 
 Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/:
 - SEC-[дата]-threat-model.md
-- SEC-[дата]-security-requirements.md
+
+Не создавай повторно security requirements: SG1 принадлежит `s2-security`; здесь он развивается
+в design controls и SG2 evidence.
 
 # Threat Model — $ARGUMENTS
 Дата: [сегодня]
@@ -33,11 +40,9 @@ description: Провести Threat Modeling (STRIDE + DREAD + OWASP Top 10)
 - **D**enial of Service — отказ в обслуживании
 - **E**levation of Privilege — повышение привилегий
 
-## DREAD Scoring (для каждой угрозы)
-| Угроза | D | R | E | A | D | Score | Severity |
-|--------|---|---|---|---|---|-------|----------|
-
-Score = среднее. Critical >8 / High 6-8 / Medium 4-6 / Low <4
+## Severity (для каждой подтверждённой уязвимости)
+Используй CVSS и уровни из `_standards/security.md`; DREAD можно добавить только как
+неблокирующий design-prioritization signal, но не как release severity.
 
 ## OWASP Top 10 — статус по каждому пункту
 | A0N | Название | Применимо? | Контроль | Статус |
@@ -53,16 +58,15 @@ Score = среднее. Critical >8 / High 6-8 / Medium 4-6 / Low <4
 | A09 | Logging Failures | | | |
 | A10 | SSRF | | | |
 
-## Security Requirements (для s4-dev)
-[Сформировать как FR/NFR с конкретными требованиями к реализации]
+## Design Controls (для s4-dev и security tests)
+[Контрмеры с ссылками на SG1/FR/NFR/threat IDs и проверяемыми test criteria]
 
 ## Gate 3 — Security Checklist
 □ STRIDE выполнен для всех компонентов из HLD
-□ DREAD scoring выполнен для каждой угрозы
-□ 0 нераскрытых Critical угроз (DREAD > 8)
-□ 0 нераскрытых High угроз (DREAD 6-8)
+□ CVSS severity выставлена для каждой подтверждённой уязвимости
+□ 0 открытых Critical/High по CVSS
 □ OWASP Top 10 проверен и каждый пункт адресован
-□ Security requirements переданы s4-dev
+□ SG1 requirements развиты в design controls и test criteria
 
 ## ВЕРДИКТ
 **PASS** / **CONDITIONAL PASS** / **FAIL**

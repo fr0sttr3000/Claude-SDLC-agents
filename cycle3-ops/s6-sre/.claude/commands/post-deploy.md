@@ -1,61 +1,29 @@
 ---
-description: Создать Post-Deploy отчёт (мониторинг T+0..T+60, rollback-критерии)
+description: Проверить post-deploy только после PASS ops tests
 ---
 
-Создай Post-Deploy Report для проекта $ARGUMENTS.
+# /post-deploy
 
-Прочитай:
-1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEVOPS-runbook.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/REL-checklist.md
+Выполни разрешённую post-deploy проверку проекта $ARGUMENTS.
 
-Создай файл SRE-[дата]-post-deploy-report.md в:
-$SDLC_PROJECTS_DIR/$ARGUMENTS/stage6-deploy/outputs/
+До действий прочитай tracking/SDLC-goals.md,
+stage7-ops/outputs/OPS-TDD-status.md: PASS, ops test report, Gate 6 evidence,
+deploy report и актуальный runbook.
 
-# Post-Deploy Report — $ARGUMENTS
-Дата деплоя: [дата]
-Версия: v[X.Y.Z]
-Агент: s6-sre
+Сначала проверь применимость observation к cycle3_deliverables. Если post-deploy
+observation не требуется выбранным monitoring/alerts/reporting/execute-ops scope,
+создай stage7-ops/outputs/SRE-YYYY-MM-DD-post-deploy-not-applicable.md с
+`applicability: not-applicable`, goal revision и причиной; live action не выполняй.
+Если observation требуется, но нет безопасного read access/authorization, верни BLOCKED.
 
-## Pre-Deploy Checklist
-□ REL-*-checklist.md получен и Gate 6 PASSED
-□ Rollback-процедура задокументирована и протестирована
-□ SLO определён, Error Budget рассчитан
-□ Мониторинг активен: алерты на SLO breach настроены
-□ Backup БД сделан
+- Scope ограничен cycle3_deliverables и точной goal_profile_revision.
+- Live actions требуют execute-ops, точной identity/authorization, maintenance
+  window, stop conditions и rollback; иначе только read-only observation.
+- Собери измерения в интервалы из актуального goal/NFR/quality-gates. Если
+  cadence не задан, верни BLOCKED — не подставляй локальные интервалы.
+- При нарушении утверждённого rollback threshold следуй runbook; не придумывай
+  пороги и не повторяй действие автоматически.
+- Запиши команды/queries, измерения, incident/rollback decision и revision в
+  stage7-ops/outputs/SRE-YYYY-MM-DD-post-deploy-report.md.
 
-## Мониторинг по времени
-
-### T+0 (деплой завершён)
-□ Dashboard открыт, метрики текут
-□ error_rate: [%] | p95 latency: [ms] | pod status: [OK/FAIL]
-
-### T+5
-□ error_rate: [%] | p95: [ms] | DB connections: [N]
-□ Аномалии: [описание или "нет"]
-
-### T+15
-□ throughput: [RPS] | memory: [MB] | DB connections: [N]
-□ Сравнение с baseline: [лучше/хуже/норма]
-
-### T+30
-□ Сравнение с предыдущим деплоем: [описание]
-□ Аномалии: [описание или "нет"]
-
-### T+60 — Final Assessment
-□ Итоговое состояние: [стабильно / деградация / откат]
-□ error_rate за 60 мин: [%]
-□ SLO за период: [%]
-
-## Критерии Rollback — статус
-| Критерий | Порог | Факт | Сработал? |
-|---------|-------|------|----------|
-| error_rate | > 5% за 2 мин | | |
-| Pod restarts | > 3 за 10 мин | | |
-| p95 latency | > 3× baseline за 5 мин | | |
-
-## Вывод
-**Деплой:** УСПЕШЕН / ОТКАТ ВЫПОЛНЕН
-**Следующие шаги:** [описание]
-
-→ s6-sre: /gate7 через 7 дней для SLO Review и Gate 7.
+Subagents допустимы только для bounded read-only анализа evidence.

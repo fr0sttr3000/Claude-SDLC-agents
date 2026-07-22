@@ -16,20 +16,25 @@ $SDLC_VAULT/_agents/_standards/quality.md
 ## Пути файлов
 Читай:
   $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
+  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml (если есть API)
 Пиши отчёты в: $SDLC_PROJECTS_DIR/{PROJECT}/stage5-testing/outputs/
 
-## NFR Thresholds (дефолты если не указано)
-p50 < 100ms / p95 < 300ms / p99 < 1000ms / error_rate < 0.1%
+## NFR Thresholds
+Используй точные пороги из `BA-NFR.md` и `tracking/quality-gates.md` (project gates могут только
+ужесточать global minimum). Если обязательная метрика не определена — BLOCKED; не подставляй
+локальные числа из примеров или инструментов.
 
 ## Типы тестов
-smoke / load / stress / soak
+smoke / load / stress / soak — только применимые к workload и test strategy.
+Для CLI/library/offline проекта используй его измеримый workload. NOT_APPLICABLE допустим
+только при явном BA/HLD evidence, что performance/load target отсутствует.
 
 ## Красные флаги
 Sawtooth → memory leak / Long tail p99>>p95 → lock contention / Error rate растёт → pool exhausted
 
 ## Вердикт
-PASS | FAIL | CONDITIONAL PASS
+PASS | FAIL | CONDITIONAL PASS | NOT_APPLICABLE
 
 ## Именование файлов
 PERF-YYYY-MM-DD-report.md
@@ -40,8 +45,8 @@ PERF-YYYY-MM-DD-k6-load.js
 
 □ DoR-1: QA-*-test-plan.md существует в stage5-testing/outputs/ (для координации сценариев)
 □ DoR-1: BA-NFR.md существует в stage2-requirements/outputs/ с числовыми порогами (p95, error rate)
-□ DoR-1: ARCH-api-spec.yaml существует — список endpoints для нагрузочного тестирования
-□ DoR-4: NFR содержат конкретные пороги с единицами (мс, RPS, %) — не "быстро"
+□ DoR-1: ARCH-api-spec.yaml существует при наличии API; иначе HLD задаёт иной workload или N/A
+□ DoR-4: Применимые NFR содержат конкретные пороги с единицами — не "быстро"
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать нагрузочное тестирование.
 
@@ -54,25 +59,25 @@ PERF-YYYY-MM-DD-k6-load.js
 
 ## Quality Gate — вклад в Gate 5 (Performance)
 Перед завершением работы проверь:
-□ Все 4 типа тестов выполнены: smoke, load, stress, soak
-□ NFR пороги из quality.md §3 проверены: p95<500ms, p99<2000ms, error<0.1%
+□ Все типы из project test strategy выполнены; каждый N/A имеет BA/HLD evidence
+□ Все применимые точные пороги из BA-NFR/project gates проверены; источник каждого числа указан
 □ Красные флаги проверены: sawtooth (memory leak?), long tail p99 (locks?)
 □ Baseline зафиксирован для сравнения в следующем спринте
-□ Вердикт выставлен: PASS / CONDITIONAL PASS / FAIL с обоснованием
+□ Вердикт выставлен: PASS / CONDITIONAL PASS / FAIL / NOT_APPLICABLE с evidence
 □ PERF-report.md передан в stage5-testing/outputs/
 Если FAIL — Gate 5 заблокирован. CONDITIONAL PASS допустим с явным планом устранения.
 
 ## DoD — Definition of Done (Тип К — Код)
 Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
 
-□ DoD-1: Тест-скрипты структурированы: отдельные файлы для smoke/load/stress/soak
-□ DoD-2: Все 4 типа тестов выполнены и результаты зафиксированы
+□ DoD-1: Тест-скрипты структурированы по применимым типам из project strategy
+□ DoD-2: Все применимые типы выполнены; N/A зафиксирован с evidence
 □ DoD-3: Отчёт проверен: baseline сравнение, красные флаги проанализированы
 □ DoD-4: Вердикт PASS/CONDITIONAL PASS/FAIL с конкретным обоснованием
-□ DoD-5: docs/CHANGELOG.md обновлён
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет игнорированных FAIL-результатов без задокументированной причины
 □ DoD-8: Нет секретов и URL prod-систем в тест-скриптах
-□ DoD-9: Все NFR-пороги из BA-NFR.md проверены: p95, p99, error_rate, availability
+□ DoD-9: Все применимые performance NFR из BA-NFR.md проверены без invented metrics
 □ DoD-10: PERF-*-report.md записан в stage5-testing/outputs/ с явным вердиктом
 □ DoD-11: k6-скрипты содержат thresholds, совпадающие с NFR-порогами
 

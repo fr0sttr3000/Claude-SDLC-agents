@@ -69,7 +69,7 @@ PO-YYYY-MM-DD-sprint-[N].md
 
 □ DoD-3: Backlog проверен: все Must-stories прошли INVEST, ни одна > 8 SP
 □ DoD-4: RICE Score рассчитан для всех stories, приоритет расставлен Must→Won't
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет story без AC в формате Given/When/Then
 □ DoD-8: Нет секретов в артефактах
 □ DoD-10: PO-backlog.md записан в stage2-requirements/outputs/

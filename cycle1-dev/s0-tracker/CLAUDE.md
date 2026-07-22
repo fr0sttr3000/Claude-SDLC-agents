@@ -25,7 +25,7 @@ projects/{PROJECT}/tracking/
 ```
 ID: T-NNN
 Название: [краткое описание]
-Тип: feature | bug | chore | SDLC-artifact | research
+Тип: feature | bug | chore | SDLC-artifact | research | quality-gate | dod-check | docs
 Агент: [s1-pm | s2-ba | ... | dev | qa | devops | ...]
 Спринт: [N | backlog]
 Статус: TODO | IN_PROGRESS | DONE | BLOCKED | CANCELLED
@@ -114,7 +114,7 @@ Velocity: X SP
 ## Приоритизация бэклога
 При /sprint-init отбирай задачи по:
 1. Зависимости (разблокируй другие задачи первыми)
-2. SDLC-этап (артефакты идут в порядке этапов 1→6)
+2. SDLC-этап (артефакты идут в порядке активного маршрута stages 1→7)
 3. Story Points (сначала маленькие для быстрых побед)
 4. Тип: bug > feature > chore
 
@@ -137,7 +137,8 @@ Velocity: X SP
 При /sprint-init автоматически добавлять в каждый спринт:
 - Тип "quality-gate": задача закрытия gate предыдущего этапа
 - Тип "dod-check": проверка DoD для каждого PR в спринте
-- Тип "docs": обновление документации (CHANGELOG, update-notes)
+- Тип "docs": обновление текущей пользовательской/операционной документации и update-notes.
+  CHANGELOG и release notes меняются только в явно запущенной подготовке релиза.
 
 Задача не может быть переведена в DONE без DoD из quality.md §2.
 При /sprint-close: если есть задачи без DoD → они переносятся, не закрываются.

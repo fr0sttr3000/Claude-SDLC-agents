@@ -1,193 +1,184 @@
 #!/usr/bin/env bash
-# DoR Auto-Check — проверяет автоматизируемые пункты DoR
+# DoR Auto-Check — автоматизируемая часть готовности Quality Gate.
 # Использование: bash dor-check.sh <PROJECT_PATH> <GATE>
-# GATE: 1|2|3|4|5|6
-#
-# Автоматически проверяет: DoR-1, DoR-2*, DoR-3*, DoR-4*, DoR-5, DoR-7, DoR-8
-# Пометка * — частичная проверка (выявляет грубые нарушения, не гарантирует полноту)
-# Не автоматизированы: DoR-6 (scope/команда — субъективно)
+# GATE: 1|2|3|4|5|6 (номер закрываемого gate, не номер следующего stage).
 
 set -euo pipefail
 
 PROJECT_PATH="${1:?Укажи путь к проекту}"
 GATE="${2:?Укажи gate: 1|2|3|4|5|6}"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+[[ -d "$PROJECT_PATH" ]] || { echo "Проект не найден: $PROJECT_PATH" >&2; exit 2; }
+[[ "$GATE" =~ ^[1-6]$ ]] || { echo 'Gate должен быть целым числом 1..6' >&2; exit 2; }
+PROJECT_PATH="$(cd "$PROJECT_PATH" && pwd -P)"
 
-PASS=0
-FAIL=0
-WARN=0
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+PASS=0; FAIL=0; WARN=0
 
-pass() { echo -e "  ${GREEN}✅ $1${NC}"; ((PASS++)); }
-fail() { echo -e "  ${RED}❌ $1${NC}"; ((FAIL++)); }
-warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; ((WARN++)); }
+pass() { echo -e "  ${GREEN}✅ $1${NC}"; PASS=$((PASS + 1)); }
+fail() { echo -e "  ${RED}❌ $1${NC}"; FAIL=$((FAIL + 1)); }
+warn() { echo -e "  ${YELLOW}⚠️  $1${NC}"; WARN=$((WARN + 1)); }
 
-echo ""
-echo "╔═ DoR Auto-Check — Gate ${GATE} ══════════════════════════════╗"
-echo "  Проект: ${PROJECT_PATH}"
-echo "╠══════════════════════════════════════════════════════════════╣"
-
-# ── DoR-1: Артефакты предыдущего этапа ─────────────────────────────
-echo ""
-echo "  [DoR-1] Артефакты предыдущего этапа"
+first_match() {
+  local pattern="$1"
+  find "$PROJECT_PATH" -type f -path "$PROJECT_PATH/$pattern" -print -quit 2>/dev/null
+}
 
 check_file_exists() {
-  local pattern="$1"
-  local label="$2"
-  if ls ${PROJECT_PATH}/${pattern} 2>/dev/null | grep -q .; then
-    pass "${label}"
+  local pattern="$1" label="$2" match
+  match="$(first_match "$pattern")"
+  if [[ -n "$match" ]]; then
+    pass "$label"
   else
-    fail "${label} — НЕ НАЙДЕН"
+    fail "$label — НЕ НАЙДЕН"
   fi
 }
 
-case "${GATE}" in
-  2) # Gate 1 → S2: проверяем outputs S1
-    check_file_exists "stage1-planning/outputs/PM-*feasibility*.md"  "PM-feasibility.md"
-    check_file_exists "stage1-planning/outputs/PMO-*charter*.md"      "PMO-charter.md"
+check_file_or_na() {
+  local pattern="$1" na_pattern="$2" label="$3" match na
+  match="$(first_match "$pattern")"
+  na="$(first_match "$na_pattern")"
+  if [[ -n "$match" ]]; then
+    pass "$label"
+  elif [[ -n "$na" ]] && grep -Eqi 'applicability:[[:space:]]*not-applicable|status:[[:space:]]*not-applicable' "$na"; then
+    pass "$label — явно not-applicable"
+  else
+    fail "$label — нет артефакта или обоснованного not-applicable decision"
+  fi
+}
+
+check_status_pass() {
+  local pattern="$1" label="$2" match
+  match="$(first_match "$pattern")"
+  if [[ -z "$match" ]]; then
+    fail "$label — НЕ НАЙДЕН"
+  elif grep -Eqi '(^|[[:space:]])(status:[[:space:]]*PASS|GATE[[:space:]]+[0-9]+[[:space:]]+PASSED)([[:space:]]|$)' "$match"; then
+    pass "$label — PASS"
+  else
+    fail "$label — PASS/PASSED не подтверждён"
+  fi
+}
+
+echo
+echo "╔═ DoR Auto-Check — Gate ${GATE} ══════════════════════════════╗"
+echo "  Проект: ${PROJECT_PATH}"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo
+echo '  [DoR-1] Обязательные артефакты и evidence'
+
+case "$GATE" in
+  1)
+    check_file_exists 'stage1-planning/outputs/PM-*feasibility*.md' 'PM-feasibility.md'
+    check_file_exists 'stage1-planning/outputs/PMO-*charter*.md' 'PMO-charter.md'
+    check_file_exists 'stage1-planning/outputs/PMO-*risk-register*.md' 'PMO-risk-register.md'
     ;;
-  3) # Gate 2 → S3: проверяем outputs S2
-    check_file_exists "stage2-requirements/outputs/BA-*BRD*.md"       "BA-BRD.md"
-    check_file_exists "stage2-requirements/outputs/BA-*NFR*.md"       "BA-NFR.md"
-    check_file_exists "stage2-requirements/outputs/PO-*backlog*.md"   "PO-backlog.md"
-    check_file_exists "stage2-requirements/outputs/QA-REQ-*review*.md" "QA-REQ-review.md"
+  2)
+    check_file_exists 'stage2-requirements/outputs/BA-*BRD*.md' 'BA-BRD.md'
+    check_file_exists 'stage2-requirements/outputs/BA-*NFR*.md' 'BA-NFR.md'
+    check_file_exists 'stage2-requirements/outputs/BA-*RTM*.md' 'BA-RTM.md'
+    check_file_exists 'stage2-requirements/outputs/PO-*backlog*.md' 'PO-backlog.md'
+    check_status_pass 'stage2-requirements/outputs/QA-REQ-*review*.md' 'QA-REQ-review.md / Gate 2'
+    check_file_exists 'stage2-requirements/outputs/QA-*test-strategy*.md' 'QA-test-strategy.md'
+    check_file_exists 'stage2-requirements/outputs/SEC-*security-requirements*.md' 'SEC-security-requirements.md / SG1'
     ;;
-  4) # Gate 3 → S4: проверяем outputs S3
-    check_file_exists "stage3-design/outputs/ARCH-*HLD*.md"           "ARCH-HLD.md"
-    check_file_exists "stage3-design/outputs/ARCH-*api-spec*.yaml"    "ARCH-api-spec.yaml"
-    check_file_exists "stage3-design/outputs/SEC-*threat-model*.md"   "SEC-threat-model.md"
-    check_file_exists "stage3-design/outputs/DBA-schema*"             "DBA-schema"
-    check_file_exists "stage3-design/outputs/RBAC-*model*.md"         "RBAC-model.md"
-    check_file_exists "stage3-design/outputs/RBAC-*matrix*.md"        "RBAC-matrix.md"
+  3)
+    check_file_exists 'stage3-design/outputs/ARCH-*HLD*.md' 'ARCH-HLD.md'
+    check_file_or_na 'stage3-design/outputs/ARCH-*api-spec*.yaml' \
+      'stage3-design/outputs/ARCH-*api-not-applicable*.md' 'API contract decision'
+    check_file_exists 'stage3-design/outputs/SEC-*threat-model*.md' 'SEC-threat-model.md / SG2'
+    check_file_or_na 'stage3-design/outputs/RBAC-*model*.md' \
+      'stage3-design/outputs/RBAC-*not-applicable*.md' 'RBAC model decision'
+    check_file_or_na 'stage3-design/outputs/RBAC-*matrix*.md' \
+      'stage3-design/outputs/RBAC-*not-applicable*.md' 'RBAC matrix decision'
+    check_file_or_na 'stage3-design/outputs/DBA-schema*' \
+      'stage3-design/outputs/DBA-*not-applicable*.md' 'Data-store schema decision'
     ;;
-  5) # Gate 4 → S5: проверяем outputs S4
-    check_file_exists "stage4-dev/outputs/TL-*review-PR*.md"          "TL-review (хотя бы один)"
-    check_file_exists "stage4-dev/outputs/DEV-*update-notes-PR*.md"   "DEV-update-notes"
+  4)
+    check_file_exists 'stage4-dev/outputs/TL-*review-PR*.md' 'TL-review (хотя бы один)'
+    check_file_exists 'stage4-dev/outputs/DEV-*update-notes-PR*.md' 'DEV-update-notes'
+    check_status_pass 'stage4-dev/outputs/QA-TDD-status.md' 'QA-TDD-status.md'
+    check_file_exists 'stage4-dev/outputs/SEC-*build-scan-PR*.md' 'SEC build scan / SG3'
     ;;
-  6) # Gate 5 → S6: проверяем outputs S5
-    check_file_exists "stage5-testing/outputs/QA-*go-no-go*.md"       "QA-go-no-go.md"
-    check_file_exists "stage5-testing/outputs/PERF-*report*.md"       "PERF-report.md"
-    check_file_exists "stage5-testing/outputs/AUTO-*coverage*.md"     "AUTO-coverage.md"
+  5)
+    check_status_pass 'stage5-testing/outputs/QA-*go-no-go*.md' 'QA-go-no-go.md / Gate 5'
+    check_file_exists 'stage5-testing/outputs/PERF-*report*.md' 'PERF-report.md'
+    check_file_exists 'stage5-testing/outputs/AUTO-*coverage*.md' 'AUTO-coverage.md'
+    check_status_pass 'stage5-testing/outputs/SEC-*pentest-report*.md' 'SEC pentest / SG4'
     ;;
-  7) # Gate 6 → PROD: проверяем outputs S6
-    check_file_exists "stage6-deploy/outputs/REL-*checklist*.md"      "REL-checklist.md"
-    check_file_exists "stage6-deploy/outputs/REL-*release-notes*.md"  "REL-release-notes.md"
+  6)
+    check_status_pass 'stage6-deploy/outputs/DEPLOY-TDD-status.md' 'DEPLOY-TDD-status.md'
+    check_status_pass 'stage6-deploy/outputs/REL-*checklist*.md' 'REL-checklist.md'
+    check_file_exists 'stage6-deploy/outputs/REL-*release-notes*.md' 'REL-release-notes.md'
+    if [[ -f "$PROJECT_PATH/CHANGELOG.md" ]]; then
+      pass 'CHANGELOG.md'
+    else
+      fail 'CHANGELOG.md — НЕ НАЙДЕН в корне проекта'
+    fi
     ;;
 esac
 
-# ── DoR-5: Нет открытых BLOCKER-вопросов ───────────────────────────
-echo ""
-echo "  [DoR-5] Открытые BLOCKER-вопросы (частичная проверка)"
-
+echo
+echo '  [DoR-5] Открытые BLOCKER-вопросы (частичная проверка)'
 BLOCKER_COUNT=0
-for f in $(find "${PROJECT_PATH}" -name "*.md" -path "*/outputs/*" 2>/dev/null); do
-  count=$(grep -ci "BLOCKER.*OPEN\|OPEN.*BLOCKER" "$f" 2>/dev/null || true)
+while IFS= read -r -d '' file; do
+  count="$(grep -Ei 'BLOCKER.*OPEN|OPEN.*BLOCKER' "$file" 2>/dev/null |
+    grep -Evi 'no[[:space:]]+open[[:space:]]+blocker|нет[[:space:]]+открытых[[:space:]]+blocker' |
+    wc -l || true)"
   BLOCKER_COUNT=$((BLOCKER_COUNT + count))
-done
-
-if [ "${BLOCKER_COUNT}" -eq 0 ]; then
-  pass "0 открытых BLOCKER найдено в outputs/"
+done < <(find "$PROJECT_PATH" -type f -name '*.md' -path '*/outputs/*' -print0 2>/dev/null)
+if (( BLOCKER_COUNT == 0 )); then
+  pass '0 открытых BLOCKER найдено в outputs/'
 else
-  fail "${BLOCKER_COUNT} BLOCKER(ов) со статусом OPEN — требуется ручная проверка"
+  fail "$BLOCKER_COUNT BLOCKER(ов) со статусом OPEN — требуется ручная проверка"
 fi
 
-# ── DoR-2: Запрещённые маркеры в BRD (частичная проверка) ──────────
-if [ "${GATE}" -ge 3 ]; then
-  echo ""
-  echo "  [DoR-2] Размытые формулировки в BRD (частичная проверка)"
-  BRD_FILE=$(ls ${PROJECT_PATH}/stage2-requirements/outputs/BA-*BRD*.md 2>/dev/null | head -1 || true)
-  if [ -n "${BRD_FILE}" ]; then
-    FUZZY=$(grep -ci "и/или\|обычно\|при необходимости\|TBD\|tbd\|по возможности" "${BRD_FILE}" 2>/dev/null || true)
-    if [ "${FUZZY}" -eq 0 ]; then
-      pass "Размытых формулировок не найдено в BRD"
-    else
-      warn "${FUZZY} потенциально размытых формулировок в BRD — проверить вручную"
-    fi
+if [[ "$GATE" == 2 ]]; then
+  echo
+  echo '  [DoR-2..4] Качество требований (частичная проверка)'
+  BRD_FILE="$(first_match 'stage2-requirements/outputs/BA-*BRD*.md')"
+  BACKLOG="$(first_match 'stage2-requirements/outputs/PO-*backlog*.md')"
+  NFR_FILE="$(first_match 'stage2-requirements/outputs/BA-*NFR*.md')"
+  if [[ -n "$BRD_FILE" ]]; then
+    FUZZY="$(grep -Eci 'и/или|обычно|при необходимости|TBD|по возможности' "$BRD_FILE" 2>/dev/null || true)"
+    (( FUZZY == 0 )) && pass 'Размытых формулировок не найдено в BRD' ||
+      warn "$FUZZY потенциально размытых формулировок в BRD — проверить вручную"
+  fi
+  if [[ -n "$BACKLOG" ]] && grep -Eqi 'Given|When|Then' "$BACKLOG"; then
+    pass 'Given/When/Then найдены в backlog'
   else
-    warn "BRD не найден — DoR-2 пропущен"
+    fail 'Given/When/Then не найдены в backlog — AC отсутствуют'
+  fi
+  if [[ -n "$NFR_FILE" ]] && grep -Eq '[0-9]+([[:space:]]*)?(ms|сек|sec|%|мин|min|RPS|rps|MB|GB)' "$NFR_FILE"; then
+    pass 'NFR содержит числовые пороги с единицами'
+  else
+    fail 'Числовые NFR-пороги с единицами не найдены'
   fi
 fi
 
-# ── DoR-3: AC в формате Given/When/Then (частичная проверка) ────────
-if [ "${GATE}" -ge 3 ]; then
-  echo ""
-  echo "  [DoR-3] Acceptance Criteria (частичная проверка)"
-  BACKLOG=$(ls ${PROJECT_PATH}/stage2-requirements/outputs/PO-*backlog*.md 2>/dev/null | head -1 || true)
-  if [ -n "${BACKLOG}" ]; then
-    GWT=$(grep -ci "Given\|When\|Then" "${BACKLOG}" 2>/dev/null || true)
-    STORIES=$(grep -ci "^## \|^### \|Story\|As a" "${BACKLOG}" 2>/dev/null || true)
-    if [ "${GWT}" -gt 0 ]; then
-      pass "Given/When/Then найдены в backlog (${GWT} вхождений)"
-    else
-      fail "Given/When/Then не найдены в backlog — AC отсутствуют"
-    fi
+if [[ "$GATE" == 6 ]]; then
+  echo
+  echo '  [DoR-8] Rollback-план Cycle 2'
+  RUNBOOK="$(first_match 'stage6-deploy/outputs/DEVOPS-*runbook*.md')"
+  if [[ -n "$RUNBOOK" ]] && grep -Eqi 'rollback|откат' "$RUNBOOK"; then
+    pass 'Rollback-раздел найден в stage6 runbook'
+  elif [[ -f "$PROJECT_PATH/tracking/SDLC-goals.md" ]] &&
+       grep -Eq '^cycle2_deliverables:[[:space:]]*images[[:space:]]*$' \
+         "$PROJECT_PATH/tracking/SDLC-goals.md"; then
+    pass 'Rollback runbook — N/A для images-only delivery; version fallback проверяется в checklist'
   else
-    warn "Backlog не найден — DoR-3 пропущен"
+    fail 'Проверенный Rollback-раздел в stage6 runbook не найден'
   fi
 fi
 
-# ── DoR-4: NFR с числами (частичная проверка) ───────────────────────
-if [ "${GATE}" -ge 3 ]; then
-  echo ""
-  echo "  [DoR-4] NFR с числовыми порогами (частичная проверка)"
-  NFR_FILE=$(ls ${PROJECT_PATH}/stage2-requirements/outputs/BA-*NFR*.md 2>/dev/null | head -1 || true)
-  if [ -n "${NFR_FILE}" ]; then
-    NUMBERS=$(grep -cE "[0-9]+(ms|сек|sec|%|мин|min|RPS|rps|MB|GB)" "${NFR_FILE}" 2>/dev/null || true)
-    if [ "${NUMBERS}" -gt 0 ]; then
-      pass "NFR содержит числовые пороги (${NUMBERS} вхождений с единицами)"
-    else
-      warn "Числовые пороги с единицами не найдены в NFR — проверить вручную"
-    fi
-  else
-    warn "NFR-файл не найден — DoR-4 пропущен"
-  fi
-fi
-
-# ── DoR-7: Threat Model начат (для Gate 3+) ─────────────────────────
-if [ "${GATE}" -ge 4 ]; then
-  echo ""
-  echo "  [DoR-7] Threat Model"
-  if ls ${PROJECT_PATH}/stage3-design/outputs/SEC-*threat-model*.md 2>/dev/null | grep -q .; then
-    pass "SEC-threat-model.md существует"
-  else
-    fail "SEC-threat-model.md не найден — Gate ${GATE} заблокирован"
-  fi
-fi
-
-# ── DoR-8: Rollback-план (для Gate 6+) ──────────────────────────────
-if [ "${GATE}" -ge 7 ]; then
-  echo ""
-  echo "  [DoR-8] Rollback-план"
-  RUNBOOK=$(ls ${PROJECT_PATH}/stage4-dev/outputs/DEVOPS-*runbook*.md 2>/dev/null | head -1 || true)
-  if [ -n "${RUNBOOK}" ]; then
-    ROLLBACK=$(grep -ci "rollback\|откат" "${RUNBOOK}" 2>/dev/null || true)
-    if [ "${ROLLBACK}" -gt 0 ]; then
-      pass "Rollback-раздел найден в runbook"
-    else
-      fail "Rollback-раздел отсутствует в runbook"
-    fi
-  else
-    fail "DEVOPS-runbook.md не найден"
-  fi
-fi
-
-# ── Итог ─────────────────────────────────────────────────────────────
-echo ""
+echo
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo -e "  Итог: ${GREEN}✅ ${PASS} прошло${NC} / ${YELLOW}⚠️  ${WARN} предупреждений${NC} / ${RED}❌ ${FAIL} провалено${NC}"
-
-if [ "${FAIL}" -gt 0 ]; then
-  echo ""
+if (( FAIL > 0 )); then
   echo -e "  ${RED}DoR НЕ ПРОЙДЕН — этап не может начаться.${NC}"
-  echo "  Зафиксируй возврат в tracking/dor-violations.md"
-  echo "╚══════════════════════════════════════════════════════════════╝"
+  echo '  Зафиксируй возврат в tracking/dor-violations.md'
+  echo '╚══════════════════════════════════════════════════════════════╝'
   exit 1
-else
-  echo ""
-  echo -e "  ${GREEN}DoR PASSED (автопроверка). Рекомендуется ручная проверка DoR-6.${NC}"
-  echo "╚══════════════════════════════════════════════════════════════╝"
-  exit 0
 fi
+
+echo -e "  ${GREEN}DoR PASSED (автопроверка). DoR-6 и смысловые критерии подтверждаются владельцем gate.${NC}"
+echo '╚══════════════════════════════════════════════════════════════╝'

@@ -1,33 +1,13 @@
 ---
-description: Синхронизировать артефакты проекта с GitHub (commit + push)
+description: Безопасно подготовить commit и отдельно подтвердить push
 ---
 
-Синхронизируй проект $ARGUMENTS с GitHub.
+Для project $ARGUMENTS выполни contract из CLAUDE.md:
 
-Шаги:
-1. Перейди в папку проекта:
-   $SDLC_PROJECTS_DIR/$ARGUMENTS
-
-2. Покажи текущий статус: `git status`
-
-3. Определи что изменилось:
-   - Новые файлы outputs/ → это артефакты нового этапа
-   - Изменённые файлы → обновление существующих артефактов
-   - Dashboard.md → обновление прогресса
-
-4. Сформируй сообщение коммита по шаблону из CLAUDE.md,
-   определив этап по папке (stage1 → [PLAN], stage2 → [REQ], и т.д.)
-
-5. Добавь все изменения: `git add .`
-
-6. Покажи список файлов которые войдут в коммит и спроси подтверждение
-
-7. После подтверждения:
-   `git commit -m "[SYNC] sync: update artifacts $(date +%Y-%m-%d)"`
-
-8. Push: `git push origin main`
-
-9. В конце покажи:
-   - Количество закоммиченных файлов
-   - URL репозитория
-   - Последний коммит (`git log --oneline -5`)
+1. Read-only preview: root, branch, remote, `git status --short`, candidate files.
+2. Запроси подтверждение staging. Только затем `git add -A` внутри project root.
+3. Просканируй staged snapshot и forbidden paths, не выводя совпавшие строки/значения.
+4. При finding безопасно unstage, сохрани working files, верни BLOCKED с именами файлов.
+5. Покажи staged name-status/stat и proposed commit message; запроси commit confirmation.
+6. После commit покажи hash/summary и отдельно запроси push confirmation.
+7. Push только подтверждённой branch/remote; silent fallback запрещён.

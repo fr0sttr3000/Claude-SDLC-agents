@@ -6,7 +6,9 @@
 
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/tdd.md
 $SDLC_VAULT/_agents/_standards/data-formats.md
+$SDLC_VAULT/_agents/_standards/security.md
 
 ## Пути файлов
 Читай:
@@ -16,7 +18,19 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 Пиши отчёты в: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
 
 ## TDD Workflow
-Red → Green → Refactor
+Тесты пишет независимый `s4-qa-auto` ДО production-кода.
+
+Перед первой реализацией прочитай:
+- `stage2-requirements/outputs/QA-*-test-strategy.md`;
+- `stage4-dev/outputs/QA-*-tdd-report.md`;
+- `stage4-dev/outputs/QA-TDD-status.md`.
+
+Начинай Green только при `status: RED`. После реализации не подписывай PASS:
+тесты запускает `s4-qa-auto /run-tests`. При `status: FAIL` исправляй
+production-код и возвращай его на повторный запуск тестов.
+
+Запрещено менять, удалять, skip/xfail или ослаблять тесты ради Green. Изменение
+теста возможно только через traceable change request и повторный Red.
 
 ## Code Quality Rules
 - Функции: максимум 20 строк, SRP
@@ -30,7 +44,7 @@ Red → Green → Refactor
 □ Нет секретов в коде
 □ Авторизация на каждом endpoint
 
-## Python-стек — Known Pitfalls (из prod-багов)
+## Python-стек — Known Pitfalls (только если выбранный stack = Python)
 
 ### pydantic-settings v2 (Баг 1)
 - Сложные типы (`frozenset[int]`, `list[str]`, `set[int]`) в `.env` должны быть в JSON-формате:
@@ -51,13 +65,13 @@ Red → Green → Refactor
 При наличии SQLAlchemy/asyncpg — создать `tests/test_db_format.py`:
 - Тест: timezone-aware datetime вставляется без ошибок asyncpg
 - Тест: timezone-naive datetime не проходит молча
-- Тест: PK — UUID v4
+- Тест: PK соответствует identifier contract из HLD; UUID v4 проверять только если выбран
 - Тест: NUMERIC-поля не теряют точность
 - Тест: migration upgrade→downgrade→upgrade на чистой БД
 
 При наличии HTTP API — создать `tests/test_api_format.py`:
 - Тест: datetime в ответах — ISO 8601 UTC
-- Тест: UUID в ответах — строка UUID v4
+- Тест: identifier в ответах соответствует API contract; UUID v4 только если выбран
 - Тест: ошибки — стандартный формат {error, detail}
 
 Шаблоны тестов — в data-formats.md §4.1, §4.2, §4.3
@@ -92,12 +106,16 @@ Red → Green → Refactor
 - Parse mode: использовать **HTML** (`parse_mode=ParseMode.HTML`), не Markdown v1
   - Markdown v1 ломается на `_`, `*`, `` ` `` в пользовательском контенте без экранирования
 
-## RBAC — Реализация (FastAPI + SQLAlchemy)
+## RBAC — пример реализации (только если выбранный stack = FastAPI + SQLAlchemy)
 
 Читать перед реализацией авторизации:
 - `stage3-design/outputs/RBAC-*-model.md` — роли, иерархия, ресурсы
 - `stage3-design/outputs/RBAC-*-matrix.md` — матрица прав (роль × ресурс × действие)
 - `stage3-design/outputs/RBAC-*-schema.sql` — SQL-схема таблиц RBAC
+
+Не переносить этот пример в другой stack. Для любого проекта сначала используй
+enforcement points/native artifacts из HLD и RBAC design; если schema artifact N/A,
+не требуй SQLAlchemy/RLS и не создавай их по умолчанию.
 
 ### Шаблон: dependency для FastAPI
 
@@ -155,7 +173,7 @@ async def delete_document(doc_id: UUID, session: AsyncSession = Depends(get_sess
     ...
 ```
 
-### Шаблон: owner-only (RLS + application check)
+### Шаблон: owner-only (только если выбран FastAPI + SQLAlchemy + PostgreSQL RLS)
 
 ```python
 # app/rbac/service.py
@@ -205,7 +223,8 @@ async def get_effective_roles(session: AsyncSession, user_id: UUID) -> list[UUID
 - **Deny by Default**: если право не найдено → 403, никогда не 200
 - **Не дублировать матрицу в коде** — строки `resource`/`action` берутся из constans, совпадающих с RBAC-*-matrix.md
 - **Нет хардкода ролей** в бизнес-логике (`if user.role == "admin"`) — только через `has_permission()`
-- **Owner-check** — двойной: application-level + RLS (оба обязательны для owner_only ресурсов)
+- **Owner-check** — stack-native deny-by-default обязателен; application-level check
+  и PostgreSQL RLS используются вместе только если оба слоя выбраны в HLD
 - **SoD-конфликты** из матрицы → проверять при назначении роли:
   ```python
   async def assign_role(session, user_id, role_id):
@@ -241,7 +260,7 @@ async def test_sod_conflict_raises(session, user, conflicting_role_id):
 □ `tests/test_rbac.py` создан: deny-by-default, role grants, hierarchy, owner-only, SoD
 □ Нет хардкода ролей в бизнес-логике (`if role == "..."`)
 □ Все endpoints с доступом к данным используют `require_permission()`
-□ Owner-only ресурсы: двойная проверка (app + RLS)
+□ Owner-only ресурсы: deny-by-default enforcement соответствует HLD; RLS проверен, если выбран
 □ Константы resource/action совпадают с RBAC-*-matrix.md
 
 ## Conventional Commits
@@ -253,12 +272,8 @@ feat / fix / refactor / test / docs
 □ **README** — отразить новые/изменённые команды, переменные окружения, конфигурацию
 □ **API-доки** — обновить ARCH-api-spec.yaml или аналогичный контракт, если менялись эндпоинты
 □ **Inline-комментарии** — публичные функции/классы должны иметь актуальные docstring
-□ **CHANGELOG** — добавить запись в `docs/CHANGELOG.md` проекта в формате:
-  ```
-  ## [Unreleased]
-  ### Added / Changed / Fixed / Removed
-  - краткое описание изменения (PR #N)
-  ```
+□ **Release docs** — не изменять CHANGELOG/release notes на этом шаге;
+  их формирует release-prep/s6-release при подготовке нового релиза
 □ **ADR** — если решение изменяет архитектуру, создай/обнови ADR в stage3-design/outputs/
 
 Файл с update notes пиши в:
@@ -302,7 +317,7 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 □ Unit: branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (quality.md §3.1)
 □ Integration/component-тест написан для каждого внешнего адаптера (БД/API-клиент/очередь) (§3.1)
 □ Contract-тест (consumer-driven) написан и сверен с ARCH-api-spec.yaml, если PR трогает API (§3.1)
-□ Документация обновлена (README/API-spec/docstring/CHANGELOG)
+□ Документация обновлена (README/API-spec/docstring); release docs не трогаются
 □ DEV-*-update-notes-PR[N].md создан
 □ SAST/secrets-scan прошёл без Critical/High
 □ Нет игнорированных исключений (pass/except без logging)

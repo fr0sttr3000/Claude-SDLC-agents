@@ -1,575 +1,203 @@
----
-date: 2026-07-03
-tags: [docs, agents, sdlc]
----
+# SDLC Agent System
 
-#  SDLC Agents
+Интерактивная multi-runtime система для разработки, подготовки доставки и эксплуатации
+проектов. Один launcher выбирает Project, точный AI profile, scope и workflow; правила
+агентов, gates и artifacts не зависят от Claude, Codex, Gemini или локальной модели.
+Текущий каталог содержит 32 специализированных AI-агента; Cycle 1 исполняет 28 обязательных шагов.
 
-> Автоматизированная система управления жизненным циклом разработки (SDLC).
-> 30 специализированных AI-агентов покрывают весь цикл — от идеи до деплоя и эксплуатации.
-> Запуск поддерживается через Claude, Codex и Gemini при едином контракте правил.
+## Быстрый запуск
 
----
-
-## Что это такое
-
-**Claude SDLC Agents** — набор специализированных SDLC-агентов, каждый из которых выполняет конкретную роль в процессе разработки программного обеспечения: Product Manager, Business Analyst, Architect, DBA, Developer, QA, DevOps, SRE и другие.
-
-Агенты работают последовательно, передавая артефакты (markdown-файлы) друг другу через файловую систему. Между этапами стоят **Quality Gates** — принудительные барьеры, которые блокируют переход до выполнения всех условий.
-
-### Ключевые особенности
-
-- **30 агентов**, охватывающих 7 этапов SDLC + инфраструктуру + Local Run
-- **Markdown-first** — все артефакты, стандарты и входные данные — `.md` файлы
-- **Obsidian vault** — вся система открывается как хранилище знаний в Obsidian
-- **Интерактивный лаунчер** `sdlc.sh` — единая точка входа для всего цикла
-- **Universal Runtime Contract** — один набор правил запускается через Claude, Codex или Gemini
-- **7 Quality Gates** — принудительные переходы между этапами с чеклистами
-- **Security-трек SG1–SG5** — параллельные Security Gates (CVSS, threat model, SAST/SCA, pentest)
-- **Definition of Done (11 пунктов)** — обязательные условия закрытия каждой задачи
-- **Пирамида тестов** — unit (branch + mutation) / integration / contract / e2e (quality.md §3.1)
-- **Known Issues (KEDB)** — операционный контракт для некритичных дефектов в проде (реестр + мониторинг + runbook + auto-remediation)
-- **Стандарт форматов данных** — обязательные правила для DB, ENV, API + шаблоны тестов
-- **Auto-Heal паттерны** — применимые паттерны определяются топологией деплоя (single-container / multi-instance / serverless)
-- **Методология выбора паттернов** — 7 формализованных правил: QA → Tactic → Pattern → ADR с трейдоффом
-- **Система управления секретами** через `pass` — нет секретов в коде и файлах
-- **Sprint & Task Tracker** с DoD-enforcement и velocity-метриками
-
----
-
-## Архитектура
-
-```
-_agents/
-├── sdlc.sh            ← Главный лаунчер (SDLC-цикл + необязательные шаги)
-├── localrun.sh        ← Лаунчер Local Run (GitHub-проекты)
-├── AGENTS.md          ← Codex adapter: читает канонические CLAUDE.md
-├── GEMINI.md          ← Gemini adapter: читает канонические CLAUDE.md
-├── .codex/config.toml ← Codex project config (CLAUDE.md fallback)
-├── _contract/         ← Universal Runtime Contract (инварианты и источники истины)
-├── _runtimes/         ← agent-run.sh + adapters для claude/codex/gemini
-├── _standards/        ← Стандарты (читаются всеми агентами)
-│   ├── quality.md     ← DoD, DoR, Quality Gates, NFR, Auto-Heal
-│   ├── data-formats.md← Форматы DB/ENV/API, обязательные тесты форматов
-│   ├── company.md     ← Стек, роли, compliance (методология → plans/principles.md)
-│   ├── security.md    ← Security-трек SG1–SG5 (CVSS, threat model, SAST/SCA, pentest)
-│   ├── dor-violations-template.md ← Шаблон журнала нарушений DoR
-│   ├── tech-debt-template.md      ← Шаблон журнала технического долга
-│   ├── known-issues-template.md   ← Шаблон реестра известных дефектов в проде (KEDB)
-│   └── runbook-KI-template.md     ← Шаблон per-KI runbook
-├── _tools/            ← Утилиты для всех циклов
-│   ├── s0-github/     ← GitHub Sync
-│   └── s0-secrets/    ← Secrets Manager
-├── plans/             ← Планы развития системы
-│   ├── principles.md  ← Принципы проекта (SDD, TDD, Shift Left и др.)
-│   └── roadmap.md     ← Roadmap и запланированные изменения
-├── cycle1-dev/        ← Цикл 1: Разработка (19 агентов)
-│   ├── s0-kickoff/    ← Project Kickoff
-│   ├── s0-tracker/    ← Sprint & Task Tracker
-│   ├── s0-validate/   ← Structure Validator
-│   ├── s1-*/          ← Этап 1: Планирование (pm, pmo, finance)
-│   ├── s2-*/          ← Этап 2: Требования (ba, po, qa-req)
-│   ├── s3-*/          ← Этап 3: Дизайн (arch, security, rbac, dba)
-│   ├── s4-*/          ← Этап 4: Разработка (dev, techlead)
-│   ├── s5-*/          ← Этап 5: Тестирование (qa, qa-auto, perf)
-│   └── l*/            ← Local Run — оснастка разработчика (analyze, setup, build, run)
-├── cycle2-deploy/     ← Цикл 2: Деплой (разрабатывается)
-│   ├── s4-devops/     ← DevOps Engineer
-│   └── s6-release/    ← Release Manager
-└── cycle3-ops/        ← Цикл 3: Эксплуатация (разрабатывается)
-    └── s6-sre/        ← SRE
-```
-
-Каждый агент — отдельная папка с `CLAUDE.md` (роль, правила, стандарты) и `.claude/commands/` (slash-команды).
-
-## Universal Runtime Contract
-
-Проект поддерживает три runtime без раздвоения логики. Runtime выбирается явно: через `AGENT_RUNTIME`, сохранённый config или пункт `Настройки` в launcher. Чистый первый запуск без `AGENT_RUNTIME` сначала спрашивает runtime и не делает silent fallback на Claude:
+Из каталога `_agents`:
 
 ```bash
-# Первый запуск: launcher спросит runtime и каталог проектов
 bash sdlc.sh
+```
 
-# Явно через Claude
+Первый запуск ничего не разрабатывает и не меняет в Project. Он последовательно спрашивает:
+
+1. подробный или краткий вид;
+2. каталог SDLC Projects или один Project;
+3. primary runtime/profile;
+4. как распределять primary AI по шагам;
+5. нужны ли read-only AI-помощники.
+
+После настройки появляется выбор Project, затем единый Project Console. Явный runtime можно
+передать заранее:
+
+```bash
 AGENT_RUNTIME=claude bash sdlc.sh
-
-# Через Codex
 AGENT_RUNTIME=codex bash sdlc.sh
-
-# Через Gemini
 AGENT_RUNTIME=gemini bash sdlc.sh
 ```
 
-Канонические источники правил остаются прежними: `_standards/*.md`, корневой `CLAUDE.md`, агентские `CLAUDE.md` и `.claude/commands/*.md`. Файлы `AGENTS.md`, `GEMINI.md`, `.codex/config.toml` и `_runtimes/adapters/*` — только runtime-адаптеры. Новые gates, агенты, команды и правила должны сначала появляться в канонических markdown-файлах, чтобы проект оставался доступен Claude, Codex и Gemini одновременно.
-
-Диспетчер запуска: `_runtimes/agent-run.sh`. Он получает готовый prompt от `sdlc.sh` / `localrun.sh` и вызывает выбранный CLI. Каталог SDLC-проектов выбирается явно при первом запуске: можно указать каталог-коллекцию или папку одного проекта. В режиме одного проекта `SDLC_PROJECTS_DIR` хранит родителя, а активный проект фиксируется в `SDLC_SINGLE_PROJECT`. Launcher не выбирает каталог проектов автоматически.
-
-> **Принципы системы** (3 цикла, SDD, TDD, Shift Left, Markdown-first и др.) — [[plans/principles]]
-> **Roadmap изменений** — [[plans/roadmap]]
-
----
-
-## SDLC-цикл
-
-```
-Онбординг (перед первым запуском — обязательно)
-  s0-kickoff /new      → интервью: заполняет idea.md и PM-input-interview.md
-  s0-kickoff /refresh  → обновление беклога / видения для существующего проекта
-
-Подготовка (необязательно, выбирается пользователем)
-  └─ s0-validate, s0-secrets, s0-tracker /sprint-init
-
-Этап 1: Планирование ──[Gate 1]──►
-  s1-pm  → Feasibility Study, Product Vision
-  s1-pmo → Project Charter, Risk Register
-  s1-finance → Business Case, ROI
-
-Этап 2: Требования ──[Gate 2]──►
-  s2-ba     → BRD, NFR (с числами), RTM
-  s2-po     → User Stories, Backlog
-  s2-qa-req → Testability Review (блокирует Gate 2)
-
-Этап 3: Дизайн ──[Gate 3]──►
-  s3-arch     → HLD, ADR, API Spec
-  s3-security → Threat Model (STRIDE/DREAD/OWASP)
-  s3-rbac     → RBAC Model, Permission Matrix, RLS + SQL схема
-  s3-dba      → DB Schema, Migrations
-
-Этап 4: Разработка ──[Gate 4]──►
-  s4-dev      → код, PR Summary, Update Notes
-  s4-techlead → Code Review (блокирует Gate 4)
-
-Этап 5: Тестирование ──[Gate 5]──►
-  s5-qa      → Test Plan, Go/No-Go (блокирует Gate 5)
-  s5-qa-auto → E2E/API тесты (coverage ≥95%)
-  s5-perf    → Load Tests
-
-Финальные шаги Цикла 1 (обязательные)
-  s0-tracker /report → отчёт план vs факт
-  s0-github  /push   → push артефактов в GitHub
-
-─── Цикл 2: Деплой (разрабатывается) ───────────────────────────
-  s4-devops  → CI/CD, Runbook, Monitoring (деплой в реальную среду)
-  s6-release → Release Checklist, Release Notes
-
-─── Цикл 3: Эксплуатация (разрабатывается) ─────────────────────
-  s6-sre     → Post-Deploy Report, Monitoring, Auto-Heal, SLO Review
-```
-
----
-
-## Markdown-first и Obsidian
-
-### Всё работает через .md файлы
-
-Система полностью построена на Markdown. Каждый артефакт, отчёт, стандарт, входной документ — это `.md` файл. Агенты читают входные `.md` файлы и создают выходные `.md` файлы. Никаких баз данных, никаких проприетарных форматов.
-
-```
-inputs/idea.md               ← пишешь описание идеи в Obsidian
-      ↓  s1-pm читает idea.md
-outputs/PM-2026-05-10-feasibility.md   ← агент создаёт артефакт
-      ↓  s2-ba читает PM-feasibility.md
-outputs/BA-2026-05-10-BRD.md           ← следующий агент создаёт свой артефакт
-```
-
-Каждый `.md` файл артефакта содержит:
-- **YAML frontmatter** — дата, теги, статус, агент
-- **Структурированный контент** — разделы по шаблону роли
-- **Чеклисты** — Gate-условия и DoD-пункты
-- **Вердикт** — `PASSED / FAILED / GO / NO-GO` для Gate-файлов
-
-Стандарты тоже `.md` файлы — агент читает `quality.md` и `data-formats.md` как обычный документ и применяет правила.
-
-### Интеграция с Obsidian
-
-Вся система является **Obsidian vault**. Папка `Claude/` открывается в Obsidian как хранилище знаний — артефакты всех проектов и всех этапов видны в едином интерфейсе.
-
-**Возможности Obsidian в системе:**
-
-| Функция | Как используется |
-|---------|-----------------|
-| **Graph View** | Граф связей между артефактами этапов и проектов |
-| **Wiki-links** `[[...]]` | Перекрёстные ссылки: `[[OVERVIEW]]`, `[[Local_Run/_workflow]]` |
-| **YAML frontmatter** | Метаданные каждого файла: `date`, `tags`, `status` |
-| **Tags** | Фильтрация по проектам, этапам, ролям, статусу |
-| **Backlinks** | Видно какие документы ссылаются на текущий |
-| **Search** | Поиск по всем артефактам всех проектов сразу |
-| **Folder navigation** | Структура `stage1..stage7` видна в боковой панели |
-| **Dataview plugin** | Автоматические таблицы задач, статусов, дат |
-
-**Структура vault (папка `Claude/` в Obsidian):**
-
-```
-Claude/                            ← корень Obsidian vault
-├── _agents/                       ← этот репозиторий (агенты + стандарты)
-│   ├── _standards/quality.md      ← читается в Obsidian как документ
-│   ├── _standards/data-formats.md
-│   └── OVERVIEW.md                ← [[OVERVIEW]] в Obsidian
-│
-├── projects/
-│   └── {PROJECT}/
-│       ├── Dashboard.md           ← прогресс проекта, таблица этапов
-│       ├── docs/CHANGELOG.md      ← история изменений
-│       ├── stage1-planning/
-│       │   ├── inputs/idea.md     ← пишешь в Obsidian → агент читает
-│       │   └── outputs/           ← артефакты агентов → читаешь в Obsidian
-│       ├── stage2-requirements/outputs/
-│       ├── ...stage7-ops/outputs/
-│       └── tracking/
-│           ├── backlog.md         ← список задач
-│           ├── current-sprint.md  ← активный спринт
-│           └── sprints/sprint-NN.md
-│
-└── Local_Run/
-    └── {project}/                 ← заметки о GitHub-проектах
-        ├── overview.md
-        ├── setup.md
-        ├── build.md
-        └── run.md
-```
-
-**Dashboard.md** каждого проекта — живая таблица прогресса в Obsidian:
-
-```markdown
----
-date: 2026-05-10
-tags: [project/my-project, dashboard]
-status: active
----
-
-# SDLC Dashboard — my-project
-
-| Этап | Статус | Последнее обновление |
-|------|--------|---------------------|
-| 1 — Планирование    | ✅ Done       | 2026-05-10 |
-| 2 — Требования      | 🔄 In Progress| 2026-05-10 |
-| 3 — Дизайн          | ⏳ Pending    | —          |
-```
-
-**Теги для навигации по артефактам:**
-
-```yaml
----
-date: 2026-05-10
-tags: [project/my-project, stage/requirements, agent/ba, status/done]
----
-```
-
-В Obsidian можно сразу найти все артефакты конкретного проекта (`#project/my-project`), все BRD всех проектов (`#agent/ba`), все незавершённые этапы (`#status/in-progress`).
-
-### Workflow: Obsidian + агенты
-
-```
-1. Открыть idea.md в Obsidian → написать описание проекта
-         ↓
-2. Запустить sdlc.sh → агент читает idea.md → создаёт PM-feasibility.md
-         ↓
-3. Открыть PM-feasibility.md в Obsidian → прочитать, при необходимости дополнить
-         ↓
-4. Следующий агент читает PM-feasibility.md → создаёт следующий артефакт
-         ↓
-5. В Obsidian Graph View видна вся цепочка артефактов проекта
-```
-
-Входные файлы (`inputs/`) можно готовить прямо в Obsidian перед запуском агента — интервью, требования, описания — всё в привычном редакторе.
-
----
-
-## Быстрый старт
-
-> Подробное руководство с примерами — см. [GETTING_STARTED.md](GETTING_STARTED.md)
-
-### Предварительные требования
-
-- Один из runtime CLI установлен и авторизован: Claude Code CLI, Codex CLI или Gemini CLI
-- `bash` 4.0+
-- `pass` — менеджер паролей (для хранения секретов)
-- [Obsidian](https://obsidian.md) — опционально, но рекомендуется
-
-### Установка
+Локальная модель требует точный host, provider и model id:
 
 ```bash
-git clone git@github.com:fr0sttr3000/Claude-SDLC-agents.git _agents
-cd _agents
+AGENT_RUNTIME=local \
+LOCAL_AGENT_HOST=codex-oss \
+LOCAL_MODEL_PROVIDER=ollama \
+LOCAL_MODEL=qwen2.5-coder:14b \
 bash sdlc.sh
 ```
 
-При первом запуске выбери режим: каталог с несколькими проектами или папка одного проекта. Настройку можно поменять позже через `7) Настройки` или env/config (`SDLC_PROJECTS_MODE`, `SDLC_SINGLE_PROJECT`).
+Встроенный `codex-oss` поддерживает Ollama и LM Studio. Другой inference server подключается
+зарегистрированным executable agent-host adapter. Endpoint без agent host недостаточен.
+Default model и silent fallback отсутствуют.
 
-**Для Obsidian:** открой папку `Claude/` как vault — все артефакты видны в едином интерфейсе.
+## Что находится в Project Console
 
-### Первый запуск (новый проект)
+Подробный и краткий виды содержат одинаковые действия:
 
-```
-sdlc.sh
-  → 3) Создать новый проект        ← создаёт структуру stage1..stage7
-  → 0) Kickoff                     ← интервью: заполняет все входные данные
-  → 1) Запустить цикл → Разработка ← Цикл 1: 22 шага
-```
+| Клавиша | Действие | Что происходит |
+|---|---|---|
+| `0` | Незавершённый запуск | Показать evidence и безопасную точку child retry |
+| `1` | Kickoff | Создать/обновить входные данные; Cycle не стартует автоматически |
+| `2` | Обзор | Только чтение текущего состояния |
+| `3` | Review | Read-only review Project, Cycle, Stage или Agent |
+| `4` | Repair | Исправить подтверждённый scope после Preview |
+| `5` | Режим цели | Cycle 1 и явно выбранное продолжение Cycle 2/3 |
+| `6` | Один Cycle | Запустить только Cycle 1, 2 или 3 |
+| `7` | Один Agent | Запустить одну роль и одну команду |
+| `8` | Goal/Cycle 2/Cycle 3 | Частично изменить route/deliverables после разработки |
+| `9` | AI routing/workers | Настроить primary profiles и помощников |
+| `u` | Утилиты | Secrets, tracker, quality gates, GitHub, validation |
+| `l` | Локальные репозитории | Clone/pull, analyze, setup, build, local smoke |
+| `g` | Launcher settings | Каталоги, UI, runtime, routing, workers |
+| `v` | Вид | Переключить compact/detailed без смены функций |
 
-Или пошагово:
+Выбор Project или пункта меню сам по себе ничего не запускает. Перед Cycle, Repair и utility
+launcher показывает `TYPE`, `PROJECT`, absolute `PATH`, `SCOPE`, `EXCLUDED`, ordered steps,
+точные AI profiles и `Fallback OFF`.
 
-```bash
-bash sdlc.sh   # → 3) создай проект (вводи имя)
-               # → соглашайся запустить Kickoff → проходи интервью
-               # → 1) Запустить цикл → 1) Разработка
-```
+### Review и Repair
 
-### Kickoff — обязательный шаг перед первым циклом
+Review — реальное capability-enforced read-only действие через `s0-validate /review`.
+Project, `cycle:1..3`, `stage:0..7` и `agent:<id>` формируют разные scopes. Review не пишет
+report в Project. Проверка AI routes и обзор нескольких Projects остаются отдельными
+read-only действиями.
 
-**`s0-kickoff`** собирает входные данные через структурированное интервью.
-Без него агент `s1-pm` получит пустой `idea.md` и создаст артефакты только на предположениях.
+Repair использует те же Project/Cycle/Stage/Agent scopes и дополнительный `structure`.
+Он сначала показывает Preview; агент затем показывает files-to-change и не придумывает
+business/architecture решения при недостатке evidence.
 
-| Режим | Когда использовать | Команда |
-|-------|-------------------|---------|
-| `/new` | Новый проект, пустые входные данные | `sdlc.sh → 0) Kickoff → 1)` |
-| `/refresh` | Обновить беклог / видение / NFR | `sdlc.sh → 0) Kickoff → 2)` |
-| `/start` | Авто-определение режима | `sdlc.sh → 0) Kickoff → 3)` |
-| `/cr` | Change Request — изменение требований в середине этапа | `sdlc.sh → 2) один агент → s0-kickoff → /cr` |
+## Три цикла
 
-**Режим `/new` — 5 блоков интервью, 26 вопросов:**
-1. **Проблема и продукт** — pain point, As-Is, To-Be, описание продукта, аудитория, конкуренты, уникальность
-2. **Бизнес** — модель, бюджет, ROI, команда, срок MVP
-3. **Техника** — стек, масштаб, compliance, интеграции + **topology, recovery expectation, alert channel, monitoring expectation, delivery scope, existing monitoring**
-4. **Приоритеты** — стейкхолдеры, Scope Out, must-have, критерии успеха (→North Star), kill criteria
-5. **Неизвестное** — что неизвестно, что может остановить проект
+| Cycle | Результат | Test-first invariant | Основные роли |
+|---|---|---|---|
+| 1 — Development | требования, design, code, tests, Go/No-Go | QA tests RED до Developer Green; независимый PASS | S0–S5 agents |
+| 2 — Deploy | Stage 6 delivery/release evidence | deploy tests RED до pipeline/IaC/config; `DEPLOY-TDD-status: PASS` | `s4-devops`, `s6-release` |
+| 3 — Operations | Stage 7 operations evidence | ops tests/drills RED до config; `OPS-TDD-status: PASS` | `s6-sre` |
 
-Вопросы задаются последовательно, по одному. Правило 5 Whys при ответах типа «симптом». После каждого блока — резюме и подтверждение.
+Goal хранится project-locally в `tracking/SDLC-goals.md`. Доступны маршруты:
 
-Выход: заполненный `idea.md` (со всеми полями Operational Tier) + `PM-input-interview-YYYY-MM-DD.md` → передаёт `s1-pm`.
+- только Cycle 1;
+- Cycle 1 → Cycle 2;
+- Cycle 1 → Cycle 2 → Cycle 3;
+- своя разрешённая комбинация.
 
-**Режим `/refresh` — обновление существующего проекта:**
+Cycle 2/3 создают только выбранные deliverables. Infrastructure, monitoring stack, executor,
+owner, authorization, environment и thresholds спрашиваются у пользователя. Docker,
+Kubernetes, PostgreSQL, Prometheus, Grafana, конкретный SLO или live action не подставляются.
 
-Показывает текущий статус проекта, предлагает меню разделов для обновления:
-- Продуктовое видение и OKR → передаёт `s1-pm /vision`
-- Новые функции в беклог → передаёт `s2-ba` + `s2-po`
-- Приоритизация беклога → передаёт `s2-po`
-- Изменение NFR / масштаба → передаёт `s2-ba`
-- Scope Out — что убираем → передаёт `s2-ba` + `s2-po`
+## AI profiles: primary и worker
 
-**Режим `/cr` — Change Request:**
+Primary — модель, которая выполняет шаг, пишет его artifacts и отвечает за contribution/gate.
+Routing определяет, где используется primary:
 
-Интервью из 4 блоков (что изменилось / конкретно до-после / причина / срочность).
-Строит таблицу влияния: затронутые этапы → сброшенные DoR-пункты → что нужно переделать.
-Выход: `stage{N}/inputs/CR-YYYY-MM-DD-[N]-input.md` + запись в `tracking/dor-violations.md`.
-После CR пользователь вручную перезапускает затронутых агентов (агенты не взаимодействуют напрямую).
+| Policy | Значение |
+|---|---|
+| `single` | Один exact profile для всех шагов |
+| `per-stage` | Свой profile для Cycle/Stage groups |
+| `per-agent` | Базовый profile плюс exact overrides ролей |
+| `ask` | Все назначения собираются перед Preview |
 
----
+Supervisor + Worker не меняет порядок SDLC. Primary остаётся единственным writer/gate signer,
+а worker получает bounded read-only question. Поддержанная worker matrix:
 
-## Каталог агентов
+| Profile | Primary | Capability-enforced worker |
+|---|:---:|:---:|
+| Claude CLI | да | да — `Read,Glob,Grep`, no session persistence |
+| Codex CLI | да | да — read-only sandbox, ephemeral |
+| Gemini CLI | да | нет, пока нет enforceable adapter |
+| Local `codex-oss` | да | да — read-only sandbox, ephemeral |
+| Custom local host | да | нет, пока capability не зарегистрирована |
 
-### Инфраструктура (этап 0)
+Worker scope должен находиться внутри настроенного project root. `/`, HOME и внешние paths
+отклоняются. Worker не получает произвольные secret environment variables и не запускает
+вложенных subagents.
 
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s0-kickoff` | Project Kickoff — интервью для нового проекта / обновление беклога / Change Request | `/start`, `/new`, `/refresh`, `/cr` |
-| `s0-secrets` | Secrets Manager — pass: хранение, ротация, env | `/add`, `/rotate`, `/env` |
-| `s0-github` | GitHub Sync — репо, ветки, PR, push | `/init`, `/sync`, `/push`, `/status`, `/pr` |
-| `s0-validate` | Structure + Quality Validator + DoR/DoD auto-check | `/validate [project\|all]`, `/fix [project\|all]`, `/dor-check [N]`, `/dod-check [K\|D\|I] [N] [PR]` |
-| `s0-tracker` | Sprint & Task Tracker (DoD + Tech Debt + Known Issues enforcement) | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done` |
-| `s0-quality-gates` | Quality Gates Configurator — проектные пороги из risk-профиля (после S1, до S2) | `/configure`, `/validate-gates` |
+## Markdown-first и native artifacts
 
-### Local Run (l-агенты)
+Markdown-first относится к governance: решения, handoff, gates, reviews и человекочитаемые
+evidence ведутся в Markdown/Obsidian. Это не «Markdown-only»: исполняемые и schema-артефакты сохраняют нативный формат — code, tests, OpenAPI, SQL/DBML, YAML/IaC, scanner configs и logs.
+Их связь с требованиями и verdict фиксируется IDs/links в Markdown evidence.
 
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `l1-analyze` | Project Analyzer — стек, зависимости, порты | `/analyze [project]` |
-| `l2-setup` | Project Setup — зависимости, .env, docker | `/setup [project]` |
-| `l3-build` | Project Builder — сборка, артефакты | `/build [project]` |
-| `l4-run` | Project Runner — запуск, порты, кастомизации | `/run [project]` |
+## Execution Journal
 
-### Этап 1 — Планирование
+Каждый Cycle-run хранит состояние только в выбранном Project:
 
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s1-pm` | Product Manager — Feasibility, Vision, OKR | `/feasibility`, `/vision` |
-| `s1-pmo` | Project Manager — Charter, WBS, Risk Register, RACI | `/charter`, `/risks` |
-| `s1-finance` | Finance Analyst — ROI, NPV, Business Case | `/business-case` |
-
-### Этап 2 — Требования
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s2-ba` | Business Analyst — BRD, NFR (с числами), RTM | `/extract-requirements`, `/brd` |
-| `s2-po` | Product Owner — User Stories, Backlog (INVEST/RICE) | `/stories` |
-| `s2-qa-req` | QA (требования) — Testability Review → **Gate 2** | `/testability-review` |
-| `s2-security` | Security Requirements Engineer — abuse cases, классификация данных, ASVS → **SG1** | `/security-requirements` |
-
-### Этап 3 — Дизайн
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s3-arch` | Solution Architect — HLD, ADR, API Spec | `/hld`, `/adr` |
-| `s3-security` | Security Engineer — Threat Model (STRIDE/DREAD/OWASP) | `/threat-model` |
-| `s3-rbac` | RBAC Designer — роли, матрица прав, RLS, SQL схема | `/rbac-model`, `/rbac-matrix` |
-| `s3-dba` | DBA — DB Schema, Migrations | `/schema`, `/migration` |
-
-### Этап 4 — Разработка
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s4-dev` | Backend Developer — код, PR Summary, Update Notes | `/dev-report`, `/update-notes` |
-| `s4-techlead` | Tech Lead — Code Review (DoD) → **Gate 4** | `/review` |
-
-### Этап 5 — Тестирование
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s5-qa` | QA Engineer — Test Plan, Go/No-Go → **Gate 5** | `/test-plan`, `/go-no-go` |
-| `s5-qa-auto` | QA Automation — E2E/API тесты (coverage ≥95%) | `/e2e-report` |
-| `s5-perf` | Performance Engineer — Load Tests | `/load-test` |
-| `s5-security` | Security Test Engineer — DAST, pentest (tier-aware) → **SG4** | `/security-test` |
-
-### Цикл 2 — Деплой *(разрабатывается)*
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s4-devops` | DevOps Engineer — CI/CD, Runbook, Monitoring, деплой | `/pipeline`, `/runbook` |
-| `s6-release` | Release Manager — Checklist, Release Notes | `/release-checklist`, `/release-notes` |
-
-### Цикл 3 — Эксплуатация *(разрабатывается)*
-
-| Агент | Роль | Slash-команды |
-|-------|------|--------------|
-| `s6-sre` | SRE — Post-Deploy, Monitoring, Auto-Heal, SLO Review | `/post-deploy`, `/gate7` |
-
----
-
-## Стандарты качества
-
-### Definition of Done (11 пунктов)
-
-DoD **бинарен** — нет "Done minus docs". Задача остаётся IN_PROGRESS до выполнения всех применимых пунктов.
-Применимость по типу: **К** (Код — все 11) / **Д** (Документ — DoD 3,4,5,7,8,10) / **И** (Инфраструктура — DoD 2..11 кроме 6).
-Автопроверка: `s0-validate /dod-check [K|D|I] [STAGE] [PR]`.
-
-| # | Условие | Тип | Проверка |
-|---|---------|-----|---------|
-| 1 | Complexity ≤10, SRP, duplication ≤3% нового кода | К | 🤖 частично |
-| 2 | Тесты по пирамиде (unit/integration/contract): branch ≥80% + mutation ≥60% критичных (§3.1) | К, И | 🤖 авто |
-| 3 | Code review: 0 BLOCKER и MAJOR | К, Д, И | 👤 вручную |
-| 4 | README/API-spec/docstring обновлены | К, Д, И | 👤 вручную |
-| 5 | CHANGELOG.md обновлён | К, Д, И | 🤖 авто |
-| 6 | DEV-*-update-notes-PR[N].md создан | К | 🤖 авто |
-| 7 | Нет S1/S2 багов без митигации | К, Д, И | 👤 вручную |
-| 8 | Секреты не в коде, не в логах, не в артефактах | К, Д, И | 🤖 авто |
-| 9 | NFR проверены (latency, error rate, memory) | К, И | 👤 вручную |
-| 10 | Артефакт записан в outputs/ текущего этапа | К, Д, И | 🤖 авто |
-| 11 | Тесты форматов: test_env/db/api_format.py | К, И | 🤖 авто |
-
-Осознанный пропуск DoD → фиксировать в `tracking/tech-debt.md` (блокирует sprint-close при просрочке).
-
-### NFR дефолты
-
-| Метрика | Порог |
-|---------|-------|
-| Availability | ≥ 99.9% |
-| Response time p95 | < 500 ms |
-| Error rate | < 0.1% |
-| Test coverage (branch, изм. код) | ≥ 80% |
-| Mutation score (критичные модули) | ≥ 60% (порог растёт по tier, §3.1) |
-| Code duplication (новый код) | ≤ 3% |
-| Security Critical/High | 0 |
-
-### Стандарт форматов данных (`_standards/data-formats.md`)
-
-Обязательные правила:
-- DB: всегда `TIMESTAMP WITH TIME ZONE`, деньги только `NUMERIC(p,s)`, PK только UUID v4
-- ENV: list/set/frozenset — JSON-формат (`[1,2,3]`, не `1,2,3`)
-- API: datetime ISO 8601 UTC, UUID строка v4, стандартный формат ошибок
-- Обязательные тест-файлы: `test_env_format.py`, `test_db_format.py`, `test_api_format.py`
-
----
-
-## Хранение секретов
-
-Все секреты хранятся **только в `pass`**. Никаких исключений.
-
-```bash
-# Добавить секрет
-AGENT_RUNTIME=codex _runtimes/agent-run.sh --agent-dir _tools/s0-secrets --mode task --prompt "/add my-project api-key"
-
-# Использовать секрет
-export TOKEN=$(pass sdlc/projects/my-project/api-key)
+```text
+tracking/execution-journal/runs/<run-id>/
+├── plan.md        # immutable frozen routes/scope
+├── state.md       # atomic state
+├── events.jsonl   # append-only evidence
+└── lease          # PID + process-start coordination
 ```
 
-Запрещено: секреты в `.md` файлах, `.env` без pass как источника, передача текстом между агентами, коммит файлов с секретами.
+Vendor conversation resume не используется. INTERRUPTED/UNKNOWN не считается success.
+Retry создаёт child run с исходными frozen profiles после последнего структурно подтверждённого
+success/optional-skip event.
 
----
+## Локальные репозитории
 
-## Прямой запуск агента
+Это developer tooling для уже существующего code repository, не четвёртый SDLC Cycle.
+Раздел имеет собственные Project directory и AI/routing settings:
 
-```bash
-# Task-режим через universal dispatcher
-AGENT_RUNTIME=codex _runtimes/agent-run.sh \
-  --agent-dir cycle1-dev/s1-pm \
-  --mode task \
-  --prompt "/feasibility my-project"
+1. Analyze — прочитать repository, записать `overview.md`.
+2. Install & configure — подготовить зависимости/env/services безопасно.
+3. Build — собрать с tests, не использовать skip-tests.
+4. Start & smoke — запустить локально и записать `run.md`.
 
-# Интерактивный режим выбранного runtime
-AGENT_RUNTIME=gemini _runtimes/agent-run.sh \
-  --agent-dir cycle1-dev/s1-pm \
-  --mode interactive \
-  --prompt "начни сессию"
+Полный pipeline печатает success только после всех четырёх шагов. Skip обязательного шага
+завершает его как неполный. Git push в этом разделе запрещён; pull выполняется отдельно после
+Preview и только при чистом working tree. Обновление одной или всех технических заметок также
+показывает exact Preview; skip/failure останавливает последовательность и возвращает incomplete.
+
+## Quality и безопасность
+
+- `_standards/tdd.md` — Specify → Red → Green → Run → Repair → Refactor.
+- `_standards/quality.md` — DoR/DoD, Gate 1–7, global minimum thresholds.
+- `_standards/security.md` — SG1–SG5 и CVSS.
+- `_standards/data-formats.md` — применимые native formats и executable validation.
+
+Project thresholds могут только ужесточать global minimum. Неприменимый пункт имеет явную
+причину/evidence; tech debt не превращает проваленный применимый пункт в PASS.
+
+## Структура repository
+
+```text
+_agents/
+├── cycle1-dev/        # S0–S5 + internal l1–l4
+├── cycle2-deploy/     # s4-devops, s6-release
+├── cycle3-ops/        # s6-sre
+├── _tools/            # GitHub, secrets
+├── _standards/        # mandatory engineering standards
+├── _contract/         # runtime-neutral invariants
+├── _runtimes/         # dispatchers/adapters
+├── plans/             # principles, roadmap, document map
+├── sdlc.sh
+└── localrun.sh
 ```
 
----
+## Документация
 
-## Передача данных между агентами
+- [Первый запуск](GETTING_STARTED.md)
+- [Архитектура и workflow](OVERVIEW.md)
+- [Принципы](plans/principles.md)
+- [Roadmap](plans/roadmap.md)
+- [Карта документов](plans/document-map.md)
+- [Runtime contract](_contract/README.md)
+- [История релизов](CHANGELOG.md)
 
-```bash
-# Агент читает артефакт предыдущего через абсолютный путь
-AGENT_RUNTIME=codex _runtimes/agent-run.sh --agent-dir cycle1-dev/s2-ba --mode task --prompt "Прочитай $SDLC_PROJECTS_DIR/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
-```
-
-Правило: только финальные файлы из `outputs/`. Историю диалога не передавать.
-
----
-
-## Структура файлов outputs/
-
-| Агент | Формат | Пример |
-|-------|--------|--------|
-| s1-pm | `PM-YYYY-MM-DD-[тип].md` | `PM-2026-05-10-feasibility.md` |
-| s2-ba | `BA-YYYY-MM-DD-BRD.md` | `BA-2026-05-10-BRD.md` |
-| s3-arch | `ARCH-YYYY-MM-DD-HLD.md` | `ARCH-2026-05-10-HLD.md` |
-| s3-security | `SEC-YYYY-MM-DD-threat-model.md` | блокирует Gate 3 при наличии Critical/High |
-| s3-rbac | `RBAC-YYYY-MM-DD-model.md` | роли, иерархия, SoD, условный доступ |
-| s3-rbac | `RBAC-YYYY-MM-DD-matrix.md` | матрица прав (роль × ресурс × действие) |
-| s3-rbac | `RBAC-YYYY-MM-DD-schema.sql` | таблицы RBAC + RLS политики |
-| s4-dev | `DEV-YYYY-MM-DD-update-notes-PR[N].md` | обязателен после каждого PR |
-| s4-techlead | `TL-YYYY-MM-DD-review-PR[N].md` | блокирует Gate 4 |
-| s5-qa | `QA-YYYY-MM-DD-go-no-go.md` | блокирует Gate 5 |
-| s6-release | `REL-YYYY-MM-DD-checklist-v[X.Y.Z].md` | блокирует Gate 6 |
-| s6-sre | `SRE-YYYY-MM-DD-autoheal-report.md` | блокирует Gate 7 |
-
----
-
-## Советы
-
-- Перед первым запуском заполни `_standards/company.md` — стек, роли, compliance (методология — в `plans/principles.md`)
-- Quality Gates проверяются агентом следующего этапа автоматически
-- `s0-validate /fix` — быстро создать недостающую структуру проекта
-- `/model claude-opus-4-7` — переключить модель внутри сессии для сложных задач
-- Gate 7 обязателен через 7 дней после деплоя — без него следующий релиз заблокирован
-
----
-
-## Файлы для кастомизации
-
-| Файл | Назначение |
-|------|-----------|
-| `_standards/company.md` | Стек компании, роли, compliance (заполни под свой проект) |
-| `_standards/quality.md` | NFR-дефолты, пороги gates, паттерны надёжности |
-| `_standards/data-formats.md` | Правила форматов DB/ENV/API, шаблоны тестов |
-| `plans/principles.md` | Принципы разработки (SDD, TDD, Shift Left и др.) |
-| `plans/roadmap.md` | Roadmap и запланированные изменения системы |
-| `{agent}/CLAUDE.md` | Роль, правила, стандарты конкретного агента |
-| `sdlc.sh` → `OPTIONAL_AGENTS_DEF` | Список необязательных шагов цикла |
-| `_contract/GLOBAL.md` | Инварианты Universal Runtime Contract |
-| `_runtimes/agent-run.sh` | Диспетчер запуска Claude/Codex/Gemini |
-| `AGENTS.md` / `GEMINI.md` | Runtime-мосты для Codex и Gemini |
-
----
-
-*Claude SDLC Agents v2.000.003 — [Первый запуск](GETTING_STARTED.md) · [Полный обзор](OVERVIEW.md) · [Принципы](plans/principles.md) · [Roadmap](plans/roadmap.md) · [История изменений](CHANGELOG.md)*
+Активные планы находятся только в roadmap. CHANGELOG и новый release notes обновляются только
+при подготовке релиза; старые release notes не переписываются.

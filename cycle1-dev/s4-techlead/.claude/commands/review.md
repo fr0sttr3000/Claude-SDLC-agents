@@ -6,8 +6,14 @@ description: Провести Code Review PR (Gate 4 — блокирует ре
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
+2. $SDLC_VAULT/_agents/_standards/tdd.md
+3. $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/quality-gates.md
+4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/QA-TDD-status.md
+5. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-ADR-*.md
+6. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/DEV-*-update-notes-*.md (все)
+
+До ревью потребуй `QA-TDD-status.md` со `status: PASS`. RED/FAIL/BLOCKED или отсутствие
+независимого verdict блокирует review.
 
 Уточни у пользователя: какой PR ревьюируем и где находится код.
 
@@ -33,7 +39,9 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 ### [PRAISE] — отметить хорошее
 [список]
 
-## Антипаттерны из prod — обязательная проверка
+## Stack-specific lessons learned
+Проверяй пункты ниже только для реально выбранных Python/PostgreSQL/aiogram компонентов.
+Для другого стека используй его эквивалентный checklist; отсутствие этого стека не дефект.
 □ CR-01 [BLOCKER] `server_default=func.cast(...)` — только строковый литерал
 □ [BLOCKER] datetime без `TIMESTAMP(timezone=True)` в SQLAlchemy
 □ [BLOCKER] Функциональный индекс на STABLE/VOLATILE функции
@@ -51,12 +59,12 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 □ Security: нет открытых уязвимостей
 □ Performance: нет N+1 queries
 □ Error handling: нет bare except/pass
-□ SOLID: SRP соблюдён, функции ≤ 20 строк, complexity ≤ 10
+□ SOLID: SRP соблюдён, complexity не выше точного project/global gate
 □ Дублирование на новом коде ≤ 3% (DoD-1, §3)
 □ Unit branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (§3.1)
 □ Integration-тест для каждого внешнего адаптера; contract-тест если PR трогает API (§3.1)
 □ DEV-*-update-notes-PR[N].md существует
-□ README / API-spec / docstring / CHANGELOG обновлены
+□ README / API-spec / docstring обновлены; CHANGELOG/release notes здесь не меняются
 □ SAST прошёл без Critical/High
 
 ## РЕШЕНИЕ

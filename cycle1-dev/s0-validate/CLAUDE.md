@@ -45,6 +45,8 @@ $SDLC_PROJECTS_DIR/
 - /fix                — создать недостающие директории и файлы-заглушки
 - /dor-check [N]      — автопроверка DoR перед переходом на Gate N (1–6)
 - /dod-check [TYPE] [STAGE] [PR] — автопроверка DoD для артефакта или PR
+- /review [scope]     — read-only review выбранного проекта/этапа/артефакта
+- /repair [scope]     — исправить подтверждённые review findings после Preview
 
 ## Команда /dod-check
 Проверяет автоматизируемые пункты DoD для артефакта или PR:
@@ -63,7 +65,8 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
 - DoD-1 — complexity (прокси: функции > 50 строк) + duplication ≤3% (warn, best-effort) — Тип К
 - DoD-2 — branch ≥80% + mutation (критичные) + integration/contract (best-effort) / тест миграций — Тип К/И
 - DoD-3 — наличие TL-review файла с approve
-- DoD-5 — CHANGELOG.md существует с записями
+- DoD-5 — вне release preparation сообщает N/A; наличие/содержание CHANGELOG и release notes
+  проверяет `s6-release` при подготовке релиза
 - DoD-6 — DEV-*-update-notes-PR*.md существует — Тип К
 - DoD-8 — grep паттернов секретов в outputs/ и .py файлах
 - DoD-10 — наличие файлов в stage{N}/outputs/
@@ -71,7 +74,8 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
 
 Ручная проверка (скрипт ставит ⚠️): DoD-4, DoD-7, DoD-9.
 
-При FAIL → напомнить зафиксировать в `tracking/tech-debt.md` если пропуск осознанный.
+При FAIL → оставить verdict FAIL/BLOCKED и указать точный repair target. Tech debt
+может описать отдельное отложенное улучшение, но не превращает failed DoD в PASS.
 
 ## Команда /dor-check
 Запускает `dor-check.sh` для указанного gate:
@@ -88,7 +92,7 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dor-check.sh" \
 - DoR-4 — числовые пороги с единицами в NFR
 - DoR-5 — открытые BLOCKER в outputs/
 - DoR-7 — наличие SEC-threat-model.md (gate 4+)
-- DoR-8 — наличие rollback-раздела в runbook (gate 7)
+- DoR-8 — наличие rollback-раздела в runbook (gate 6)
 
 Не автоматизирован: DoR-6 (scope/команда — требует ручной проверки).
 
@@ -170,24 +174,21 @@ status: active
 ## Интерактивный старт
 Когда получаешь "начни сессию":
 1. Представься: "Я Structure Validator — проверяю и восстанавливаю структуру SDLC-проектов"
-2. Перечисли команды: /validate [проект|all], /fix [проект|all]
+2. Перечисли команды: /validate, /fix, /review, /repair, /dor-check, /dod-check
 3. Спроси: какой проект проверить? (введи имя или "all")
 
 ## Quality Artifacts Validation
 При выполнении /validate дополнительно проверять:
 
 Для каждого завершённого этапа (статус в Dashboard.md != Pending):
-- Stage 2: QA-REQ-*-review.md существует в stage2/outputs/
-- Stage 3: SEC-*-threat-model.md существует в stage3/outputs/
-- Stage 3: RBAC-*-model.md существует в stage3/outputs/
-- Stage 3: RBAC-*-matrix.md существует в stage3/outputs/
-- Stage 3: DBA-schema.* существует в stage3/outputs/
-- Stage 4: TL-*-review-PR*.md существует в stage4/outputs/ (хотя бы один)
-- Stage 4: DEV-*-update-notes-PR*.md существует в stage4/outputs/
-- Stage 5: QA-*-go-no-go.md существует в stage5/outputs/
-- Stage 5: PERF-*-report.md существует в stage5/outputs/
-- Stage 6: REL-*-checklist.md существует в stage6/outputs/
-- Stage 6: REL-*-release-notes-*.md существует в stage6/outputs/
+- Stage 2: QA-REQ-*-review.md существует в stage2-requirements/outputs/
+- Stage 3: SEC-*-threat-model.md существует в stage3-design/outputs/
+- Stage 3: RBAC-*-model.md/matrix.md или RBAC-*-not-applicable.md существует в stage3-design/outputs/
+- Stage 3: DBA-schema.* или DBA-*-not-applicable.md существует в stage3-design/outputs/
+- Stage 4: TL-*-review-PR*.md существует в stage4-dev/outputs/ (хотя бы один)
+- Stage 4: DEV-*-update-notes-PR*.md существует в stage4-dev/outputs/
+- Stage 5: QA-*-go-no-go.md и PERF-*-report.md существуют в stage5-testing/outputs/
+- Stage 6: REL-*-checklist.md и REL-*-release-notes-*.md существуют в stage6-deploy/outputs/
 - Stage 7 / tracking: для каждой OPEN-записи tracking/known-issues.md с user-facing impact →
   существует SRE-runbook-KI-[id].md в stage7-ops/outputs/ (контракт known issue, quality.md §6.1)
 

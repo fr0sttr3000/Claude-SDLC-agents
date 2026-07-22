@@ -21,18 +21,22 @@ description: Собрать локальный проект
    - Python: `source venv/bin/activate`
    - Node.js: `nvm use` (если .nvmrc)
 
-4. Запусти сборку из папки проекта:
-   `(cd "$LOCALRUN_PROJECTS/$ARGUMENTS" && [команда сборки])`
+4. Определи project test command из manifest/README/CI и запусти применимые тесты
+   до или как часть build. Не используй skip-tests.
 
-5. При ошибках:
+5. Запусти сборку из папки проекта:
+   `(cd "$LOCALRUN_PROJECTS/$ARGUMENTS" && [test + команда сборки])`
+
+6. При ошибках:
    - Покажи полный вывод ошибки
    - Диагностируй и исправь
    - Перезапусти сборку
 
-6. Создай/обнови заметку:
+7. Создай/обнови заметку:
    $SDLC_VAULT/Local_Run/$ARGUMENTS/build.md
 
-7. В конце:
+8. В конце:
    - Статус: ✅ Собрано / ❌ Ошибка
+   - Точная test command и результат
    - Где находится результат сборки
    - Следующий шаг: запусти `/run $ARGUMENTS` у агента `l4-run` через выбранный runtime

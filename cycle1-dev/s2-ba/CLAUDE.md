@@ -62,15 +62,30 @@ Performance / Scalability / Availability / Security / Usability / Maintainabilit
 Если не указано явно в бизнес-требованиях → уточнить у стейкхолдера. Не додумывать.
 Фиксировать в BA-NFR.md как: `DC-1: Deployment Constraint = single-container`
 
-## Требования к конфигурации (env-переменные)
+### Operational NFR — обязательная передача из kickoff/PMO
+
+Из `tracking/PMO-constraints.md → operational` перенеси в BA-NFR.md без
+догадок:
+
+- `Monitoring Stack` по слоям metrics/logs/traces/dashboards/incident management;
+- `Playbook Executor`: actor/automation, execution environment и identity;
+- `Operations Owner` и escalation channel;
+- `Auto-Heal Authorization`: manual/allowlist/automatic, разрешённые и
+  запрещённые действия, retry limit;
+- требования Alert Deduplication из quality.md §5.2, адаптированные к выбранному стеку.
+
+Если поле не определено — создай BLOCKER `[OPEN ISSUE]` с владельцем; не
+подставляй Prometheus/Grafana, Kubernetes или конкретного исполнителя по умолчанию.
+
+## Требования к конфигурации (если проект использует env-переменные)
 
 Полный стандарт форматов — в `data-formats.md §2`. Обязательно зафиксировать для каждой переменной:
 
 | Поле | Обязательность | Пример |
 |------|---------------|--------|
 | Имя переменной | да | `ALLOWED_USERS` |
-| Тип Python | да | `list[int]` |
-| Формат в .env | да | JSON: `[123, 456]` |
+| Логический и runtime-тип | да | `list<int>` / тип выбранного runtime |
+| Формат в config/env | да | JSON: `[123, 456]`, если выбран env |
 | Значение по умолчанию | да | — (обязательная) или `[]` |
 | Обязательность | да | да / нет |
 | Источник | да | `pass sdlc/project/key` |
@@ -85,10 +100,10 @@ Performance / Scalability / Availability / Security / Usability / Maintainabilit
 
 При описании требований к данным обязательно фиксировать:
 - **datetime-поля**: явно "ISO 8601 UTC" — не просто "дата"
-- **UUID-поля**: "UUID v4 в строковом формате" — не просто "идентификатор"
-- **Деньги/суммы**: "NUMERIC с 2 знаками после запятой" — не "число"
+- **identifier-поля**: точная стратегия/формат из HLD; UUID v4 только если выбран
+- **Деньги/суммы**: точность и scale без float-loss; NUMERIC — для выбранного SQL stack
 - **Enum-поля**: перечислить все допустимые значения в требовании
-- **JSONB-поля**: задокументировать пример JSON-структуры
+- **структурированные поля**: задокументировать schema/example; JSONB только для выбранного PostgreSQL
 
 ## Именование файлов
 BA-YYYY-MM-DD-BRD.md
@@ -128,6 +143,9 @@ BA-YYYY-MM-DD-RTM.md
 □ Открытые вопросы задокументированы как [OPEN ISSUE] с владельцем
 □ DoR-4 выполнен: NFR задокументированы с числовыми порогами
 □ Deployment Constraint зафиксирован в BA-NFR.md (single-container / multi-instance / serverless)
+□ Monitoring Stack, Playbook Executor, Operations Owner и Auto-Heal Authorization
+  зафиксированы как проверяемые operational NFR
+□ Alert Deduplication имеет AC: один причинный сбой → один incident/notification
 □ Артефакты записаны в stage2-requirements/outputs/
 
 # Валидация форматов (data-formats.md §5 s2-ba)
@@ -146,7 +164,7 @@ BA-YYYY-MM-DD-RTM.md
 
 □ DoD-3: BRD проверен: 0 BLOCKER замечаний (нет маркеров плохих требований, все FR с AC)
 □ DoD-4: RTM создан — каждое требование трассируется к бизнес-цели
-□ DoD-5: docs/CHANGELOG.md обновлён (при наличии в проекте)
+□ DoD-5: N/A вне подготовки релиза; CHANGELOG/release notes здесь не изменяются
 □ DoD-7: Нет нерешённых [OPEN ISSUE] уровня BLOCKER без владельца и срока
 □ DoD-8: Нет секретов (пароли, токены, API-ключи) в артефактах
 □ DoD-10: BA-BRD.md + BA-NFR.md + BA-RTM.md записаны в stage2-requirements/outputs/

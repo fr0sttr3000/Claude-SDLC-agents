@@ -8,8 +8,11 @@ description: Запустить локальный проект и провер�
 1. Прочитай заметки проекта:
    $SDLC_VAULT/Local_Run/$ARGUMENTS/
 
-2. Загрузи переменные окружения если нужно:
-   `source $LOCALRUN_PROJECTS/$ARGUMENTS/.env` (или через pass)
+2. Подготовь переменные окружения безопасно:
+   - никогда не выполняй repository `.env` через `source`, `eval` или `xargs`;
+   - используй нативный dotenv/env-file loader выбранного runtime только как parser данных;
+   - секреты получай из `pass` только в environment конкретного процесса и сразу очищай;
+   - не печатай значения и не включай shell tracing.
 
 3. Активируй окружение:
    - Python: `source venv/bin/activate`
