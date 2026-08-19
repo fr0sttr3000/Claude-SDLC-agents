@@ -2,6 +2,10 @@
 description: Подписать Gate 7 по готовому проверяемому evidence
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /gate7
 
 Проверь Gate 7 проекта $ARGUMENTS без создания новой ops-конфигурации.

@@ -3,8 +3,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d /tmp/sdlc-contract-smoke.XXXXXX)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-contract-smoke.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
+PROJECT_DIR="$TMP_DIR/project"
+mkdir -p "$PROJECT_DIR"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -29,6 +31,7 @@ assert_order() {
 }
 
 assert_file "_standards/tdd.md"
+assert_file "_standards/artifact-metadata.md"
 assert_file "_contract/SUBAGENTS.md"
 
 while IFS= read -r -d '' canonical; do
@@ -43,16 +46,38 @@ done < <(find "$ROOT/cycle1-dev" "$ROOT/cycle2-deploy" "$ROOT/cycle3-ops" "$ROOT
   -mindepth 2 -maxdepth 2 -name CLAUDE.md -type f -print0)
 assert_file "_runtimes/adapters/local.md"
 assert_file "_runtimes/local-hosts/codex-oss"
+assert_file "tests/codex-app-launcher-compat-smoke.sh"
 assert_file "_runtimes/subagent-run.sh"
+assert_file "_runtimes/runtime-boundary.sh"
+assert_file "_runtimes/cycle-landlock.c"
+assert_file "tests/cycle-agent-read-boundary-smoke.sh"
 assert_file "cycle1-dev/s2-test-strategy/CLAUDE.md"
 assert_file "cycle1-dev/s4-qa-auto/CLAUDE.md"
 assert_file "cycle1-dev/s4-qa-auto/.claude/commands/write-tests.md"
 assert_file "cycle1-dev/s4-qa-auto/.claude/commands/run-tests.md"
+assert_file "_contract/S5_VALIDATION_V1.md"
+assert_file "_contract/RISK_EXCEPTION_V3.md"
+assert_file "_contract/quality-policy-v1.tsv"
+assert_file "_contract/QUALITY_METRIC_EVIDENCE_V1.md"
+assert_file "cycle1-dev/s0-validate/s5-validation-check.sh"
+assert_file "_contract/CYCLE1_COMPLETION_V1.md"
+assert_file "_contract/CYCLE1_COMPLETION_V2.md"
+assert_file "_contract/COMMAND_CAPABILITIES_V1.md"
+assert_file "_contract/command-capabilities-v1.tsv"
+assert_file "_contract/cycle1-steps-v1.tsv"
+assert_file "cycle1-dev/s0-validate/cycle1-completion-check.sh"
+assert_file "cycle1-dev/s0-validate/structure-check.sh"
+assert_file "cycle1-dev/s0-validate/legacy-migration-report.sh"
 
-assert_contains "sdlc.sh" '"s2-test-strategy:/strategy"'
-assert_contains "sdlc.sh" '"s4-qa-auto:/write-tests"'
-assert_contains "sdlc.sh" '"s4-qa-auto:/run-tests"'
+assert_contains "sdlc.sh" 'CYCLE1_STEPS_FILE'
+assert_contains "_contract/cycle1-steps-v1.tsv" $'11\ts2-test-strategy\t/strategy'
+assert_contains "_contract/cycle1-steps-v1.tsv" $'18\ts3-dba\t/migration'
+assert_contains "_contract/cycle1-steps-v1.tsv" $'19\ts4-qa-auto\t/write-tests'
+assert_contains "_contract/cycle1-steps-v1.tsv" $'21\ts4-qa-auto\t/run-tests'
 assert_contains "sdlc.sh" "run_tdd_repair_loop"
+assert_contains "_contract/current-artifact-groups-v1.tsv" "tracking/validation/S5-validation-v1.tsv"
+assert_contains "cycle1-dev/s0-validate/cycle1-completion-check.sh" "tracking/validation/S5-validation-v1.tsv"
+assert_contains "sdlc.sh" "cycle1_completion_after_entry"
 assert_contains "sdlc.sh" "SDLC_RUNTIME_ROUTING"
 assert_contains "sdlc.sh" "resolve_step_runtime"
 assert_contains "sdlc.sh" "LOCAL_AGENT_HOST"
@@ -62,17 +87,16 @@ assert_contains "localrun.sh" "resolve_step_runtime"
 assert_contains "localrun.sh" "SDLC_SUBAGENTS"
 assert_contains "localrun.sh" 'SDLC_SUBAGENT_PROFILE=""'
 assert_contains "localrun.sh" 'if [[ "${BASH_SOURCE[0]}" == "$0" ]]'
-assert_order "sdlc.sh" '"s4-qa-auto:/write-tests"' '"s4-dev:/dev-report"'
-assert_order "sdlc.sh" '"s4-dev:/dev-report"' '"s4-qa-auto:/run-tests"'
+assert_order "_contract/cycle1-steps-v1.tsv" $'s4-qa-auto\t/write-tests' $'s4-dev\t/dev-report'
+assert_order "_contract/cycle1-steps-v1.tsv" $'s4-dev\t/dev-report' $'s4-qa-auto\t/run-tests'
+assert_order "_contract/cycle1-steps-v1.tsv" $'s3-dba\t/migration' $'s4-qa-auto\t/write-tests'
 bash -c 'source "$1"; [[ "${#CYCLE1_AGENTS[@]}" -eq 28 ]]' _ "$ROOT/sdlc.sh" || fail "Cycle 1 must contain exactly 28 mandatory steps"
 
-assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Monitoring Stack"
-assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Playbook Executor"
-assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Operations Owner"
-assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Auto-Heal Authorization"
+assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Cycle 2/3 delivery/operations tooling не собирается"
+assert_contains "cycle1-dev/s0-kickoff/CLAUDE.md" "Reliability / observability NFR Cycle 1"
 assert_contains "_standards/quality.md" "Alert Deduplication"
-assert_contains "cycle1-dev/s0-validate/dod-check.sh" "N/A вне подготовки релиза"
-assert_contains "cycle1-dev/s0-validate/CLAUDE.md" "вне release preparation сообщает N/A"
+assert_contains "cycle1-dev/s0-validate/dod-check.sh" "N/A для active Cycle 1"
+assert_contains "cycle1-dev/s0-validate/CLAUDE.md" "сообщает N/A в active Cycle 1"
 assert_contains "cycle2-deploy/s4-devops/CLAUDE.md" "dedup_key"
 assert_contains "cycle2-deploy/s4-devops/CLAUDE.md" "idempotency test (Red)"
 assert_contains "cycle3-ops/s6-sre/CLAUDE.md" "один incident/notification"
@@ -80,42 +104,49 @@ assert_contains "cycle3-ops/s6-sre/CLAUDE.md" "failure-injection scenario (Red)"
 
 # Active documentation must describe the implemented baseline, not the previous one.
 assert_contains "CLAUDE.md" "28 обязательных шагов"
-assert_contains "README.md" "32 специализированных AI-агента"
+assert_contains "README.md" "Cycle 2/3 сохранены как historical code"
+assert_contains "README.md" "./sdlc.ps1"
 assert_contains "README.md" "AGENT_RUNTIME=local"
-assert_contains "GETTING_STARTED.md" "28 обязательных шагов"
+assert_contains "README.md" "28 обязательных шагов"
 assert_contains "OVERVIEW.md" "28 обязательных шагов"
-assert_contains "plans/document-map.md" "28 обязательных шагов"
-assert_contains "plans/principles.md" "single|per-stage|per-agent|ask"
-assert_contains "plans/principles.md" "Specify → Red → Green → Run → Repair → Refactor"
-assert_contains "CLAUDE.md" "cross-runtime"
-assert_contains "_contract/SUBAGENTS.md" "Supervisor + Worker"
-assert_contains "_contract/EXECUTION_JOURNAL.md" "exact worker profile"
-assert_contains "plans/principles.md" "Supervisor + Worker"
-assert_contains "plans/roadmap.md" "Локальные модели, TDD, subagents и operational-контракт"
+assert_contains "plans/roadmap.md" "## Delivered baseline"
+assert_contains "plans/principles.md" "### Явное и fail-closed исполнение"
+assert_contains "plans/principles.md" "### Test-driven development"
+assert_contains "CLAUDE.md" "fail-closed"
+assert_contains "_contract/SUBAGENTS.md" "BLOCKED"
+assert_contains "_contract/EXECUTION_JOURNAL.md" "worker"
+assert_contains "plans/principles.md" "### Ответственный primary и ограниченные помощники"
+assert_contains "CLAUDE.md" "Landlock"
+assert_contains "_contract/GLOBAL.md" "runtime-denied"
+assert_contains "_runtimes/adapters/codex.md" "Landlock"
+assert_contains "plans/roadmap.md" "## Later / Decision gates"
 assert_contains "_contract/README.md" "_runtimes/adapters/local.md"
+assert_contains "CLAUDE.md" "_standards/artifact-metadata.md"
+assert_contains "_contract/S5_VALIDATION_V1.md" "artifact-metadata-check.sh"
 
-FAKE_CODEX="$TMP_DIR/fake-codex"
-CAPTURE="$TMP_DIR/capture.txt"
+mkdir -p "$PROJECT_DIR/.test-bin"
+FAKE_CODEX="$PROJECT_DIR/.test-bin/fake-codex"
 cat > "$FAKE_CODEX" <<'FAKE'
 #!/usr/bin/env bash
 {
   printf 'ARG=%s\n' "$@"
   printf 'SUBAGENTS=%s\n' "${SDLC_SUBAGENTS:-}"
   printf 'SUBAGENT_MAX=%s\n' "${SDLC_SUBAGENT_MAX:-}"
-} > "$CAPTURE_FILE"
+} > "${0}.capture"
 FAKE
 chmod +x "$FAKE_CODEX"
+CAPTURE="$FAKE_CODEX.capture"
 
-CAPTURE_FILE="$CAPTURE" \
 AGENT_RUNTIME=local \
 LOCAL_AGENT_HOST=codex-oss \
 LOCAL_MODEL_PROVIDER=ollama \
 LOCAL_MODEL=test-model:latest \
 LOCAL_CODEX_BIN="$FAKE_CODEX" \
-SDLC_SUBAGENTS=auto \
+SDLC_SUBAGENTS=off \
 SDLC_SUBAGENT_MAX=2 \
   "$ROOT/_runtimes/agent-run.sh" \
     --agent-dir "$ROOT/cycle1-dev/s1-pm" \
+    --project-dir "$PROJECT_DIR" \
     --mode task \
     --prompt "contract smoke"
 
@@ -124,19 +155,22 @@ grep -Fq 'ARG=--local-provider' "$CAPTURE" || fail "local runtime did not pass p
 grep -Fq 'ARG=ollama' "$CAPTURE" || fail "local runtime did not pass ollama provider"
 grep -Fq 'ARG=-m' "$CAPTURE" || fail "local runtime did not pass model flag"
 grep -Fq 'ARG=test-model:latest' "$CAPTURE" || fail "local runtime did not pass exact model"
-grep -Fq 'SUBAGENTS=auto' "$CAPTURE" || fail "subagent mode not propagated"
+grep -Fq 'ARG=--ephemeral' "$CAPTURE" || fail "local Codex task did not isolate session state"
+grep -Fq 'ARG=--ignore-user-config' "$CAPTURE" || fail "local Codex task inherited ambient user config"
+grep -Fq 'SUBAGENTS=off' "$CAPTURE" || fail "fail-closed worker mode not propagated"
 grep -Fq 'SUBAGENT_MAX=2' "$CAPTURE" || fail "subagent max not propagated"
-grep -Fq 'SUBAGENT MODE: auto' "$CAPTURE" || fail "subagent policy not injected into prompt"
+grep -Fq "ARG=$PROJECT_DIR" "$CAPTURE" || fail "local runtime did not receive exact project scope"
 
 if AGENT_RUNTIME=local LOCAL_AGENT_HOST=codex-oss LOCAL_MODEL_PROVIDER=ollama LOCAL_CODEX_BIN="$FAKE_CODEX" \
   "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" --mode task --prompt smoke \
+  --project-dir "$PROJECT_DIR" \
   >"$TMP_DIR/missing-model.out" 2>&1; then
   fail "local runtime accepted an empty LOCAL_MODEL"
 fi
 
 if AGENT_RUNTIME=codex CODEX_BIN=/bin/true SDLC_SUBAGENTS=auto SDLC_SUBAGENT_MAX=08 \
   "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" \
-  --mode task --prompt smoke >"$TMP_DIR/invalid-worker-max.out" 2>&1; then
+  --project-dir "$PROJECT_DIR" --mode task --prompt smoke >"$TMP_DIR/invalid-worker-max.out" 2>&1; then
   fail "runtime accepted a non-canonical worker max with a leading zero"
 fi
 grep -Fq 'must be an integer from 1 to 16' "$TMP_DIR/invalid-worker-max.out" ||
@@ -144,24 +178,25 @@ grep -Fq 'must be an integer from 1 to 16' "$TMP_DIR/invalid-worker-max.out" ||
 
 if AGENT_RUNTIME=local LOCAL_MODEL_PROVIDER=ollama LOCAL_MODEL=test-model:latest \
   LOCAL_CODEX_BIN="$FAKE_CODEX" \
-  "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" --mode task --prompt smoke \
+  "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" \
+  --project-dir "$PROJECT_DIR" --mode task --prompt smoke \
   >"$TMP_DIR/missing-host.out" 2>&1; then
   fail "local runtime accepted an empty LOCAL_AGENT_HOST"
 fi
 
-FAKE_HOST="$TMP_DIR/fake-local-host"
-CUSTOM_CAPTURE="$TMP_DIR/custom-capture.txt"
+FAKE_HOST="$PROJECT_DIR/.test-bin/fake-local-host"
+CUSTOM_CAPTURE="$FAKE_HOST.capture"
 cat > "$FAKE_HOST" <<'FAKE'
 #!/usr/bin/env bash
+capture="$(readlink -f "$0").capture"
 {
   printf 'ARG=%s\n' "$@"
   printf 'PROVIDER=%s\n' "${LOCAL_MODEL_PROVIDER:-}"
   printf 'MODEL=%s\n' "${LOCAL_MODEL:-}"
-} > "$CUSTOM_CAPTURE_FILE"
+} > "$capture"
 FAKE
 chmod +x "$FAKE_HOST"
 
-CUSTOM_CAPTURE_FILE="$CUSTOM_CAPTURE" \
 AGENT_RUNTIME=local \
 LOCAL_AGENT_HOST=custom-smoke \
 LOCAL_MODEL_PROVIDER=openai-compatible \
@@ -170,8 +205,8 @@ LOCAL_HOST_REGISTRY="$TMP_DIR/local-hosts" \
   bash -c '
     mkdir -p "$LOCAL_HOST_REGISTRY"
     ln -s "$1" "$LOCAL_HOST_REGISTRY/custom-smoke"
-    exec "$2" --agent-dir "$3" --mode task --prompt "custom adapter smoke"
-  ' _ "$FAKE_HOST" "$ROOT/_runtimes/agent-run.sh" "$ROOT/cycle1-dev/s1-pm"
+    exec "$2" --agent-dir "$3" --project-dir "$4" --mode task --prompt "custom adapter smoke"
+  ' _ "$FAKE_HOST" "$ROOT/_runtimes/agent-run.sh" "$ROOT/cycle1-dev/s1-pm" "$PROJECT_DIR"
 
 grep -Fq 'PROVIDER=openai-compatible' "$CUSTOM_CAPTURE" || fail "custom host did not receive provider"
 grep -Fq 'MODEL=org/exact-model' "$CUSTOM_CAPTURE" || fail "custom host did not receive exact model"
@@ -209,7 +244,8 @@ fi
 if AGENT_RUNTIME=local LOCAL_AGENT_HOST=not-registered \
   LOCAL_MODEL_PROVIDER=openai-compatible LOCAL_MODEL=org/exact-model \
   LOCAL_HOST_REGISTRY="$TMP_DIR/local-hosts" \
-  "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" --mode task --prompt smoke \
+  "$ROOT/_runtimes/agent-run.sh" --agent-dir "$ROOT/cycle1-dev/s1-pm" \
+  --project-dir "$PROJECT_DIR" --mode task --prompt smoke \
   >"$TMP_DIR/unregistered-host.out" 2>&1; then
   fail "local runtime accepted an unregistered agent host"
 fi
@@ -223,10 +259,55 @@ bash "$ROOT/tests/tdd-orchestration-smoke.sh"
 bash "$ROOT/tests/cycle23-goal-orchestration-smoke.sh"
 bash "$ROOT/tests/launcher-ui-navigation-smoke.sh"
 bash "$ROOT/tests/launcher-preview-dispatch-smoke.sh"
+bash "$ROOT/tests/launcher-runtime-scopes-smoke.sh"
 bash "$ROOT/tests/launcher-execution-journal-smoke.sh"
+bash "$ROOT/tests/launcher-gate-orchestration-smoke.sh"
 bash "$ROOT/tests/local-repositories-ux-smoke.sh"
+bash "$ROOT/tests/local-repositories-product-smoke.sh"
 bash "$ROOT/tests/launcher-advanced-parity-smoke.sh"
+bash "$ROOT/tests/review-repair-journal-smoke.sh"
 bash "$ROOT/tests/launcher-first-run-smoke.sh"
 bash "$ROOT/tests/supervisor-worker-subagents-smoke.sh"
+bash "$ROOT/tests/stage0a-runtime-boundary-smoke.sh"
+bash "$ROOT/tests/runtime-capability-matrix-smoke.sh"
+bash "$ROOT/tests/secret-boundary-smoke.sh"
+bash "$ROOT/tests/cycle-agent-read-boundary-smoke.sh"
+bash "$ROOT/tests/windows-launcher-adapter-smoke.sh"
+bash "$ROOT/tests/codex-app-launcher-compat-smoke.sh"
+bash "$ROOT/tests/gate-validator-behavior-smoke.sh"
+bash "$ROOT/tests/active-scope-principles-smoke.sh"
+bash "$ROOT/tests/principles-consistency-smoke.sh"
+bash "$ROOT/tests/active-links-smoke.sh"
+bash "$ROOT/tests/documentation-contract-smoke.sh"
+bash "$ROOT/tests/documentation-semantics-smoke.sh"
+bash "$ROOT/tests/public-root-inventory-smoke.sh"
+bash "$ROOT/tests/gate4-s5-contract-smoke.sh"
+bash "$ROOT/tests/data-formats-contract-smoke.sh"
+bash "$ROOT/tests/product-ci-profile-smoke.sh"
+bash "$ROOT/tests/evidence-v1-smoke.sh"
+bash "$ROOT/tests/quality-only-up-smoke.sh"
+bash "$ROOT/tests/quality-characteristics-v1-smoke.sh"
+bash "$ROOT/tests/sg3-policy-smoke.sh"
+bash "$ROOT/tests/pr-evidence-gate-smoke.sh"
+bash "$ROOT/tests/product-acceptance-smoke.sh"
+bash "$ROOT/tests/ba-requirements-taxonomy-smoke.sh"
+bash "$ROOT/tests/architecture-decision-trace-smoke.sh"
+bash "$ROOT/tests/runtime-constraints-v1-smoke.sh"
+bash "$ROOT/tests/tdd-status-v1-smoke.sh"
+bash "$ROOT/tests/artifact-metadata-v1-smoke.sh"
+bash "$ROOT/tests/command-capabilities-v1-smoke.sh"
+bash "$ROOT/tests/markdown-output-contract-smoke.sh"
+bash "$ROOT/tests/collection-structure-dispatch-smoke.sh"
+bash "$ROOT/tests/current-artifact-v1-smoke.sh"
+bash "$ROOT/tests/human-approval-origin-smoke.sh"
+bash "$ROOT/tests/sg1-sg2-validation-smoke.sh"
+bash "$ROOT/tests/s5-validation-v1-smoke.sh"
+bash "$ROOT/tests/known-issue-lifecycle-smoke.sh"
+bash "$ROOT/tests/cycle1-completion-v2-smoke.sh"
+bash "$ROOT/tests/task-dod-lifecycle-smoke.sh"
+bash "$ROOT/tests/release-notes-utility-smoke.sh"
+bash "$ROOT/tests/additive-migration-smoke.sh"
+bash "$ROOT/tests/plans-consolidation-smoke.sh"
+bash "$ROOT/tests/active-documentation-boundary-smoke.sh"
 
 echo "PASS: system contract smoke"

@@ -2,6 +2,10 @@
 description: Написать deploy tests и получить RED до pipeline и конфигурации
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /write-deploy-tests
 
 Создай исполняемые тесты поставки до изменения pipeline/IaC/runtime-конфигурации.

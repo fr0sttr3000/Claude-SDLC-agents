@@ -2,6 +2,10 @@
 description: Реализовать выбранную ops-конфигурацию после подтверждённого RED
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /configure-ops
 
 Реализуй минимальную ops-конфигурацию для прохождения заранее написанных тестов.

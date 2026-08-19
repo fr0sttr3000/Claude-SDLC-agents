@@ -2,15 +2,20 @@
 description: Спроектировать stack-neutral authorization model и native enforcement artifacts
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md`,
+`_contract/APPLICABILITY_V1.md` и получи `authorization` scope через canonical resolver.
+
 Спроектируй RBAC-модель для проекта $ARGUMENTS.
 
 Прочитай (в таком порядке):
-1. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/ — найди BA-BRD.md (роли пользователей, бизнес-правила доступа)
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ — найди ARCH-HLD.md (ресурсы системы) и SEC-*-threat-model.md (угрозы несанкционированного доступа)
+1. Current `business-requirements` (роли пользователей, бизнес-правила доступа).
+2. Current `high-level-design` (ресурсы системы) и `threat-model` (угрозы доступа).
+Project artifacts разрешай по root Current Artifacts rule, не через directory glob.
 
-Сначала определи применимость RBAC. Если проект использует другой authorization
-model или не имеет субъектов/защищённых ресурсов, создай
-RBAC-{ДАТА}-not-applicable.md с HLD/security evidence.
+При resolver verdict `NOT_APPLICABLE` создай один
+`RBAC-{ДАТА}-not-applicable.md` типа `applicability-decision` с exact binding к текущей
+Product Profile revision. При `REQUIRED` создай stack-native authorization model; название
+роли агента не ограничивает решение только RBAC.
 
 Для применимого authorization model:
 

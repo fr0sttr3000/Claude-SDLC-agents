@@ -2,6 +2,10 @@
 description: Создать stack-native runbook и operations package после RED
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /runbook
 
 Создай только выбранные профилем runbook/operations-pack результаты для

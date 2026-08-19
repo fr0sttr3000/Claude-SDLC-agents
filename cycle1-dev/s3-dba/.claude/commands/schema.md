@@ -2,21 +2,25 @@
 description: Спроектировать data-store schema в нативном формате выбранного stack
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md`,
+`_contract/APPLICABILITY_V1.md` и получи `data-store` scope через canonical resolver.
+
 Спроектируй data-store schema для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
 2. $SDLC_VAULT/_agents/_standards/data-formats.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-HLD.md
-4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-BRD.md
+3. Current logical id `high-level-design` по root Current Artifacts rule
+4. Current logical id `business-requirements` по root Current Artifacts rule
 
 Сначала определи из HLD/ADR:
 - нужен ли persistent data store;
 - точный engine/версию и schema/migration format;
 - identifier, datetime, money, deletion и consistency contracts.
 
-Если persistent data store не нужен, создай DBA-[дата]-not-applicable.md с причиной
-и HLD evidence. Иначе создай DBA-[дата]-schema в нативном формате выбранного
+При resolver verdict `NOT_APPLICABLE` создай DBA-[дата]-not-applicable.md типа
+`applicability-decision` с exact binding к текущей Product Profile revision. При `REQUIRED`
+создай DBA-[дата]-schema в нативном формате выбранного
 engine; SQL/DBML создавай только если они применимы.
 
 # Обязательные гарантии

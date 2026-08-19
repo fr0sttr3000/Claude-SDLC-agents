@@ -1,11 +1,53 @@
 # SDLC Agent System
 
-Интерактивная multi-runtime система для разработки, подготовки доставки и эксплуатации
-проектов. Один launcher выбирает Project, точный AI profile, scope и workflow; правила
-агентов, gates и artifacts не зависят от Claude, Codex, Gemini или локальной модели.
-Текущий каталог содержит 32 специализированных AI-агента; Cycle 1 исполняет 28 обязательных шагов.
+Интерактивная multi-runtime система для разработки и проверки software product в Cycle 1.
+Один launcher выбирает Project, точный AI profile, scope и workflow; правила агентов, gates и
+artifacts не зависят от Claude, Codex, Gemini или локальной модели.
 
-## Быстрый запуск
+Этот README — единая пользовательская документация системы. Пользовательские инструкции в
+других файлах не дублируются; архитектурные и runtime-контракты перечислены в конце как
+технические справочники.
+
+## Fast Start
+
+### ChatGPT desktop app / Codex — рекомендуемый маршрут
+
+1. Установите ChatGPT desktop app, войдите в аккаунт и откройте каталог `_agents` как
+   folder/project.
+2. Выберите Codex и создайте **Local** chat. Для Vault это основной режим: он работает с
+   текущим checkout. Managed Worktree может не включить внешние, untracked или ignored файлы.
+3. Откройте integrated terminal кнопкой справа сверху или сочетанием
+   <kbd>Ctrl</kbd>+<kbd>&#96;</kbd>.
+4. Проверьте окружение и запустите launcher:
+
+   ```bash
+   pwd
+   command -v codex
+   AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+   ```
+
+5. В первом wizard выберите вид, каталог Projects, режим Project и AI routing. После сообщения
+   `LAUNCHER ГОТОВ` выберите Project; для нового Project начните с `1 Kickoff`.
+
+Выбор папки, Project или пункта меню сам по себе не запускает разработку. Перед изменениями
+launcher показывает Preview с `PROJECT`, `PATH`, `SCOPE`, `EXCLUDED`, ordered routes, exact
+profile и `Fallback OFF`.
+
+Launcher/argv/sandbox routing проверены synthetic compatibility smoke. Полный live Project E2E
+через реальный nested Codex ещё не подтверждён; до отдельного подтверждения используйте этот
+маршрут на непроизводственной копии Project. Внешний chat не заменяет launcher и не должен
+имитировать его SDLC-шаги.
+
+Официальные руководства OpenAI:
+
+- [ChatGPT desktop app](https://learn.chatgpt.com/docs/app)
+- [Integrated terminal](https://learn.chatgpt.com/docs/integrated-terminal)
+- [Local, Worktree и Cloud](https://learn.chatgpt.com/docs/environments/modes)
+- [Managed Worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees)
+- [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+- [Windows app](https://learn.chatgpt.com/docs/windows/windows-app)
+
+### Обычный терминал
 
 Из каталога `_agents`:
 
@@ -13,191 +55,285 @@
 bash sdlc.sh
 ```
 
-Первый запуск ничего не разрабатывает и не меняет в Project. Он последовательно спрашивает:
-
-1. подробный или краткий вид;
-2. каталог SDLC Projects или один Project;
-3. primary runtime/profile;
-4. как распределять primary AI по шагам;
-5. нужны ли read-only AI-помощники.
-
-После настройки появляется выбор Project, затем единый Project Console. Явный runtime можно
-передать заранее:
+Runtime можно выбрать заранее:
 
 ```bash
-AGENT_RUNTIME=claude bash sdlc.sh
-AGENT_RUNTIME=codex bash sdlc.sh
-AGENT_RUNTIME=gemini bash sdlc.sh
+AGENT_RUNTIME=claude SDLC_SUBAGENTS=off bash sdlc.sh
+AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+AGENT_RUNTIME=gemini SDLC_SUBAGENTS=off bash sdlc.sh
 ```
 
-Локальная модель требует точный host, provider и model id:
+Без `AGENT_RUNTIME` первый wizard попросит выбрать runtime явно.
+Если runtime binary отсутствует в `PATH`, перед запуском launcher укажите один точный путь через
+`CLAUDE_BIN`, `CODEX_BIN` или `GEMINI_BIN`. Значение должно обозначать executable, а не shell-команду.
+Прямой запуск `_runtimes/agent-run.sh` не поддерживается: это внутренняя реализация launcher-а,
+которая сама не создаёт пользовательский Preview и Execution Journal.
+
+### Windows — experimental
+
+Windows PowerShell route имеет статус **EXPERIMENTAL / NOT TESTED ON WINDOWS** для полного
+interactive run и не входит в подтверждённый supported scope; используйте на свой страх и риск.
+Repository Windows workflow определяет real `windows-latest` matrix: PowerShell parser с
+invalid mutation, Git Bash auto-detection и explicit `SDLC_BASH`, пути с пробелами/не-ASCII,
+UNC rejection, argv и exit-code propagation. До успешного запуска этого workflow на exact
+revision это лишь план проверки и не повышает статус выше experimental:
+
+```powershell
+./sdlc.ps1
+./localrun.ps1
+```
+
+Wrappers используют Git for Windows Bash либо путь из `SDLC_BASH` и запускают те же
+канонические `.sh`. Для Codex App предпочтителен WSL2/Linux checkout. Windows-native agent и
+integrated terminal настраиваются отдельно; после смены режима откройте новый terminal/chat или
+перезапустите приложение. Не смешивайте Windows- и WSL-пути в одной команде.
+
+## Product status
+
+| Scope | Статус | Пользовательский результат |
+|---|---|---|
+| Cycle 1 — Development & Verification | **ACTIVE / SUPPORTED** | требования, design, code, tests, SG1–SG4, Go/No-Go |
+| Cycle 2 — Deploy | **FROZEN / NOT READY** | historical code сохранён, execution route отсутствует |
+| Cycle 3 — Operations | **FROZEN / NOT READY** | historical code сохранён, execution route отсутствует |
+
+Подготовленный platform release: [v2.001.000](RELEASE_NOTES_v2.001.000.md).
+Он имеет статус `PREPARED / NOT PUBLISHED` до отдельного commit/tag/publication action.
+
+Cycle 1 содержит 28 обязательных шагов. Launcher показывает immutable ordered plan до запуска и
+не считает пропуск обязательного шага успешным. Cycle 2/3 сохранены как historical code, но их
+старые agents, goals и artifacts не подтверждают readiness.
+
+## Первый запуск
+
+Первый wizard только сохраняет настройки и открывает Project Console. Он не изменяет Project и
+не начинает Cycle.
+
+### 1. Выберите вид
+
+- **Подробный** объясняет результат, scope и следующий шаг; рекомендуется новичку.
+- **Краткий** показывает те же действия и клавиши с меньшим количеством текста.
+
+Вид можно переключить клавишей `v`; набор функций не меняется.
+
+### 2. Укажите Projects
+
+Выберите один из режимов:
+
+- **Collection** — каталог, внутри которого находятся несколько SDLC Projects;
+- **Single** — один конкретный Project.
+
+Launcher показывает абсолютный путь выбранного Project. Имя Project должно быть безопасным
+именем каталога без `/` и `..`.
+
+### 3. Настройте primary AI
+
+Primary выполняет шаг, пишет artifacts и отвечает за результат. Доступны Claude, Codex, Gemini
+и зарегистрированный Local agent host.
+
+Routing определяет, какой primary используется для шагов:
+
+| Policy | Значение |
+|---|---|
+| `single` | один exact profile для всех шагов |
+| `per-stage` | profiles по Cycle/Stage groups |
+| `per-agent` | базовый profile и exact overrides ролей |
+| `ask` | назначения всех шагов собираются до Preview |
+
+Workers сейчас недоступны: исполняемый режим — только `SDLC_SUBAGENTS=off`. `Auto`,
+`Supervisor + Worker` и прямой worker dispatcher завершаются fail-closed как `BLOCKED`, пока не
+появится проверяемый bounded read scope на уровне runtime/OS.
+
+Codex и встроенный `codex-oss` работают только в task mode через зарегистрированные команды.
+Каждый такой шаг запускает новый `codex exec --ignore-user-config --ephemeral`; вложенный
+интерактивный Codex блокируется до старта, потому что этот режим не умеет отключать ambient
+user configuration. Интерактивность внешнего ChatGPT/Codex chat остаётся только оболочкой для
+launcher и не передаётся продуктовому агенту.
+
+Для локальной модели укажите точные host, provider и model id:
 
 ```bash
 AGENT_RUNTIME=local \
 LOCAL_AGENT_HOST=codex-oss \
 LOCAL_MODEL_PROVIDER=ollama \
 LOCAL_MODEL=qwen2.5-coder:14b \
+SDLC_SUBAGENTS=off \
 bash sdlc.sh
 ```
 
-Встроенный `codex-oss` поддерживает Ollama и LM Studio. Другой inference server подключается
-зарегистрированным executable agent-host adapter. Endpoint без agent host недостаточен.
-Default model и silent fallback отсутствуют.
+Встроенный `codex-oss` поддерживает Ollama и LM Studio. Silent fallback и default model
+отсутствуют: недоступный exact profile блокирует запуск.
 
-## Что находится в Project Console
+## Project Console
 
 Подробный и краткий виды содержат одинаковые действия:
 
 | Клавиша | Действие | Что происходит |
 |---|---|---|
-| `0` | Незавершённый запуск | Показать evidence и безопасную точку child retry |
-| `1` | Kickoff | Создать/обновить входные данные; Cycle не стартует автоматически |
-| `2` | Обзор | Только чтение текущего состояния |
-| `3` | Review | Read-only review Project, Cycle, Stage или Agent |
-| `4` | Repair | Исправить подтверждённый scope после Preview |
-| `5` | Режим цели | Cycle 1 и явно выбранное продолжение Cycle 2/3 |
-| `6` | Один Cycle | Запустить только Cycle 1, 2 или 3 |
-| `7` | Один Agent | Запустить одну роль и одну команду |
-| `8` | Goal/Cycle 2/Cycle 3 | Частично изменить route/deliverables после разработки |
-| `9` | AI routing/workers | Настроить primary profiles и помощников |
-| `u` | Утилиты | Secrets, tracker, quality gates, GitHub, validation |
-| `l` | Локальные репозитории | Clone/pull, analyze, setup, build, local smoke |
-| `g` | Launcher settings | Каталоги, UI, runtime, routing, workers |
-| `v` | Вид | Переключить compact/detailed без смены функций |
+| `0` | Незавершённый запуск | показать evidence и безопасную точку child retry |
+| `1` | Kickoff | создать или обновить входные данные; Cycle не стартует автоматически |
+| `2` | Обзор | прочитать текущее состояние |
+| `3` | Review | выполнить read-only review Project, Cycle, Stage или Agent |
+| `4` | Repair | исправить подтверждённый scope после Preview |
+| `5` | Cycle 1 | запустить единственный supported SDLC route |
+| `6` | Cycle 2/3 status | показать `FROZEN / NOT READY`; execution недоступен |
+| `7` | Один Agent | запустить одну роль и одну команду |
+| `9` | AI routing/workers | настроить primary profiles и увидеть статус workers |
+| `u` | Утилиты | secret mappings, tracker, quality gates, validation |
+| `l` | Локальные репозитории | clone/pull, analyze, setup, build, local smoke |
+| `g` | Launcher settings | изменить каталоги, UI, runtime и routing |
+| `v` | Вид | переключить compact/detailed без смены функций |
 
-Выбор Project или пункта меню сам по себе ничего не запускает. Перед Cycle, Repair и utility
-launcher показывает `TYPE`, `PROJECT`, absolute `PATH`, `SCOPE`, `EXCLUDED`, ordered steps,
-точные AI profiles и `Fallback OFF`.
+В `u → Tracker` доступны read-only status/backlog и изменяющие `task-add`, `task-block`,
+`task-done`, `sprint-init`, `sprint-close`. Для изменяющей команды launcher сначала
+собирает exact task/sprint параметры, показывает Preview и после runtime exit проверяет
+синхронизацию task state, DoD/governance ledgers или итоговый sprint state. Один exit code `0`
+не завершает Tracker operation.
 
-### Review и Repair
+## Рекомендуемый путь нового Project
 
-Review — реальное capability-enforced read-only действие через `s0-validate /review`.
-Project, `cycle:1..3`, `stage:0..7` и `agent:<id>` формируют разные scopes. Review не пишет
-report в Project. Проверка AI routes и обзор нескольких Projects остаются отдельными
-read-only действиями.
+1. Откройте `1 Kickoff` и заполните idea и ограничения Cycle 1.
+2. Запустите `s0-kickoff /product-ci-profile`, чтобы собрать versioned product/build/test/CI
+   facts без secret values.
+3. Запустите `s0-validate /profile-check` и получите `PROFILE VALID`.
+4. При необходимости выполните `3 Review` для read-only проверки входов.
+5. Откройте `9 AI routing/workers` и проверьте назначения primary.
+6. Выберите `5 Cycle 1`, изучите Preview и только затем подтвердите запуск.
 
-Repair использует те же Project/Cycle/Stage/Agent scopes и дополнительный `structure`.
-Он сначала показывает Preview; агент затем показывает files-to-change и не придумывает
-business/architecture решения при недостатке evidence.
+`PROFILE BLOCKED` означает, что обязательный fact отсутствует, inferred, stale или нарушает
+supported boundary. Исправьте названный факт; не подставляйте silent default.
 
-## Три цикла
+## Preview перед выполнением
 
-| Cycle | Результат | Test-first invariant | Основные роли |
-|---|---|---|---|
-| 1 — Development | требования, design, code, tests, Go/No-Go | QA tests RED до Developer Green; независимый PASS | S0–S5 agents |
-| 2 — Deploy | Stage 6 delivery/release evidence | deploy tests RED до pipeline/IaC/config; `DEPLOY-TDD-status: PASS` | `s4-devops`, `s6-release` |
-| 3 — Operations | Stage 7 operations evidence | ops tests/drills RED до config; `OPS-TDD-status: PASS` | `s6-sre` |
+Перед Cycle, Repair или utility проверьте:
 
-Goal хранится project-locally в `tracking/SDLC-goals.md`. Доступны маршруты:
+- правильный Project и абсолютный `PATH`;
+- `SCOPE` — что войдёт в действие;
+- `EXCLUDED` — что гарантированно не войдёт;
+- ordered steps/routes;
+- exact primary profile и Local model;
+- `Fallback OFF`.
 
-- только Cycle 1;
-- Cycle 1 → Cycle 2;
-- Cycle 1 → Cycle 2 → Cycle 3;
-- своя разрешённая комбинация.
+Подтверждение запускает только показанный план; возврат отменяет действие. Review выполняется
+read-only. Repair и Cycle получают право записи только после Preview.
 
-Cycle 2/3 создают только выбранные deliverables. Infrastructure, monitoring stack, executor,
-owner, authorization, environment и thresholds спрашиваются у пользователя. Docker,
-Kubernetes, PostgreSQL, Prometheus, Grafana, конкретный SLO или live action не подставляются.
+## Частые сценарии
 
-## AI profiles: primary и worker
+### Проверить или исправить существующий Project
 
-Primary — модель, которая выполняет шаг, пишет его artifacts и отвечает за contribution/gate.
-Routing определяет, где используется primary:
+Сначала `3 Review` с точным Project/Cycle/Stage/Agent scope. Если найдены подтверждённые
+проблемы, выберите `4 Repair` с тем же scope. Repair требует актуальный Review и после изменений
+автоматически повторяет read-only проверку; завершение возможно только при machine `CLEAN`.
 
-| Policy | Значение |
-|---|---|
-| `single` | Один exact profile для всех шагов |
-| `per-stage` | Свой profile для Cycle/Stage groups |
-| `per-agent` | Базовый profile плюс exact overrides ролей |
-| `ask` | Все назначения собираются перед Preview |
+### Запустить Cycle 1
 
-Supervisor + Worker не меняет порядок SDLC. Primary остаётся единственным writer/gate signer,
-а worker получает bounded read-only question. Поддержанная worker matrix:
+Project Console → `5 Cycle 1`. Перед Stage 1 обязателен валидный Product & CI Profile. После S1
+quality-gates связывают применимые characteristics с owners, evidence contracts и Gates.
 
-| Profile | Primary | Capability-enforced worker |
-|---|:---:|:---:|
-| Claude CLI | да | да — `Read,Glob,Grep`, no session persistence |
-| Codex CLI | да | да — read-only sandbox, ephemeral |
-| Gemini CLI | да | нет, пока нет enforceable adapter |
-| Local `codex-oss` | да | да — read-only sandbox, ephemeral |
-| Custom local host | да | нет, пока capability не зарегистрирована |
+Cycle завершается только после Gate 1–5, автоматического и независимого полного DoD, exact
+current artifacts и связанной root/Retry evidence chain. `CYCLE 1 COMPLETION VERIFIED` означает
+готовый Cycle 1 handoff, но не разрешение на release или deploy.
 
-Worker scope должен находиться внутри настроенного project root. `/`, HOME и внешние paths
-отклоняются. Worker не получает произвольные secret environment variables и не запускает
-вложенных subagents.
+### Продолжить прерванный запуск
 
-## Markdown-first и native artifacts
+Project Console → `0`. Launcher показывает immutable plan, state и evidence. Retry создаёт
+linked child run с первого неподтверждённого шага и exact remaining suffix. Vendor chat не
+возобновляется, а `RUNNING`, `UNKNOWN` и отсутствующий Gate/DoD не считаются success.
 
-Markdown-first относится к governance: решения, handoff, gates, reviews и человекочитаемые
-evidence ведутся в Markdown/Obsidian. Это не «Markdown-only»: исполняемые и schema-артефакты сохраняют нативный формат — code, tests, OpenAPI, SQL/DBML, YAML/IaC, scanner configs и logs.
-Их связь с требованиями и verdict фиксируется IDs/links в Markdown evidence.
+### Запустить одну роль
 
-## Execution Journal
+Project Console → `7 Один Agent`, затем выберите роль и зарегистрированную команду. Специальные
+flows — secrets, kickoff, Repair и Local Repositories — доступны только в своих разделах. Для
+Codex и `codex-oss` нужно выбрать команду: пустой интерактивный запуск и клавиша `i` недоступны.
 
-Каждый Cycle-run хранит состояние только в выбранном Project:
+### Локальные репозитории
 
-```text
-tracking/execution-journal/runs/<run-id>/
-├── plan.md        # immutable frozen routes/scope
-├── state.md       # atomic state
-├── events.jsonl   # append-only evidence
-└── lease          # PID + process-start coordination
-```
+Project Console → `l Локальные репозитории`. Это отдельный developer flow, не четвёртый Cycle:
 
-Vendor conversation resume не используется. INTERRUPTED/UNKNOWN не считается success.
-Retry создаёт child run с исходными frozen profiles после последнего структурно подтверждённого
-success/optional-skip event.
+1. Analyze.
+2. Install & configure.
+3. Build.
+4. Start & smoke.
 
-## Локальные репозитории
+Полный pipeline успешен только после всех четырёх шагов. Skip или failure останавливает
+последовательность как incomplete. Каждая стадия обновляет собственную техническую заметку.
+Source не привязан к forge/provider: принимаются полные HTTPS/SSH/file URL, SCP-style Git URL
+или существующий локальный path. Exact repository root и origin проверяются fail-closed;
+неоднозначный source/root не запускается. Имена каталогов могут содержать внутренние пробелы,
+поскольку launcher передаёт exact quoted path.
 
-Это developer tooling для уже существующего code repository, не четвёртый SDLC Cycle.
-Раздел имеет собственные Project directory и AI/routing settings:
+Smoke выбирается по типу продукта: web/service проверяет bounded process и health/request,
+library/package — tests плюс import/package, CLI — exit code и stdout/stderr, worker/job —
+один bounded job/queue result. Отсутствующий тип, native command или проверяемый oracle
+завершает шаг как `BLOCKED`, а не как условный успех.
 
-1. Analyze — прочитать repository, записать `overview.md`.
-2. Install & configure — подготовить зависимости/env/services безопасно.
-3. Build — собрать с tests, не использовать skip-tests.
-4. Start & smoke — запустить локально и записать `run.md`.
+### Создать release notes
 
-Полный pipeline печатает success только после всех четырёх шагов. Skip обязательного шага
-завершает его как неполный. Git push в этом разделе запрещён; pull выполняется отдельно после
-Preview и только при чистом working tree. Обновление одной или всех технических заметок также
-показывает exact Preview; skip/failure останавливает последовательность и возвращает incomplete.
+После `CYCLE 1 COMPLETION VERIFIED` откройте Project Console → Utilities → Release notes, введите
+`vX.Y.Z`, проверьте Preview и подтвердите `s0-tracker /release-notes vX.Y.Z`.
 
-## Quality и безопасность
+Команда создаёт только `tracking/releases/REL-vX.Y.Z-release-notes.md`. Она не меняет completion
+manifest и не выполняет внешнюю публикацию, build, deploy или Cycle 2/3.
 
-- `_standards/tdd.md` — Specify → Red → Green → Run → Repair → Refactor.
-- `_standards/quality.md` — DoR/DoD, Gate 1–7, global minimum thresholds.
-- `_standards/security.md` — SG1–SG5 и CVSS.
-- `_standards/data-formats.md` — применимые native formats и executable validation.
+## Пользовательские границы безопасности
 
-Project thresholds могут только ужесточать global minimum. Неприменимый пункт имеет явную
-причину/evidence; tech debt не превращает проваленный применимый пункт в PASS.
+- Каждая роль запускается в отдельной runtime-сессии и не вызывает другие роли напрямую.
+  История chat и скрытая память между ролями не передаются: следующий шаг получает только
+  проверенные Project artifacts через current manifest. Последовательность ролей и handoff
+  координирует launcher.
+- Секреты не вводятся в chat, prompt, argv, Markdown, код или логи. Используйте только ссылку на
+  запись в `pass`; само значение вводится непосредственно в интерактивный prompt `pass`.
+- Launcher передаёт runtime только выбранный Project scope и разрешённые дополнительные пути.
+  Если runtime-защита недоступна, dispatch завершается fail-closed.
+- Primary agents не изменяют repository history, remotes или branches и не создают commits,
+  pushes, pull requests или tags. Поддерживаемый pull показывает оператору Preview, но
+  поддерживаемого pull, но VCS control-plane не передаётся продуктовому agent runtime.
+- Не используйте `danger-full-access` как обход ошибки sandbox. Исправьте поддерживаемую
+  Linux/WSL2 sandbox configuration либо запустите launcher из отдельного terminal в том же
+  checkout.
+- Cycle 2/3, deployment и operations execution недоступны в supported launcher.
+- Release notes — документ; они не являются release/deploy authorization.
 
-## Структура repository
+## Диагностика
 
-```text
-_agents/
-├── cycle1-dev/        # S0–S5 + internal l1–l4
-├── cycle2-deploy/     # s4-devops, s6-release
-├── cycle3-ops/        # s6-sre
-├── _tools/            # GitHub, secrets
-├── _standards/        # mandatory engineering standards
-├── _contract/         # runtime-neutral invariants
-├── _runtimes/         # dispatchers/adapters
-├── plans/             # principles, roadmap, document map
-├── sdlc.sh
-└── localrun.sh
-```
+- `codex: command not found`: установите или авторизуйте Codex CLI именно в среде integrated
+  terminal; runtime fallback запрещён.
+- Ошибка sandbox/user namespaces (`bubblewrap`): используйте поддерживаемый Linux/WSL2 setup;
+  не включайте `danger-full-access`.
+- Путь содержит пробелы: выбирайте каталог через wizard или передавайте его в кавычках:
 
-## Документация
+  ```bash
+  SDLC_PROJECTS_DIR="/path/with spaces/Projects" \
+  AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+  ```
 
-- [Первый запуск](GETTING_STARTED.md)
+- Runtime binary или Local model недоступен: исправьте exact profile/model id; другой profile
+  автоматически не выбирается.
+- Worker profile отклонён: установите `SDLC_SUBAGENTS=off`; смена primary runtime не снимает
+  capability block workers.
+- Prompt отклонён как secret-like: удалите значение и передайте только ссылку на `pass`.
+- Gate/DoR/DoD `BLOCKED`: откройте названный evidence id и исправьте причину; не ослабляйте
+  threshold или test.
+- Cycle 2/3 недоступен: это ожидаемый статус `FROZEN / NOT READY`, а не ошибка launcher.
+
+## Интеграция с Obsidian
+
+### Markdown-first и native artifacts
+
+Папка `Claude/` открывается как Obsidian Vault. Пользовательские Project artifacts, standards и
+plans остаются обычными переносимыми файлами. Markdown используется для решений, handoff,
+gates, reviews и человекочитаемого evidence, но система не является Markdown-only: исполняемые и schema-артефакты сохраняют нативный формат — code,
+tests, OpenAPI, SQL/DBML, YAML/IaC, scanner configs и logs.
+
+## Технические справочники
+
+Следующие документы описывают реализацию и governance, а не отдельные пользовательские маршруты:
+
 - [Архитектура и workflow](OVERVIEW.md)
 - [Принципы](plans/principles.md)
 - [Roadmap](plans/roadmap.md)
-- [Карта документов](plans/document-map.md)
-- [Runtime contract](_contract/README.md)
-- [История релизов](CHANGELOG.md)
+- [Runtime contracts](_contract/README.md)
+- [Codex runtime adapter](_runtimes/adapters/codex.md)
+- [История изменений](CHANGELOG.md)
 
-Активные планы находятся только в roadmap. CHANGELOG и новый release notes обновляются только
-при подготовке релиза; старые release notes не переписываются.
+Активные планы находятся только в roadmap. Канонические обязательные правила находятся в
+`_standards/` и `_contract/`; README объясняет пользователю, как безопасно применять систему.

@@ -3,6 +3,8 @@
 set -euo pipefail
 
 AGENT_DIR_VALUE=""
+PROJECT_DIR_VALUE=""
+NOTES_DIR_VALUE=""
 MODE="task"
 ACCESS="write"
 PROMPT=""
@@ -10,6 +12,8 @@ PROMPT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent-dir) AGENT_DIR_VALUE="${2:-}"; shift 2 ;;
+    --project-dir) PROJECT_DIR_VALUE="${2:-}"; shift 2 ;;
+    --notes-dir) NOTES_DIR_VALUE="${2:-}"; shift 2 ;;
     --mode) MODE="${2:-}"; shift 2 ;;
     --access) ACCESS="${2:-}"; shift 2 ;;
     --prompt) PROMPT="${2:-}"; shift 2 ;;
@@ -21,9 +25,15 @@ PROVIDER="${LOCAL_MODEL_PROVIDER:-}"
 MODEL="${LOCAL_MODEL:-}"
 CODEX_COMMAND="${LOCAL_CODEX_BIN:-codex}"
 WORKER_MODE="${SDLC_WORKER:-0}"
-declare -a WORKER_FLAGS=()
+declare -a EXECUTION_FLAGS=(--sandbox workspace-write --ephemeral)
+declare -a SCOPE_FLAGS=()
 
 [[ -d "$AGENT_DIR_VALUE" ]] || { echo "codex-oss: valid --agent-dir is required" >&2; exit 2; }
+[[ -d "$PROJECT_DIR_VALUE" ]] || { echo "codex-oss: valid --project-dir is required" >&2; exit 2; }
+if [[ -n "$NOTES_DIR_VALUE" ]]; then
+  [[ -d "$NOTES_DIR_VALUE" ]] || { echo "codex-oss: --notes-dir must exist" >&2; exit 2; }
+  SCOPE_FLAGS+=(--add-dir "$NOTES_DIR_VALUE")
+fi
 case "$ACCESS" in write|read-only) ;; *) echo 'codex-oss: --access must be write or read-only' >&2; exit 2 ;; esac
 case "$PROVIDER" in
   ollama|lmstudio) ;;
@@ -42,19 +52,18 @@ if [[ "$WORKER_MODE" == "1" || "$ACCESS" == read-only ]]; then
     echo "codex-oss: read-only worker supports task mode only" >&2
     exit 2
   }
-  WORKER_FLAGS=(--sandbox read-only --ephemeral)
+  EXECUTION_FLAGS=(--sandbox read-only --ephemeral)
 fi
 
 case "$MODE" in
   task)
-    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" exec --oss --local-provider "$PROVIDER" -m "$MODEL" \
-      "${WORKER_FLAGS[@]}" --cd "$AGENT_DIR_VALUE" "$PROMPT"
+    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" exec --ignore-user-config \
+      --oss --local-provider "$PROVIDER" -m "$MODEL" \
+      "${EXECUTION_FLAGS[@]}" --cd "$PROJECT_DIR_VALUE" "${SCOPE_FLAGS[@]}" "$PROMPT"
     ;;
   session-start|interactive)
-    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" --oss --local-provider "$PROVIDER" -m "$MODEL" --cd "$AGENT_DIR_VALUE" "$PROMPT"
-    ;;
-  continue)
-    AGENT_DIR="$AGENT_DIR_VALUE" "$CODEX_COMMAND" --oss --local-provider "$PROVIDER" -m "$MODEL" --cd "$AGENT_DIR_VALUE"
+    echo 'codex-oss: BLOCKED: interactive Codex cannot disable ambient user configuration; use a registered command in task mode' >&2
+    exit 2
     ;;
   *)
     echo "codex-oss: unsupported mode: $MODE" >&2

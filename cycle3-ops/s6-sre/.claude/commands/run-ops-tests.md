@@ -2,6 +2,10 @@
 description: Запустить неизменённый ops test manifest и записать verdict
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /run-ops-tests
 
 Запусти неизменённый ops test manifest после конфигурации.

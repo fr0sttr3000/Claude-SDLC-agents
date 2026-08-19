@@ -11,12 +11,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-
-# Assistant/private working memory (must stay outside the product repo)
-PROJECT_MEMORY.md
-**/PROJECT_MEMORY.md
-
 # Launcher user config if XDG_CONFIG_HOME is accidentally pointed into repo
 .config/sdlc-agents/
 sdlc-agents/config
@@ -29,6 +23,8 @@ sdlc-agents/config
 *.env.*
 **/.env
 **/.env.*
+.envrc
+.direnv/
 
 # Secret material and local credentials
 *.pem
@@ -36,16 +32,63 @@ sdlc-agents/config
 *.p12
 *.pfx
 *.jks
-id_rsa
-id_ed25519
-credentials.json
+*.kdbx
+*.age
+*.gpg
+id_rsa*
+id_ed25519*
+credentials*.json
 service-account*.json
+service_account*.json
+client-secret*.json
+client_secret*.json
 *.credentials
 *.secret
+*.secret.*
 *.token
+secrets.yml
+secrets.yaml
+secrets.json
+.secrets/
+**/.secrets/
+*.ppk
 secrets.local.*
+passwords.*
+passwd.*
+.netrc
+.npmrc
+.pypirc
+.pgpass
+.my.cnf
+.vault-token
+.password-store/
+password-store/
+.docker/config.json
+.aws/
+.azure/
+.config/gcloud/
+.ssh/
+.gnupg/
+.kube/config
+kubeconfig*
+*.ovpn
+*.mobileprovision
+*.keystore
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+
+# Local databases and backups may contain credentials or user data
+*.db
+*.sqlite
+*.sqlite3
+*.bak
 
 # Runtime/cache/log output
 *.log
 .cache/
 **/.cache/
+tests/.runtime-tmp/

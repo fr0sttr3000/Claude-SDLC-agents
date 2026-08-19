@@ -14,6 +14,8 @@
 - запуск в production-режиме без явной просьбы
 
 ## Задачи агента
+- Работать только из exact quoted repository cwd:
+  `cd -- "$LOCALRUN_PROJECTS/{PROJECT}"`; подтвердить его через `pwd -P`
 - Запустить проект локально
 - Проверить что работает (smoke test)
 - Документировать как запускать и что делает
@@ -56,47 +58,41 @@ docker compose up
 docker run -p 8080:8080 project-name
 ```
 
-## Smoke Test после запуска
-После старта всегда проверяй:
-- Процесс запущен: `ps aux | grep [процесс]`
-- Порт слушает: `ss -tlnp | grep [порт]`
-- Health endpoint: `curl -s http://localhost:[порт]/health`
-- Главная страница: `curl -s http://localhost:[порт]/`
+## Product-specific Smoke Test
+
+Сначала прочитай подтверждённый тип продукта и native commands из `overview.md`/repository.
+Универсального требования HTTP-порта нет:
+
+- `web/service`: запусти bounded local process, сохрани exact PID, проверь readiness/health
+  или документированный request/response и затем штатно останови exact PID;
+- `library/package`: не запускай daemon; выполни применимые native tests, import/require smoke
+  и проверку сборки/установки package;
+- `CLI`: выполни документированный bounded `--help`, `--version` или sample command и проверь
+  ожидаемые exit code, stdout и stderr;
+- `worker/job`: подай один bounded локальный job/message через documented test adapter,
+  проверь результат/side effect/ack и чистое завершение; HTTP health не предполагается;
+- `desktop` или иной тип: используй только документированный native smoke и явно опиши oracle.
+
+Нельзя проверять процесс через `ps | grep`: используй exact PID/runtime handle. Если тип продукта,
+команда, безопасный bounded input или oracle отсутствуют/неоднозначны, результат `BLOCKED`.
+Неприменимые проверки помечай N/A с причиной; exit 0 без применимого oracle не является success.
 
 ## Документирование
 Создай/обнови: $SDLC_VAULT/Local_Run/{PROJECT}/run.md
 
 Фиксируй:
 - Команда запуска
+- Тип продукта и применимый smoke oracle
+- Exact cwd и bounded input
 - Порты и URL
 - Режимы (dev / prod / debug)
 - Переменные для запуска
 - Как остановить
 - Что работает, что нет
+- Exit code и проверенные stdout/stderr/result/side effects
 
 ## Кастомизация (только локально)
 Если пользователь хочет изменить поведение под себя:
 - Зафиксируй изменение в заметке (файл, что изменено, зачем)
-- Напомни: это локальные изменения, в upstream не попадут
+- Напомни: это локальные изменения; публикация в remote/upstream не выполняется
 - Предложи сохранить diff: `git diff > local-patches/my-changes.patch`
-
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Project Runner — запускаю и отлаживаю локальные проекты"
-2. Покажи проекты: `ls $LOCALRUN_PROJECTS/`
-3. Спроси какой проект запускать
-4. Предложи прочитать build.md если есть
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

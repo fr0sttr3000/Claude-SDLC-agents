@@ -2,16 +2,19 @@
 description: Запустить полный или частичный Feasibility Study с поддержкой вето стейкхолдера
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 ## Шаг 1 — Разбор аргументов
 
 `$ARGUMENTS` может содержать: `[PROJECT] [флаги через пробел]`
 
 Разбери:
 - **PROJECT** = первый токен до пробела (или весь `$ARGUMENTS`, если пробелов нет)
-- **skip:X** — пропустить секцию X до старта: `legal` / `finance` / `operational` / `technical`
 - **budget:N** — переопределить бюджет из idea.md числом N
 - **mode:auto** — без интерактивных чекпоинтов (пакетный режим)
-- **scope:minimal** — только Executive Summary + Топ-5 рисков + ВЕРДИКТ
+
+`skip:*`, veto секции и `scope:minimal` запрещены для Gate-advancing feasibility. Если
+данных для оси нет, создай только DRAFT/BLOCKED с owner/action и не ставь COMPLETE/GO.
 
 Если PROJECT не указан → спроси: «Для какого проекта запускаем Feasibility Study?»
 После разбора используй только переменную {PROJECT} для путей. Флаги не являются
@@ -37,25 +40,24 @@ description: Запустить полный или частичный Feasibili
 
 ## Шаг 3 — Презентация плана (если mode ≠ auto)
 
-Выведи план с учётом флагов `skip:` и `scope:minimal`. Жди ответа пользователя.
+Выведи полный план четырёх осей. Жди ответа пользователя.
 
 ```
 📋 План: Feasibility Study — {PROJECT}
 ────────────────────────────────────────────
-[1] Technical Feasibility        {✅ | ⚠️ SKIPPED (skip:technical)}
-[2] Economic Feasibility         {✅ | ⚠️ SKIPPED (skip:finance)}
-[3] Operational Feasibility      {✅ | ⚠️ SKIPPED (skip:operational)}
-[4] Legal/Compliance Feasibility {✅ | ⚠️ SKIPPED (skip:legal)}
+[1] Technical Feasibility        ✅
+[2] Economic Feasibility         ✅
+[3] Operational Feasibility      ✅
+[4] Legal/Compliance Feasibility ✅
 [5] Топ-5 рисков                 ✅ (всегда)
 [6] ВЕРДИКТ                      ✅ (всегда)
 
-  veto [1-4]  — исключить секцию
   edit [что]  — изменить предположение или параметр
   [Enter]     — начать
 ```
 
 После ответа пользователя:
-- Обнови список секций (добавь veto-метки)
+- Обнови данные секций после каждого `edit`
 - Если `edit [что]` — переспроси конкретный параметр, запомни новое значение
 - Начинай работу только после явного подтверждения
 
@@ -68,6 +70,13 @@ description: Запустить полный или частичный Feasibili
 ---
 
 # Feasibility Study — {PROJECT}
+
+Assessment status: {COMPLETE|BLOCKED}
+stakeholder_acknowledgement_ref: tracking/approvals/APPROVAL-FEASIBILITY-{ID}.yaml
+Axis: technical | Verdict: {PASS|CONDITIONAL|FAIL} | Evidence: {конкретный факт/расчёт} | Owner: {роль}
+Axis: economic | Verdict: {PASS|CONDITIONAL|FAIL} | Evidence: {конкретный факт/расчёт} | Owner: {роль}
+Axis: operational | Verdict: {PASS|CONDITIONAL|FAIL} | Evidence: {конкретный факт/расчёт} | Owner: {роль}
+Axis: legal | Verdict: {PASS|CONDITIONAL|FAIL} | Evidence: {конкретный факт/расчёт} | Owner: {роль}
 
 ```
 Дата:   {ДАТА}
@@ -82,8 +91,12 @@ description: Запустить полный или частичный Feasibili
 [3 предложения: проблема → решение → предварительный вердикт]
 
 **Вердикт: Go / Conditional Go / No-Go**
+Добавь отдельную machine-readable строку `Decision: GO` или `Decision: CONDITIONAL_GO`.
+`No-Go` не является Gate 1 PASS. Обязательно добавь точные разделы `## Scope In` и `## Scope Out`
+минимум с одним конкретным пунктом каждый.
 
-{Если есть пропущенные секции → добавь: ⚠️ Вердикт частичный — не оценивались: [список]}
+После записи вычисли SHA-256 артефакта и покажи preview для отдельного human action со scope
+`feasibility-acknowledgement`. Агент не создаёт Human Approval YAML/receipt.
 
 ---
 
@@ -111,17 +124,17 @@ description: Запустить полный или частичный Feasibili
 **To-Be:** {Q1.4 из idea.md [DATA — stakeholder interview]}
 **Оценка:** {насколько сложен переход? что технически меняется?}
 
-### Operational Tier — Рекомендуемый уровень надёжности
+### Criticality Tier — Классификация риска Cycle 1
 
 Прочитай из idea.md:
-- `Deployment Constraint` (Q3.6): {значение}
-- `Recovery Expectation` (Q3.7): {A/B/C/D}
-- `Monitoring Expectation` (Q3.8): {A/B/C}
-- `Delivery Scope` (Q3.9): {A/B/C}
+- `Runtime Constraints` (Q3.6): {подтверждённые constraints или unknown}
+- `Recovery Expectation` (Q3.7): {наблюдаемый результат/threshold/open issue}
+- `Observability Expectation` (Q3.8): {application signals/threshold/open issue}
 
-Применяй матрицу из CLAUDE.md § "Operational Tier Selection". Определи тир и заполни:
+Используй раздел CLAUDE.md «Cycle 1 quality capabilities — без operational tooling».
+Tier является risk-классификацией, а не скрытой таблицей infrastructure/tooling defaults.
 
-**Рекомендуемый Operational Tier: {0 — Minimal / 1 — Basic / 2 — Standard / 3 — Full}**
+**Рекомендуемый Criticality Tier: {0 / 1 / 2 / 3}**
 
 Что это означает для вас на практике:
 - ✅ {что пользователь получит — на бизнес-языке, без технических терминов}
@@ -129,13 +142,7 @@ description: Запустить полный или частичный Feasibili
 
 Overhead к бюджету: {+0% / +5-10% / +15-20% / +25-30% [ASSUMPTION]}
 
-Delivery Scope: {что делает команда, что остаётся на стороне клиента}
-
-{Если Q3.7 = C/D → обязательно включить:}
-**Incident response в scope:**
-- Отчёт о сбое: {да/нет}
-- Postmortem-шаблон: {да/нет}
-- Runbook: {да/нет}
+Cycle 2/3 delivery/operations tooling: `FROZEN / NOT READY`, в scope решения не входит.
 
 > ⚠️ **Требует подтверждения стейкхолдера** — тир определяет объём работы и бюджет.
 > Вынести на чекпоинт перед переходом к следующей секции.
@@ -149,9 +156,9 @@ Delivery Scope: {что делает команда, что остаётся н�
 ```
 ✅ Technical Feasibility — готово
    {1-2 предложения: ключевой вывод}
-   Operational Tier: {N — название} — {что это значит на практике, 1 предложение}
+   Criticality Tier: {N} — {что это значит на практике, 1 предложение}
 
-   Подтвердить Tier {N}? [Enter = да]  |  veto tier — выбрать другой тир  |  edit [что] — изменить  |  stop
+   Подтвердить Tier {N}? [Enter = да]  |  edit tier — выбрать другой тир  |  stop
 ```
 
 ---
@@ -191,7 +198,7 @@ Delivery Scope: {что делает команда, что остаётся н�
    {1-2 предложения}
 
 ▶ Следующая: Operational Feasibility
-  [Enter] продолжить  |  veto  |  edit [что]  |  stop
+  [Enter] продолжить  |  edit [что]  |  stop
 ```
 
 ---
@@ -225,7 +232,7 @@ Delivery Scope: {что делает команда, что остаётся н�
    {1-2 предложения}
 
 ▶ Следующая: Legal/Compliance Feasibility
-  [Enter] продолжить  |  veto  |  edit [что]  |  stop
+  [Enter] продолжить  |  edit [что]  |  stop
 ```
 
 ---
@@ -316,30 +323,28 @@ Delivery Scope: {что делает команда, что остаётся н�
 ```yaml
 decisions:
   verdict: "{Go / Conditional Go / No-Go}"
-  operational_tier: "{0 / 1 / 2 / 3} — {название}"
-  deployment_topology: "{single-container / single-host docker-compose / multi-instance / serverless}"
-  delivery_scope: "{code-only / code+docker / code+deploy+monitoring}"
-  alert_channel: "{Telegram / Email / Slack / [OPEN ISSUE OI-?]}"
-  existing_monitoring: "{none / external:{сервис} / self-hosted / unknown}"
+  criticality_tier: "{0 / 1 / 2 / 3} — risk classification"
+  runtime_constraints: "{подтверждённые constraints или unknown}"
+  frozen_scope: "Cycle 2/3 delivery and operations tooling"
 
 inherited_nfr:
-  # NFR-требования, вытекающие из Operational Tier — перенести в BA-NFR.md с числовыми порогами
+  # NFR-требования из подтверждённых expectations — перенести в BA-NFR.md с числовыми порогами
   - "{/health endpoint (liveness) — если Tier ≥ 1}"
-  - "{/metrics endpoint Prometheus — если Tier ≥ 2}"
-  - "{/ready endpoint — если topology = multi-instance}"
+  - "{metrics contract — если требуется точным NFR}"
+  - "{/ready endpoint — если подтверждённые runtime_constraints требуют нескольких instances}"
   - "{structured JSON logging с correlation_id — если Tier ≥ 1}"
-  - "{alert_channel настроен — если Q3.7 ≠ A}"
+  - "{recovery behavior — из точного NFR}"
 
 architectural_constraints:
-  # Ограничения деплоя и наблюдаемости — учесть при проектировании HLD и API spec
-  - "deployment_topology: {значение} — учесть при выборе паттернов"
+  # Runtime и observability constraints Cycle 1 — учесть в HLD/API spec
+  - "runtime_constraints: {значение} — учесть при выборе application patterns"
   - "{добавить /health в API spec — если Tier ≥ 1}"
   - "{добавить /metrics в API spec — если Tier ≥ 2}"
-  - "{сервисов в docker-compose: N — app + prometheus + grafana если Tier 2}"
+  - "Cycle 2/3 tooling: FROZEN / NOT READY; не выбирать"
 
-infrastructure_constraints:
-  # Инфраструктурные требования — реализовать согласно Operational Tier
-  - "operational_tier: {N} — реализовать полный стек тира"
+application_constraints:
+  # Cycle 1 capabilities; delivery/operations tooling не выбирать
+  - "criticality_tier: {N} — risk classification, не infrastructure preset"
   - "monitoring_stack: {с нуля / интеграция с {existing_monitoring}}"
   - "runbook: {обязателен если Tier ≥ 1}"
   - "postmortem_template: {обязателен если Q3.7 = D}"

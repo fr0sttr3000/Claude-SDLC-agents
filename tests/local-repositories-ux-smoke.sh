@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d /tmp/sdlc-local-repositories.XXXXXX)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-local-repositories.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 export XDG_CONFIG_HOME="$TMP_DIR/config"
@@ -19,8 +19,10 @@ assert_contains() {
   [[ "$1" == *"$2"* ]] || fail "output does not contain: $2"
 }
 
-for fn in valid_local_folder local_repositories_action_map \
-  render_local_repositories_menu localrun_exit_code valid_menu_index; do
+for fn in valid_local_folder local_repository_source_kind local_repository_default_folder \
+  local_repository_root_is_exact local_repositories_action_map \
+  render_local_repositories_menu localrun_exit_code valid_menu_index \
+  localrun_step_output_ref localrun_step_output_fingerprint run_verified_local_step; do
   declare -F "$fn" >/dev/null || fail "missing Local Repositories function: $fn"
 done
 
@@ -32,9 +34,28 @@ for value in '' 0 04 5 -1 abc '1+1' 'x[0]'; do
 done
 
 valid_local_folder repo-2 || fail "safe repository folder rejected"
-for unsafe in '../escape' 'nested/repo' '.' '..' '.hidden' 'with space' ''; do
+valid_local_folder 'repo with space' || fail "safe repository folder with spaces rejected"
+for unsafe in '../escape' 'nested/repo' '.' '..' '.hidden' ' leading' 'trailing ' $'tab\tname' ''; do
   if valid_local_folder "$unsafe"; then
     fail "unsafe repository folder accepted: $unsafe"
+  fi
+done
+
+[[ "$(local_repository_default_folder 'https://example.test/org/repo.git')" == repo ]] ||
+  fail 'HTTPS repository folder was not derived'
+SSH_USER=git
+SSH_HOST=example.test
+SSH_AUTHORITY="${SSH_USER}@${SSH_HOST}"
+[[ "$(local_repository_default_folder "ssh://${SSH_AUTHORITY}/org/repo-name.git")" == repo-name ]] ||
+  fail 'SSH repository folder was not derived'
+[[ "$(local_repository_default_folder "${SSH_AUTHORITY}:org/repo with space.git")" == 'repo with space' ]] ||
+  fail 'SCP-style repository folder with spaces was not derived'
+mkdir -p "$TMP_DIR/source repo"
+[[ "$(local_repository_default_folder "$TMP_DIR/source repo")" == 'source repo' ]] ||
+  fail 'local repository folder with spaces was not derived'
+for ambiguous in 'example.test/org/repo.git' 'missing local repo' '--upload-pack=bad'; do
+  if local_repository_source_kind "$ambiguous" >/dev/null; then
+    fail "ambiguous or option-like repository source accepted: $ambiguous"
   fi
 done
 
@@ -65,7 +86,7 @@ AGENT_RUNTIME=codex
 BASE_PROFILE='codex||||'
 PROJECTS="$TMP_DIR/repos"
 LOCALRUN_PROJECTS="$PROJECTS"
-mkdir -p "$PROJECTS/Repo"
+mkdir -p "$PROJECTS/Repo" "$PROJECTS/Repo With Space"
 if run_agent l1-analyze Repo /analyze <<< '' >/dev/null; then
   fail "Local Repositories agent hid dispatcher failure"
 else
@@ -87,6 +108,22 @@ if [[ "$pipeline_output" == *'Pipeline завершён'* ]]; then
   fail 'full pipeline claimed success after a skipped required step'
 fi
 
+run_agent() { return 0; }
+if run_verified_local_step l1-analyze Repo /analyze <<< '' >/dev/null 2>&1; then
+  fail 'Local Repositories accepted exit 0 without overview.md'
+fi
+run_agent() {
+  mkdir -p "$NOTES/$2"
+  printf '%s\n' '# Verified overview' > "$NOTES/$2/overview.md"
+}
+run_verified_local_step l1-analyze Repo /analyze <<< '' >/dev/null ||
+  fail 'Local Repositories rejected a changed non-empty overview.md'
+run_agent() { return 0; }
+if run_verified_local_step l1-analyze Repo /analyze <<< '' >/dev/null 2>&1; then
+  fail 'Local Repositories accepted a stale existing overview.md'
+fi
+
+run_agent() { return 3; }
 header() { :; }
 pick_local_project() { LOCAL_PROJECT=Repo; return 0; }
 set +e

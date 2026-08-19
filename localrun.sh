@@ -1,6 +1,6 @@
 #!/bin/bash
 # Local Run Interactive Launcher
-# Управление локальными проектами с GitHub — push ЗАПРЕЩЁН
+# Управление локальными repositories независимо от forge/provider — push ЗАПРЕЩЁН
 
 # Пути вычисляются от расположения скрипта — переносимо между окружениями
 AGENTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,6 +19,7 @@ export SDLC_SUBAGENT_RUNNER="${SDLC_SUBAGENT_RUNNER:-$AGENTS/_runtimes/subagent-
 export SDLC_RUNTIME_ROUTING="${SDLC_RUNTIME_ROUTING:-}"
 export SDLC_UI_VIEW="${SDLC_UI_VIEW:-detailed}"
 AGENT_RUNNER="$AGENTS/_runtimes/agent-run.sh"
+source "$AGENTS/_runtimes/runtime-boundary.sh"
 
 # Конфигурация пути к локальным проектам.
 # Приоритет: env LOCALRUN_PROJECTS > config-файл > first-run wizard.
@@ -112,6 +113,17 @@ runtime_label() {
     "") echo "не выбран" ;;
     *) echo "$AGENT_RUNTIME" ;;
   esac
+}
+
+runtime_supports_interactive() {
+  case "$AGENT_RUNTIME:${LOCAL_AGENT_HOST:-}" in
+    codex:*|local:codex-oss) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+report_interactive_codex_block() {
+  echo -e "${R}BLOCKED: interactive Codex cannot disable ambient user configuration; use a registered command in task mode.${N}"
 }
 
 runtime_bin() {
@@ -287,7 +299,7 @@ configure_localrun_projects() {
   local input
   while true; do
     header
-    echo -e "${W}── Настройка каталога локальных GitHub-проектов ─────${N}"
+    echo -e "${W}── Настройка каталога локальных repositories ───────${N}"
     echo
     echo -e "Укажи каталог, куда Local Run будет клонировать и где будет искать репозитории."
     echo -e "Launcher показывает только этот явно настроенный каталог и не подставляет путь по умолчанию."
@@ -385,40 +397,12 @@ ensure_routing_policy() {
 }
 
 configure_subagent_settings() {
-  local choice max supervisor_profile worker_profile task_choice
-  echo -e "  ${Y}1)${N} off  ${Y}2)${N} native auto  ${Y}3)${N} Supervisor + Worker"
-  read -rp "Subagents [1-3]: " choice
-  case "$choice" in
-    1) SDLC_SUBAGENTS="off"; max=2; SDLC_SUBAGENT_PROFILE=""; SDLC_SUBAGENT_TASKS="" ;;
-    2) SDLC_SUBAGENTS="auto"; read -rp "Max subagents [1-16]: " max; SDLC_SUBAGENT_PROFILE=""; SDLC_SUBAGENT_TASKS="" ;;
-    3)
-      supervisor_profile="$(current_profile)"
-      echo -e "${W}Точный Worker profile:${N}"
-      echo "  Поддержаны только Claude, Codex и Local codex-oss: launcher принудительно запрещает им запись."
-      echo "  Gemini и произвольные local-host недоступны как workers до появления enforceable read-only adapter."
-      select_step_profile || { apply_profile "$supervisor_profile" >/dev/null 2>&1 || true; return 1; }
-      worker_profile="$SELECTED_PROFILE"
-      apply_profile "$supervisor_profile" || return 1
-      validate_subagent_profile "$worker_profile" || {
-        echo -e "${R}Выбранный профиль нельзя безопасно использовать как read-only worker.${N}"
-        return 1
-      }
-      echo -e "  ${Y}1)${N} all read-only  ${Y}2)${N} analysis/research  ${Y}3)${N} review/test interpretation"
-      read -rp 'Worker tasks [1-3]: ' task_choice
-      case "$task_choice" in
-        1) SDLC_SUBAGENT_TASKS='analysis,research,review,test-interpretation' ;;
-        2) SDLC_SUBAGENT_TASKS='analysis,research' ;;
-        3) SDLC_SUBAGENT_TASKS='review,test-interpretation' ;;
-        *) return 1 ;;
-      esac
-      read -rp "Max workers [1-16]: " max
-      SDLC_SUBAGENTS='cross-runtime'
-      SDLC_SUBAGENT_PROFILE="$worker_profile"
-      ;;
-    *) return 1 ;;
-  esac
-  valid_menu_index "$max" 16 || return 1
-  SDLC_SUBAGENT_MAX="$max"
+  echo -e "${Y}Workers: off${N}"
+  echo "  BLOCKED до capability-enforced bounded read scope; prompt-only isolation недостаточна."
+  SDLC_SUBAGENTS="off"
+  SDLC_SUBAGENT_MAX=2
+  SDLC_SUBAGENT_PROFILE=""
+  SDLC_SUBAGENT_TASKS=""
   export SDLC_SUBAGENTS SDLC_SUBAGENT_MAX SDLC_SUBAGENT_PROFILE SDLC_SUBAGENT_TASKS
   write_config_value LOCALRUN_SUBAGENTS "$SDLC_SUBAGENTS"
   write_config_value LOCALRUN_SUBAGENT_MAX "$SDLC_SUBAGENT_MAX"
@@ -428,13 +412,15 @@ configure_subagent_settings() {
 
 ensure_subagent_settings() {
   case "${SDLC_SUBAGENTS:-}" in
-    off|auto) SDLC_SUBAGENT_PROFILE=''; SDLC_SUBAGENT_TASKS='' ;;
-    cross-runtime)
-      validate_subagent_profile "${SDLC_SUBAGENT_PROFILE:-}" || return 1
-      SDLC_SUBAGENT_TASKS="$(normalize_subagent_tasks "${SDLC_SUBAGENT_TASKS:-}")" || return 1
-      export SDLC_SUBAGENT_TASKS
+    off|"")
+      SDLC_SUBAGENTS=off
+      SDLC_SUBAGENT_PROFILE=''
+      SDLC_SUBAGENT_TASKS=''
       ;;
-    "") configure_subagent_settings || return 1 ;;
+    auto|cross-runtime)
+      echo -e "${R}BLOCKED: worker execution отключён до capability-enforced bounded read scope.${N}"
+      return 1
+      ;;
     *) return 1 ;;
   esac
   valid_menu_index "${SDLC_SUBAGENT_MAX:-}" 16
@@ -558,7 +544,47 @@ declare -a PIPELINE=(
 
 valid_local_folder() {
   local folder="${1:-}"
-  [[ "$folder" =~ ^[[:alnum:]][[:alnum:]_-]*$ ]]
+  local component_re='^[[:alnum:]][[:alnum:]_. -]*$'
+  [[ -n "$folder" && "$folder" != "." && "$folder" != ".." ]] &&
+    [[ "$folder" != [[:space:]]* && "$folder" != *[[:space:]] ]] &&
+    [[ "$folder" =~ $component_re ]]
+}
+
+local_repository_source_kind() {
+  local source="${1:-}"
+  [[ -n "$source" && "$source" != -* &&
+    "$source" != *$'\n'* && "$source" != *$'\r'* && "$source" != *$'\t'* ]] || return 1
+  case "$source" in
+    http://?*|https://?*|ssh://?*|git://?*|file://?*) printf 'url\n' ;;
+    *)
+      if [[ "$source" =~ ^[^/@[:space:]]+@[^/:[:space:]]+:.+ ]]; then
+        printf 'scp\n'
+      elif [[ -e "$source" ]]; then
+        printf 'local\n'
+      else
+        return 1
+      fi
+      ;;
+  esac
+}
+
+local_repository_default_folder() {
+  local source="${1:-}" tail folder
+  local_repository_source_kind "$source" >/dev/null || return 1
+  source="${source%/}"
+  tail="${source##*/}"
+  [[ "$tail" == *:* ]] && tail="${tail##*:}"
+  folder="${tail%.git}"
+  valid_local_folder "$folder" || return 1
+  printf '%s\n' "$folder"
+}
+
+local_repository_root_is_exact() {
+  local target="$1" resolved top
+  [[ -d "$target" && ! -L "$target" ]] || return 1
+  resolved="$(cd "$target" && pwd -P)" || return 1
+  top="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [[ "$top" == "$resolved" ]]
 }
 
 valid_menu_index() {
@@ -626,10 +652,7 @@ render_localrun_execution_preview() {
   printf 'REPOSITORY: %s\nCODE PATH:  %s/%s\nNOTES PATH: %s/%s\n' \
     "$project" "$PROJECTS" "$project" "$NOTES" "$project"
   printf '%s\n' 'GIT PUSH: ЗАПРЕЩЁН' 'No action has run yet.' ''
-  if [[ "${SDLC_SUBAGENTS:-off}" == "cross-runtime" ]]; then
-    printf 'SUPERVISOR: %s\nWORKER:     %s\nTASKS:      %s\nVERIFY:     supervisor\nFALLBACK:   OFF\n\n' \
-      "$(runtime_label)" "$(subagent_profile_label)" "$SDLC_SUBAGENT_TASKS"
-  fi
+  printf 'WORKERS:   off (BLOCKED until bounded read enforcement)\n\n'
   for entry in "$@"; do
     agent="${entry%%:*}"
     task="${entry#*:}"
@@ -654,7 +677,7 @@ header() {
   [[ "$AGENT_RUNTIME" == "local" ]] &&
     echo -e "  Local:   ${C}${LOCAL_AGENT_HOST:-?} / ${LOCAL_MODEL_PROVIDER:-?} / ${LOCAL_MODEL:-?}${N}"
   echo -e "  Routing: ${C}${SDLC_RUNTIME_ROUTING:-не выбран}${N}"
-  echo -e "  Agents:  ${C}subagents=${SDLC_SUBAGENTS:-не выбрано}, max=${SDLC_SUBAGENT_MAX:-?}${N}"
+  echo -e "  Workers: ${C}off — BLOCKED до bounded read enforcement${N}"
   [[ "${SDLC_SUBAGENTS:-}" == "cross-runtime" ]] &&
     echo -e "  Worker:  ${C}$(subagent_profile_label)${N}"
   if [[ -n "${LOCALRUN_PROJECTS:-}" ]]; then
@@ -688,6 +711,7 @@ pick_local_project() {
     local name
     name=$(basename "$d")
     [[ "$name" == _* ]] && continue
+    valid_local_folder "$name" || continue
     proj_list+=("$name")
     local status
     status=$(project_status "$name")
@@ -714,22 +738,25 @@ pick_local_project() {
   fi
 }
 
-# ─── клонировать новый проект ─────────────────────────────────────────────────
+# ─── добавить/обновить Git repository ─────────────────────────────────────────
 menu_clone() {
   header
-  echo -e "${W}── Клонировать проект с GitHub ───────────────────────${N}"
+  echo -e "${W}── Добавить или обновить Git repository ─────────────${N}"
   echo
 
-  read -rp "$(echo -e "${W}GitHub URL (https://github.com/...):${N} ")" url
+  read -rp "$(echo -e "${W}Git remote URL или локальный Git path (HTTPS/SSH/path):${N} ")" url
   if [[ -z "$url" ]]; then echo -e "${R}Пустой URL${N}"; sleep 1; return; fi
 
-  # угадываем имя папки из URL
   local default_name
-  default_name=$(basename "$url" .git)
+  if ! default_name="$(local_repository_default_folder "$url")"; then
+    echo -e "${R}BLOCKED: source отсутствует или неоднозначен. Укажи полный HTTPS/SSH/file URL, SCP-style Git URL или существующий локальный path.${N}"
+    read -rp 'Нажми Enter...' _
+    return 1
+  fi
   read -rp "$(echo -e "${W}Имя папки [${default_name}]:${N} ")" folder
   folder="${folder:-$default_name}"
   if ! valid_local_folder "$folder"; then
-    echo -e "${R}Недопустимое имя папки. Пути, скрытые имена и пробелы запрещены.${N}"
+    echo -e "${R}Недопустимое имя папки. Нужен один видимый path component; пробелы внутри имени допустимы.${N}"
     read -rp 'Нажми Enter...' _
     return 1
   fi
@@ -740,7 +767,19 @@ menu_clone() {
   echo -e "  Repository: ${C}$url${N}"
   echo -e "  Target:     ${C}$target${N}"
   echo -e "  Git push:   ${R}ЗАПРЕЩЁН${N}"
-  if [[ -d "$target" ]]; then
+  if [[ -e "$target" || -L "$target" ]]; then
+    if ! local_repository_root_is_exact "$target"; then
+      echo -e "${R}BLOCKED: target существует, но не является exact корнем выбранного Git repository.${N}"
+      read -rp 'Нажми Enter...' _
+      return 1
+    fi
+    local origin
+    origin="$(git -C "$target" remote get-url origin 2>/dev/null || true)"
+    if [[ -z "$origin" || "$origin" != "$url" ]]; then
+      echo -e "${R}BLOCKED: origin отсутствует или не совпадает с exact source из Preview.${N}"
+      read -rp 'Нажми Enter...' _
+      return 1
+    fi
     if [[ -n "$(git -C "$target" status --porcelain 2>/dev/null)" ]]; then
       echo -e "${R}Pull заблокирован: working tree содержит локальные изменения.${N}"
       read -rp 'Нажми Enter...' _
@@ -763,7 +802,7 @@ menu_clone() {
     echo
     read -rp 'Выполнить показанный Clone? [y/N]: ' clone_confirm
     [[ "$clone_confirm" =~ ^[yY]$ ]] || return 0
-    git clone "$url" "$target"
+    git clone -- "$url" "$target"
   fi
 
   local rc=$?
@@ -780,7 +819,7 @@ menu_clone() {
       run_pipeline
     fi
   else
-    echo -e "${R}Ошибка при клонировании (код $rc)${N}"
+    echo -e "${R}Ошибка при добавлении repository (код $rc)${N}"
   fi
 
   echo
@@ -803,11 +842,17 @@ run_agent() {
   local agent="$1"
   local project="$2"
   local task="$3"
-  local agent_dir
+  local agent_dir project_dir="$PROJECTS/$project" notes_dir="$NOTES/$project"
   agent_dir=$(find_agent_dir "$agent")
 
   if [[ ! -d "$agent_dir" ]]; then
     echo -e "${R}Агент '$agent' не найден${N}"; return 1
+  fi
+  if [[ ! -d "$project_dir" ]]; then
+    echo -e "${R}Каталог проекта не найден: $project_dir${N}"; return 1
+  fi
+  if ! mkdir -p "$notes_dir"; then
+    echo -e "${R}Не удалось подготовить каталог заметок: $notes_dir${N}"; return 1
   fi
 
   if [[ ! -x "$AGENT_RUNNER" ]]; then
@@ -836,6 +881,8 @@ run_agent() {
     prompt="$task для проекта $project"
   fi
 
+  runtime_validate_prompt "$prompt" || return 1
+
   echo
   echo -e "${M}┌─ Агент ────────────────────────────────────────────┐${N}"
   echo -e "${M}│${N} ${W}$agent${N} — ${AGENT_DESC[$agent]}"
@@ -849,10 +896,16 @@ run_agent() {
   echo
   if [[ -n "$prompt" ]]; then
     echo -e "  ${Y}Enter${N} — запустить задачу (выбранный runtime завершится автоматически)"
+  elif ! runtime_supports_interactive; then
+    echo -e "  ${C}task-only${N} — сначала выберите зарегистрированную команду"
   else
     echo -e "  ${Y}Enter${N} — открыть интерактивный режим выбранного runtime"
   fi
-  echo -e "  ${Y}i${N}     — интерактивный диалог с агентом"
+  if runtime_supports_interactive; then
+    echo -e "  ${Y}i${N}     — интерактивный диалог с агентом"
+  else
+    echo -e "  ${C}Codex task-only${N} — интерактивный режим недоступен"
+  fi
   echo -e "  ${Y}s${N}     — пропустить"
   echo -e "  ${Y}q${N}     — прервать"
   echo
@@ -865,13 +918,19 @@ run_agent() {
       return 3
       ;;
     i|I)
+      if ! runtime_supports_interactive; then
+        report_interactive_codex_block
+        return 1
+      fi
       echo
       echo -e "${C}Интерактивный режим — ${W}$agent${N}"
       [[ -n "$prompt" ]] && echo -e "${Y}Задача шага:${N} $prompt"
       echo -e "${Y}Для выхода используй команду выхода выбранного runtime.${N}"
       echo
       local rc=0
-      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "${prompt:-начни сессию}" || rc=$?
+      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+        --project-dir "$project_dir" --notes-dir "$notes_dir" \
+        --mode interactive --prompt "${prompt:-начни сессию}" || rc=$?
       echo
       [[ $rc -eq 0 ]] && echo -e "${G}✓ Сессия завершена${N}" ||
         echo -e "${R}✗ Runtime завершился с кодом $rc${N}"
@@ -882,11 +941,19 @@ run_agent() {
       if [[ -n "$prompt" ]]; then
         echo -e "${C}Запускаю ($(runtime_label)): ${W}$prompt${N}"
         echo
-        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode task --prompt "$prompt" || rc=$?
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+          --project-dir "$project_dir" --notes-dir "$notes_dir" \
+          --mode task --prompt "$prompt" || rc=$?
       else
+        if ! runtime_supports_interactive; then
+          report_interactive_codex_block
+          return 1
+        fi
         echo -e "${C}Открываю интерактивный режим выбранного runtime...${N}"
         echo
-        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "начни сессию" || rc=$?
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+          --project-dir "$project_dir" --notes-dir "$notes_dir" \
+          --mode interactive --prompt "начни сессию" || rc=$?
       fi
       echo
       [[ $rc -eq 0 ]] && echo -e "${G}✓ Агент завершил работу${N}" ||
@@ -894,6 +961,42 @@ run_agent() {
       return "$rc"
       ;;
   esac
+}
+
+localrun_step_output_ref() {
+  case "$1" in
+    l1-analyze) printf 'overview.md\n' ;;
+    l2-setup) printf 'setup.md\n' ;;
+    l3-build) printf 'build.md\n' ;;
+    l4-run) printf 'run.md\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+localrun_step_output_fingerprint() {
+  local agent="$1" project="$2" ref file
+  ref="$(localrun_step_output_ref "$agent")" || return 1
+  file="$NOTES/$project/$ref"
+  if [[ -f "$file" && ! -L "$file" ]]; then
+    printf '%s:%s\n' "$ref" "$(sha256sum "$file" | awk '{print $1}')"
+  else
+    printf '%s:MISSING\n' "$ref"
+  fi
+}
+
+run_verified_local_step() {
+  local agent="$1" project="$2" task="$3" before after ref rc=0 file
+  before="$(localrun_step_output_fingerprint "$agent" "$project")" || return 1
+  run_agent "$agent" "$project" "$task" || rc=$?
+  [[ $rc -eq 0 ]] || return "$rc"
+  ref="$(localrun_step_output_ref "$agent")" || return 1
+  file="$NOTES/$project/$ref"
+  after="$(localrun_step_output_fingerprint "$agent" "$project")" || return 1
+  if [[ "$after" == "$before" || ! -s "$file" || -L "$file" ]]; then
+    echo -e "${R}BLOCKED: $agent process exit 0 без нового/изменённого verified $ref.${N}"
+    return 4
+  fi
+  echo -e "${G}LOCAL OUTPUT VERIFIED: $project/$ref${N}"
 }
 
 # ─── полный pipeline: l1→l2→l3→l4 ────────────────────────────────────────────
@@ -924,7 +1027,7 @@ run_pipeline() {
     echo
     echo -e "${M}━━━ Шаг $step / $total ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
 
-    run_agent "$agent" "$project" "$task"
+    run_verified_local_step "$agent" "$project" "$task"
     rc=$?
     [[ $rc -eq 2 ]] && { echo -e "${Y}Pipeline прерван на шаге $step${N}"; break; }
     [[ $rc -eq 3 ]] && { echo -e "${Y}Pipeline не завершён: обязательный шаг $step пропущен.${N}"; break; }
@@ -1015,10 +1118,11 @@ menu_single_agent() {
     if [[ "$mc" == "2" ]]; then task=""; else read -rp "$(echo -e "${W}Задача:${N} ")" task; fi
   fi
 
+  runtime_validate_prompt "$task" || return 1
   render_localrun_execution_preview "$LOCAL_PROJECT" "$agent:$task"
   read -rp 'Запустить этот один шаг? [r/b]: ' preview_choice
   [[ "$preview_choice" =~ ^[rR]$ ]] || return
-  run_agent "$agent" "$LOCAL_PROJECT" "$task"
+  run_verified_local_step "$agent" "$LOCAL_PROJECT" "$task"
   echo
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
 }
@@ -1092,7 +1196,7 @@ menu_update_notes() {
   for entry in "${note_steps[@]}"; do
     agent="${entry%%:*}"
     task="${entry#*:}"
-    run_agent "$agent" "$project" "$task"
+    run_verified_local_step "$agent" "$project" "$task"
     rc=$?
     [[ $rc -eq 0 ]] && continue
     case "$rc" in
@@ -1154,14 +1258,14 @@ menu_settings() {
     [[ "$AGENT_RUNTIME" == "local" ]] &&
       echo -e "  Local:    ${C}$LOCAL_AGENT_HOST / $LOCAL_MODEL_PROVIDER / $LOCAL_MODEL${N}"
     echo -e "  Routing:  ${C}$SDLC_RUNTIME_ROUTING${N}"
-    echo -e "  Subagents:${C} $SDLC_SUBAGENTS (max $SDLC_SUBAGENT_MAX)${N}"
+    echo -e "  Workers:  ${C}off — BLOCKED до bounded read enforcement${N}"
     echo -e "  Projects: ${C}${LOCALRUN_PROJECTS:-не настроены}${N}"
     echo
     echo -e "  ${Y}1)${N} Выбрать основной AI runtime/profile"
     echo -e "  ${Y}2)${N} Настроить local profile"
     echo -e "  ${Y}3)${N} Выбрать routing policy"
     echo -e "  ${Y}4)${N} Добавить Local Run route"
-    echo -e "  ${Y}5)${N} Настроить subagents"
+    echo -e "  ${Y}5)${N} Показать статус workers"
     echo -e "  ${Y}6)${N} Изменить каталог локальных проектов"
     echo -e "  ${Y}7)${N} Проверить основной runtime/profile"
     echo -e "  ${Y}b)${N} Назад"

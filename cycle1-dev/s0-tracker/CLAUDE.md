@@ -7,6 +7,7 @@
 
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Пути файлов
 ```
@@ -14,7 +15,10 @@ projects/{PROJECT}/tracking/
   backlog.md                  ← мастер-список всех задач
   current-sprint.md           ← ссылка на активный спринт + live-доска
   cycle-summary.md            ← итог всего цикла (создаётся /report)
-  known-issues.md             ← реестр известных дефектов в проде (KEDB, для s6-sre)
+  completion/
+    CYCLE1-completion-v2.yaml       ← full-execution validated Cycle 1 handoff
+    CYCLE1-evidence-bundle-v1.tsv   ← digest-bound verified Evidence v1 index
+  known-issues.md             ← Cycle 1 реестр user-facing известных дефектов (для s5-qa)
   sprints/
     sprint-01.md              ← определение спринта + статусы задач
     sprint-02.md
@@ -33,6 +37,9 @@ Story Points: [1|2|3|5|8|13]
 Зависит от: [T-NNN, ...]
 Описание: [подробнее]
 Блокер: [причина, если BLOCKED]
+DoD ledger: tracking/task-dod-v1.tsv
+DoD source revision: [exact 40/64-hex или sha256:64-hex]
+DoD verdict: PENDING | PASS
 ```
 
 ## Структура спринта (sprint-NN.md)
@@ -101,29 +108,24 @@ Velocity: X SP
 - `/sprint-close` — закрыть спринт с итогами
 - `/sprint-status`— показать текущую доску задач
 - `/report`       — полный отчёт цикла: план vs факт
+- `/release-notes vX.Y.Z` — optional post-completion Project release notes (без external publication/build/deploy)
 - `/task-add`     — добавить задачу в backlog
 - `/task-done`    — отметить задачу выполненной
 - `/task-block`   — отметить задачу заблокированной
 - `/backlog`      — показать весь backlog
 
 ## Беклог ≠ спринт (КРИТИЧНО)
-Источник: INC-04 (FamilyPlannerBot Sprint 4).
 Новые задачи без явно назначенного спринта попадают ТОЛЬКО в backlog (`Спринт: backlog`).
 Спринт назначается задаче ИСКЛЮЧИТЕЛЬНО при `/sprint-init`. Никогда не раскидывай задачи по будущим спринтам по своей инициативе — даже если кажется логичным. «Добавить в беклог» означает раздел Backlog, а не план будущего спринта.
 
 ## Приоритизация бэклога
 При /sprint-init отбирай задачи по:
 1. Зависимости (разблокируй другие задачи первыми)
-2. SDLC-этап (артефакты идут в порядке активного маршрута stages 1→7)
+2. Порядок active Cycle 1 из `_contract/cycle1-steps-v1.tsv` (28 обязательных шагов,
+   Stage 0/1–5; Cycle 2/3 не планируются этим агентом)
 3. Story Points (сначала маленькие для быстрых побед)
 4. Тип: bug > feature > chore
 
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Sprint & Task Tracker — веду задачи и спринты"
-2. Перечисли команды кратким списком
-3. Прочитай current-sprint.md (если есть) и покажи текущую доску
-4. Спроси: какое действие нужно выполнить?
 
 ## Инициализация проекта
 При первом `/sprint-init` проекта создать файлы tracking/:
@@ -132,6 +134,13 @@ Velocity: X SP
 - `dor-violations.md` — скопировать из `_standards/dor-violations-template.md`, подставить {PROJECT}
 - `tech-debt.md` — скопировать из `_standards/tech-debt-template.md`, подставить {PROJECT}
 - `known-issues.md` — скопировать из `_standards/known-issues-template.md`, подставить {PROJECT}
+- `task-dod-v1.tsv` — exact header из `s0-validate/task-dod-check.sh`; строки добавляются
+  исполнителем задачи и подтверждаются launcher-owned Human Approval v1
+
+Создание этих четырёх governance ledgers выполняет только
+`s0-validate/tracker-ledger-init.sh`; повторный запуск сохраняет byte-identical existing files.
+DONE-переход выполняет только `tracker-task-done.sh`, который сначала разрешает exact task DoD
+row, затем транзакционно обновляет sprint/backlog/current-sprint.
 
 ## Обязательные quality-задачи в каждом спринте
 При /sprint-init автоматически добавлять в каждый спринт:
@@ -140,14 +149,44 @@ Velocity: X SP
 - Тип "docs": обновление текущей пользовательской/операционной документации и update-notes.
   CHANGELOG и release notes меняются только в явно запущенной подготовке релиза.
 
+## Cycle 1 completion при `/report`
+
+После проверенного Gate 5 прочитай `_contract/CYCLE1_COMPLETION_V2.md` и сформируй оба
+`tracking/completion/` artifacts только из существующих Product Profile, Evidence v1,
+S5 validation/defect indexes, Go/No-Go и approvals. Не пересчитывай verdicts других ролей.
+`s5-qa` остаётся владельцем Gate 5; `s0-tracker` владеет только completion manifest.
+
+В evidence bundle включи каждый текущий exact-source Evidence v1 record с его digest и
+freshness. Artifact digest/SBOM/provenance копируй только из verified executor evidence;
+для source-only и отсутствующего verified record используй `none`. Явно перечисли
+unverified refs, active risk exceptions и known limitations.
+
+`/report` не создаёт CHANGELOG/release notes, не делает push/release build/deploy/production
+action и не обращается к Cycle 2/3. Эти статусы остаются `not-requested|not-performed` и
+`FROZEN_NOT_READY`. После записи обязательно запусти `cycle1-completion-check.sh`; без
+`CYCLE 1 COMPLETION VERIFIED` отчёт не завершает Cycle 1.
+
+После verified `/report` пользователь может отдельно запустить `/release-notes vX.Y.Z` по
+`_contract/RELEASE_NOTES_V1.md`. Команда создаёт только versioned Markdown в
+`tracking/releases/`, не меняет completion manifest/CHANGELOG и не выполняет external publication, build, deploy, production или Cycle 2/3 actions. Existing valid version/source — idempotent no-op;
+любой конфликт блокируется launcher-ом до записи.
+
 Задача не может быть переведена в DONE без DoD из quality.md §2.
 При /sprint-close: если есть задачи без DoD → они переносятся, не закрываются.
 Velocity считается только по задачами с полным DoD.
 
 ## Контроль технического долга
 При `/sprint-close` обязательно проверить `tracking/tech-debt.md`:
-- Если есть TD со статусом OPEN и дедлайном ≤ дата закрытия спринта → спринт не закрывается, TD должен быть устранён или дедлайн пересмотрен с одобрения пользователя
+- Перед изменением sprint status запустить `s0-validate/tech-debt-check.sh PROJECT sprint-close N`.
+- Если есть OPEN/IN_PROGRESS TD с Target sprint ≤ закрываемого → спринт не закрывается.
 - Если открытых TD > 3 → заблокировать `/sprint-init` следующего спринта, сообщить пользователю
+
+При `/sprint-init` после подтверждения номера/end date запустить
+`s0-validate/tracker-tech-debt-materialize.sh PROJECT N YYYY-MM-DD`. Только этот helper
+атомарно материализует `Target sprint: NEXT` и `Дедлайн устранения: PENDING`, проверяет
+связанный sprint artifact/SLA и откатывает ledger при ошибке. Затем запустить
+`tech-debt-check.sh PROJECT sprint-init N`; неподтверждённый календарный default и оставшийся
+NEXT/PENDING означают `BLOCKED`.
 
 При `/sprint-init` показывать сводку открытых TD:
 ```
@@ -174,8 +213,7 @@ Velocity считается только по задачами с полным D
 □ cycle-summary.md создан с итогами всех спринтов
 □ Plan vs Fact по задачам и story points зафиксирован
 □ Velocity-тренд отражён
-□ Метрики DORA (5 шт., вкл. Reliability) + defect-метрики (Density/DRE/Escaped) собраны с трендом vs прошлый цикл (quality.md §7)
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-ЗАПРЕЩЕНО записывать секреты в tracking/*.md файлы.
+□ DORA delivery performance metrics, Reliability и production Escaped Defects собраны только
+  из фактического evidence; без exact production observation они явно помечены
+  `NOT_OBSERVED / deferred`, без выдуманного значения или тренда (quality.md §7)
+□ CYCLE1 completion manifest/evidence bundle созданы и детерминированно VERIFIED

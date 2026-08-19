@@ -5,37 +5,97 @@ The SDLC Agent System can be executed through multiple AI runtimes while keeping
 ## Canonical Sources
 
 - `_standards/*.md` — TDD, quality, security, data formats, templates
+- `_standards/artifact-metadata.md` — shared metadata and Obsidian links for new/materially
+  changed Cycle 1 governance, handoff, report and gate Markdown artifacts
+- `_contract/PRODUCT_CI_PROFILE.md` — versioned pre-S1 product/build/test/CI facts
+- `_contract/APPLICABILITY_V1.md` — one profile-bound applicability resolver and structured N/A
+- `_contract/EVIDENCE_V1.md` — exact-source machine evidence, trust/freshness/digest contract
+- `_contract/SG3_POLICY_V1.md` — independent CVSS/secrets/dependency policy
+- `_contract/SG1_VALIDATION_V1.md` and `SG2_VALIDATION_V1.md` — early digest-bound
+  security requirements/design semantics for Gates 2 and 3
+- `_contract/RISK_EXCEPTION_V3.md` — typed, exact-finding exception and Tech Debt lifecycle
+- `_contract/EXECUTOR_CONTROLS_V1.md` — selected executor minimum control evidence
+- `_contract/QUALITY_POLICY_V1.md` — versioned deterministic only-up project thresholds
+- `_contract/quality-policy-v1.tsv` — authoritative quality metric/operator/global/unit registry
+- `_contract/QUALITY_METRIC_EVIDENCE_V1.md` — digest-bound metric/threshold/observed evidence
+- `_contract/QUALITY_CHARACTERISTICS_V1.md` — profile-bound applicability, existing owners,
+  evidence contracts and active Cycle 1 gates for 11 project quality controls
+- `_contract/TRACEABILITY_V1.md` — requirement→specification→test→source evidence binding
+- `_contract/HUMAN_APPROVAL_V1.md` — separate exact-subject human decision record
+- `_contract/GATE1_PLANNING_V1.md` — pre-Finance candidate, effective decision and
+  digest-bound PMO semantics
+- `_contract/PRODUCT_ACCEPTANCE_V1.md` — profile-bound UX applicability and Must-FR→UAT trace
+- `_contract/ARCHITECTURE_DECISION_TRACE_V1.md` — NFR→QA→Tactic→Pattern→ADR binding
+- `_contract/RUNTIME_CONSTRAINTS_V1.md` — canonical kickoff→PMO→NFR→HLD execution
+  constraint trace with legacy-field migration and no deployment authorization
+- `_contract/TDD_STATUS_V1.md` — exact-source Red/full-affected regression handoff
+- `_contract/S5_VALIDATION_V1.md` — five-stream exact-source S5 evidence, UAT approval,
+  single defect register and Gate 5 decision
+- `_contract/CYCLE1_COMPLETION_V1.md` — legacy completion schema; historical interpretation only
+- `_contract/CYCLE1_COMPLETION_V2.md` — current full-plan/Journal/Gates/DoD/evidence handoff
+- `_contract/CURRENT_ARTIFACTS_V1.md` — logical artifact registry, current refs and history protocol
+  without release, push, deploy or frozen Cycle 2/3 prerequisites
+- `_contract/PR_SET_V1.md` — exact complete multi-PR summary/update/review set required by Gate 4
+- `_contract/RELEASE_NOTES_V1.md` — optional post-completion Project Markdown handoff with
+  exact version/source, idempotency/conflict rules and no external publication/build/deploy actions
+- `_contract/COMMAND_CAPABILITIES_V1.md` and `command-capabilities-v1.tsv` — authoritative
+  classification, access and result verifier for every active command template
+- `_contract/RUNTIME_ACCESS_V1.md` and `runtime-access-v1.tsv` — shared capability-enforced
+  read/write matrix for every primary runtime
 - root `CLAUDE.md` — global SDLC context and behavioral rules
 - `cycle*/{agent}/CLAUDE.md` — role-specific agent contracts
 - `.claude/commands/*.md` — shared command prompt templates
 
-`sdlc.sh`, `localrun.sh`, `_runtimes/*.sh` and validators are executable implementation which must
+`sdlc.sh`, `localrun.sh`, Windows wrappers `sdlc.ps1`/`localrun.ps1`, `_runtimes/*` and validators are executable implementation which must
 conform to the canonical Markdown contracts; they are evidence, not documentation sources.
-Documentation ownership and its relationship to
-implementation are described in `plans/document-map.md`. Stable principles remain in
-`plans/principles.md`; active product work remains in `plans/roadmap.md`.
+Documentation synchronization scope, current implementation status and active product work are
+described in `plans/roadmap.md`. Stable principles remain in `plans/principles.md`.
 
 ## Runtime Adapters
+
+Supported orchestration covers the common platform and Cycle 1. Cycle 2/3 are
+`FROZEN / NOT READY`: adapters must show that status and must not expose an execution route.
 
 - Claude: `CLAUDE.md`, `.claude/commands/*.md`, `_runtimes/adapters/claude.md`
 - Codex: `AGENTS.md`, `.codex/config.toml`, `_runtimes/adapters/codex.md`
 - Gemini: `GEMINI.md`, `_runtimes/adapters/gemini.md`
 - Local: `_runtimes/adapters/local.md`; exact registered agent host, provider and model id
+- Windows shell entry: `sdlc.ps1` / `localrun.ps1` delegate to the same canonical Bash
+  launchers through `_runtimes/windows-launcher.ps1`; they do not duplicate SDLC logic.
+  Status is `EXPERIMENTAL / NOT TESTED ON WINDOWS`; Windows is outside the supported platform
+  scope. A real Windows CI matrix must prove parser/mutation, Git Bash auto/explicit routing,
+  space/non-ASCII paths, UNC rejection, argv and exit propagation on an exact revision before
+  any status change; workflow presence alone is not evidence.
 
 Built-in `codex-oss` supports Ollama and LM Studio. vLLM, llama.cpp and OpenAI-compatible
 endpoints require a registered executable agent-host adapter. A raw endpoint alone is not an
 SDLC agent runtime. Routing is explicitly `single|per-stage|per-agent|ask`; missing profiles
 fail instead of falling back to another model/provider/runtime.
 
+Codex launcher tasks use a new `codex exec --ignore-user-config --ephemeral` process for every
+step. Nested interactive Codex is fail-closed. The Codex App
+route and its verified/unverified compatibility claims are recorded in
+`_runtimes/adapters/codex.md`; the App does not define separate SDLC behavior.
+
+Before any primary cycle/tool runtime starts on supported Linux, the shared dispatcher applies
+the Runtime Access v1 Landlock matrix. Public canon is read-only; exact Project/notes access is
+selected by the command; an isolated per-process scratch is writable; ambient HOME, sibling
+Projects, source-checkout VCS metadata, runtime-denied roots and unspecified paths receive no
+capability. Missing helper, compiler, kernel support or successful enforcement blocks dispatch.
+
+Secret-like prompt values are rejected by the shared runtime boundary before Preview/dispatch;
+the rejected value is not printed. Project secrets remain pass references, never prompt content.
+
+Legacy Project inventory is additive and read-only through
+`cycle1-dev/s0-validate/legacy-migration-report.sh`; it cannot promote self-attested PASS.
+
 ## TDD and Subagents
 
 `_standards/tdd.md` defines Specify → Red → Green → Run → Repair → Refactor for every
-applicable change. `_contract/SUBAGENTS.md` defines optional `off|auto|cross-runtime` bounded
-read-only subagents on every step. In Supervisor + Worker mode the primary profile remains the
-sole artifact writer/gate signer and verifies output from an explicit worker profile invoked by
-`_runtimes/subagent-run.sh`; worker failure never enables fallback.
-Worker access is capability-enforced for Claude, Codex and Local `codex-oss`. Gemini and
-custom local hosts remain valid primary profiles but are not accepted as workers.
+applicable change. `_contract/SUBAGENTS.md` preserves Supervisor + Worker as a future optional
+design, while the current executable contract accepts only `SDLC_SUBAGENTS=off`.
+`auto|cross-runtime` and direct worker execution return `BLOCKED` until a runtime/OS mechanism
+proves an exact bounded read scope. No current profile is advertised as a supported worker.
 
 ## Project Directory Modes
 

@@ -2,6 +2,10 @@
 description: Создать Release Checklist
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 Создай Release Checklist для проекта $ARGUMENTS.
 
 До проверки запроси точную release version X.Y.Z и используй ту же версию, что

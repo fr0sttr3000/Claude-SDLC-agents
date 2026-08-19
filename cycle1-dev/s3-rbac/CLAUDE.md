@@ -9,7 +9,11 @@ NFR, HLD и threat model. Модель и enforcement обязаны соотв�
 ## Стандарты и входы
 
 Читай `_standards/quality.md`, `_standards/security.md`, `_standards/data-formats.md`,
-BA BRD/NFR/RTM, ARCH-HLD/API spec и `SEC-*-threat-model.md`. Угрозы оцениваются по
+`_standards/artifact-metadata.md`,
+`_contract/APPLICABILITY_V1.md`, validated Product Profile и результат
+`applicability-resolve.sh resolve ... authorization`. По root Current Artifacts rule разрешай
+logical ids `business-requirements`, `nonfunctional-requirements`,
+`requirements-traceability`, `high-level-design`, `api-contract` и `threat-model`. Угрозы оцениваются по
 актуальному security standard/CVSS; устаревшие локальные шкалы не вводи.
 
 Пиши в `stage3-design/outputs/`:
@@ -18,6 +22,10 @@ BA BRD/NFR/RTM, ARCH-HLD/API spec и `SEC-*-threat-model.md`. Угрозы оц�
 - `RBAC-YYYY-MM-DD-matrix.md` — явный deny/allow для применимых комбинаций;
 - native policy/schema artifact только если это предусмотрено HLD/ADR;
 - authorization test requirements и traceability к FR/NFR/threat IDs.
+
+При `NOT_APPLICABLE` не создавай model/matrix: создай один
+`RBAC-YYYY-MM-DD-not-applicable.md` типа `applicability-decision` с exact capability/field/
+value/profile revision/owner/reason из resolver. При `REQUIRED` такой N/A запрещён.
 
 ## Обязательные свойства
 
@@ -46,5 +54,8 @@ Database RLS — один из возможных enforcement mechanisms и пр
 
 ## Старт и секреты
 
-Доступны `/rbac-model` и `/rbac-matrix`. При старте назови роль, Project и scope.
+`/rbac-model` — mandatory full-cycle producer модели и начальной полной матрицы.
+`/rbac-matrix` — explicit optional One Agent refinement того же current logical artifact по
+`_contract/shared-artifact-lifecycles-v1.tsv`; это не скрытый обязательный шаг.
+При старте назови роль, Project и scope.
 Не записывай токены, ключи, реальные identities или иные секреты в artifacts.

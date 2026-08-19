@@ -1,21 +1,20 @@
 # Gemini Runtime Adapter
 
-Gemini is supported through `AGENT_RUNTIME=gemini`.
-
-Invocation:
-```bash
-AGENT_RUNTIME=gemini bash sdlc.sh
-```
+Gemini is available as an explicitly selected launcher profile. User launch and
+profile-selection instructions exist only in `README.md`.
 
 The adapter uses:
 - `GEMINI.md` as a bridge to the canonical `CLAUDE.md` files
 - the same `.claude/commands/*.md` templates as Claude
 - `gemini -p "$PROMPT"` for task mode
 
-If the Gemini CLI binary has a different name, set:
-```bash
-GEMINI_BIN=/path/to/gemini AGENT_RUNTIME=gemini bash sdlc.sh
-```
+The adapter accepts the launcher-resolved `GEMINI_BIN` executable. User configuration examples
+exist only in `README.md`.
+
+Before Gemini starts, the shared dispatcher applies Runtime Access v1 through Linux Landlock.
+Public canon is read-only, exact Project/notes rights follow command access, and ambient HOME,
+siblings and runtime-denied roots receive no capability. Missing support or enforcement fails
+closed.
 
 Gemini-specific commands may be generated later, but they must reference the universal contract instead of duplicating SDLC logic.
 

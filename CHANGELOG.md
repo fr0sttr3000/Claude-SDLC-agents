@@ -1,5 +1,5 @@
 ---
-date: 2026-07-22
+date: 2026-08-19
 tags:
   - docs
   - changelog
@@ -12,6 +12,86 @@ tags:
 ---
 
 ## [Unreleased]
+
+## [2.001.000] — 2026-08-19
+
+### Added
+
+- Cycle 1 machine contracts for Product Profile v5, quality characteristics, product acceptance,
+  architecture trace, Evidence/SG3, TDD status, S5 validation and completion manifests.
+- Shared Artifact Metadata v1 with Obsidian link validation and additive legacy migration report.
+- Experimental PowerShell launchers delegating to canonical Bash; not tested on Windows and
+  not included in the supported platform scope.
+- Fail-closed completion evidence and Current Artifacts history.
+- Capability registries for command access, declared outputs, runtime scopes and exact
+  postcondition verifiers.
+- Digest-bound Human Approval, Gate 1 planning, PR-set, risk-exception and release-notes
+  contracts with dedicated validators.
+- Dedicated Tracker utility routes for task and sprint mutations, including exact
+  active-ledger cardinality checks and Tech Debt materialization.
+
+### Changed
+
+- Cycle 1 is the only supported route; Cycle 2/3 are preserved as `FROZEN / NOT READY`.
+- Workers fail closed until capability-enforced bounded read scope is proven.
+- Runtime/model/technology applicability is explicit; missing facts never trigger silent fallback.
+- New/refreshed projects write Product Profile v5 and exact-source machine evidence.
+- DORA uses the current five delivery metrics. Change lead time starts at the version-control commit;
+  reliability is separate, and production-only metrics remain `NOT_OBSERVED / deferred`
+  without exact production evidence.
+- Security guidance is pinned to OWASP Top 10:2025, OWASP ASVS 5.0.0 and the final
+  NIST SSDF v1.1 baseline.
+- Product quality follows the nine-characteristic ISO/IEC 25010:2023 model, with accessibility
+  retained as an explicit control; quality-in-use follows the separate three-characteristic ISO/IEC 25019:2023 model.
+- Stage 4 authorization consumers resolve exact current logical IDs instead of RBAC history globs.
+- Codex and built-in `codex-oss` primary tasks ignore ambient user configuration and use
+  task-only ephemeral dispatch; unsupported nested interactive Codex fails closed.
+- VCS control-plane actions remain outside primary agent dispatch; Project PR/source identifiers
+  are evidence inputs rather than authority to create commits, pushes, pull requests or tags.
+- Runtime exit code `0` now means only `PROCESS_OK`; mutating commands require changed
+  declared output groups and a registry-named verifier before `ARTIFACT_VERIFIED`.
+- Software DoD separates machine `DOD_AUTO_PASS` from the full approval-backed `DOD_PASS`.
+- Documentation is consolidated around one README, one architectural overview, stable
+  principles and one current roadmap; delivered work moves to changelog/release notes.
+
+### Security
+
+- Secret-like prompt values are rejected before terminal Preview and runtime argv without echoing
+  the rejected value.
+- Evidence validation rejects untrusted producer, stale revision, wrong subject and raw tampering.
+- SG1/SG2 validation rejects missing, mismatched or unversioned ASVS evidence.
+- Local setup passes secret values only process-locally; plaintext temporary secret files are
+  not an allowed exception.
+- Supported Linux dispatch applies the capability-enforced runtime access matrix and blocks
+  execution if its boundary cannot be established.
+- Approval, exception and current-artifact decisions are bound to exact subject/source digests;
+  stale or self-attested Markdown cannot promote a gate.
+
+### Fixed
+
+- Removed stale wording that allowed read-only workers despite the active fail-closed mode.
+- Blocked roles now return control to the user for launcher-mediated transitions.
+- Gate prose consumes authoritative quality metric IDs instead of duplicating numeric thresholds.
+- Documentation regression checks use an explicit filesystem allowlist, validate the corrected
+  semantics and honor the caller-provided temporary directory.
+- Gate 1, Gate 4 PR-set, SG1/SG2, S5 and Cycle 1 completion validators now reject incomplete,
+  stale, wrong-version and wrong-subject evidence consistently.
+- Known Issue and Risk Exception parsing now handles canonical severity/lifecycle formats without
+  silently accepting legacy ambiguity.
+- TDD/DoD checks cover native test and secret-result formats, migration round trips and
+  full affected regression evidence.
+- Tracker postconditions ignore historical closed sprint copies while still requiring the exact
+  active task copies to reach the requested state.
+- Cycle reports no longer publish a completion summary before completion verification, and
+  environment setup failures are no longer mislabeled as a valid RED test result.
+
+### Compatibility
+
+- Existing Claude, Codex, Gemini and registered Local profiles remain available as primary
+  runtimes; no default model or silent fallback was added.
+- Worker execution remains fail-closed with `SDLC_SUBAGENTS=off` as the only supported mode.
+- Linux/WSL2 remains the supported execution environment. Windows wrappers and CI scenarios are
+  present, but real Windows execution is unverified and the adapter remains experimental.
 
 ---
 
@@ -36,8 +116,6 @@ tags:
   operations-artifacts-only projects without hidden stack defaults.
 - README, GETTING_STARTED, OVERVIEW, root contract, adapters, roadmap and document map were
   synchronized with the implemented Project Console and three active test-first cycles.
-- GitHub utility now requires staged-snapshot secret scanning and separate confirmations for
-  staging/commit/push/PR without exposing matching secret values.
 
 ### Fixed
 
@@ -110,32 +188,40 @@ tags:
 
 ## [2.000.001] — 2026-06-01
 
-Багфикс-релиз поверх 2.000.000: переносимость путей, доведение лаунчера до модели 3 циклов, навигация «Назад» и правила из прод-инцидентов FamilyPlannerBot. Один большой багфикс — без новой функциональности для пользователя.
+Багфикс-релиз поверх 2.000.000: переносимость путей, доведение лаунчера до модели 3 циклов,
+навигация «Назад» и правила из обезличенных production incidents. Один большой багфикс — без
+новой функциональности для пользователя.
 
 ### Fixed
 
 #### Переносимость — убраны захардкоженные абсолютные пути (BLOCKER)
-- `sdlc.sh` и `localrun.sh` вычисляют пути от расположения скрипта (`BASH_SOURCE`), `PATH` использует `$HOME` вместо `/home/host-gui-car`
+- `sdlc.sh` и `localrun.sh` вычисляют пути от расположения скрипта (`BASH_SOURCE`), `PATH`
+  использует `$HOME` вместо machine-specific absolute home path
 - Лаунчеры экспортируют `SDLC_VAULT` и `LOCALRUN_PROJECTS` в окружение агентов
 - Во всех `CLAUDE.md` и slash-командах агентов абсолютные пути заменены на `$SDLC_VAULT` / `$AGENT_DIR`
 - В документации (`CLAUDE.md`, `OVERVIEW.md`, `GETTING_STARTED.md`, `README.md`) пути заменены на env-переменные / `<vault-root>`
 - `CLAUDE.md` — добавлен раздел «Пути проекта (env-переменные)» с таблицей `AGENT_DIR` / `SDLC_VAULT` / `LOCALRUN_PROJECTS` и фолбэком при пустой переменной
 
 #### localrun.sh — настраиваемый путь к локальным проектам
-- Путь больше не захардкожен (`/home/host-gui-car/Projects/claude`)
+- Project root больше не привязан к machine-specific absolute path
 - Приоритет: env `LOCALRUN_PROJECTS` → config-файл `~/.config/sdlc-agents/config` → first-run wizard
 - При первом запуске мастер спрашивает каталог и сохраняет его в config
 
 #### sdlc.sh — лаунчер приведён к модели 3 циклов
 - `CYCLE_AGENTS` разделён на `CYCLE1_AGENTS` (22 шага), `CYCLE2_AGENTS`, `CYCLE3_AGENTS`
-- Из Цикла 1 убраны шаги Циклов 2/3 (`s4-devops`, `s6-release`, `s6-sre`); Цикл 1 завершается `s0-tracker:/report` + `s0-github:/push`
+- Из Цикла 1 убраны шаги Циклов 2/3 (`s4-devops`, `s6-release`, `s6-sre`); Цикл 1 завершается `s0-tracker:/report`
 - `gate7` убран из необязательных шагов (его место — Цикл 3)
 - Циклы 2/3 — заглушки «⏳ в разработке» с перечнем запланированных агентов
 
-#### Правила из прод-инцидентов FamilyPlannerBot
-- `CLAUDE.md` — раздел «Поведенческие правила агентов»: git не для отката (INC-02), запись файлов самостоятельно, не делегировать сабагентам (INC-03), «все» = полный вывод (INC-05), учёт deployment constraint (INC-07), верификация директории перед записью (INC-01)
-- `s4-dev/CLAUDE.md` — `assert` запрещён в production-коде (INC-08), удаление неиспользуемых импортов, `server_default` только строковый литерал (CR-01), функциональные индексы только на IMMUTABLE-выражениях; добавлены пункты DoD-чеклиста
-- `s4-techlead/CLAUDE.md` — `[BLOCKER]` на `assert` в проде и `[MINOR]` на неиспользуемые импорты; правило выпуска процессных артефактов `PROC-*` в фазе разработки (INC-06)
+#### Правила из обезличенных production incidents
+- `CLAUDE.md` — git не используется для отката, запись выполняет основной агент, запрос
+  «все» означает полный вывод, deployment constraints обязательны, директория проверяется
+  перед записью
+- `s4-dev/CLAUDE.md` — `assert` запрещён в production-коде, удаляются неиспользуемые импорты,
+  `server_default` использует строковый литерал, функциональные индексы требуют
+  IMMUTABLE-выражений
+- `s4-techlead/CLAUDE.md` — `[BLOCKER]` на `assert` в production, `[MINOR]` на неиспользуемые
+  импорты и выпуск `PROC-*` в фазе разработки
 
 ### Changed
 
@@ -516,7 +602,7 @@ tags:
 
 ### Added
 - Initial commit — Claude SDLC Agents system
-- 26 специализированных агентов: s0-secrets, s0-github, s0-validate, s0-tracker, s1-pm, s1-pmo, s1-finance, s2-ba, s2-po, s2-qa-req, s3-arch, s3-security, s3-dba, s4-dev, s4-techlead, s4-devops, s5-qa, s5-qa-auto, s5-perf, s6-release, s6-sre, l1-analyze, l2-setup, l3-build, l4-run
+- Специализированные агенты: s0-secrets, s0-validate, s0-tracker, s1-pm, s1-pmo, s1-finance, s2-ba, s2-po, s2-qa-req, s3-arch, s3-security, s3-dba, s4-dev, s4-techlead, s4-devops, s5-qa, s5-qa-auto, s5-perf, s6-release, s6-sre, l1-analyze, l2-setup, l3-build, l4-run
 - `sdlc.sh` — интерактивный лаунчер с полным SDLC-циклом
 - `_standards/quality.md` — DoD (10 пунктов), DoR (8 пунктов), 7 Quality Gates, NFR-дефолты, Auto-Heal паттерны
 - `_standards/company.md` — шаблон стандартов компании (стек, роли, методология)

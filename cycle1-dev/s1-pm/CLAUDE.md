@@ -9,10 +9,15 @@
 Прочитай перед каждой задачей:
 $SDLC_VAULT/_agents/_standards/company.md
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Пути файлов
 Входные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/
 Выходные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/
+
+До feasibility прочитай validated `tracking/product-ci-profile.yaml`: product type,
+offline/compliance/approval constraints и их provenance. Не угадывай unknown и не выбирай
+SCM/CI/build/architecture вместо владельца.
 Замени {PROJECT} на название проекта из задачи.
 
 ## Задачи этого агента
@@ -22,7 +27,8 @@ $SDLC_VAULT/_agents/_standards/quality.md
 - North Star Metric
 - Stakeholder Map (таблица: имя, роль, влияние, интерес, позиция)
 - High-level Roadmap (4 квартала, по стримам)
-- Go / Conditional Go / No-Go вердикт с обоснованием
+- Pre-Finance candidate verdict с обоснованием; final Gate 1 decision вычисляет validator
+  после current Business Case
 
 ## Использование полей из idea.md
 
@@ -35,40 +41,36 @@ $SDLC_VAULT/_agents/_standards/quality.md
 | `## To-Be` | Operational Feasibility: изменения в поведении пользователя |
 | `## Критерии успеха продукта` | North Star Metric — брать напрямую, не генерировать свой |
 | `## Kill Criteria` | Топ-5 рисков: kill criteria = риск №1 `[STAKEHOLDER]`. ВЕРДИКТ: если kill criteria достижим в base-сценарии → Conditional Go или No-Go |
-| `Deployment Constraint` | Technical Feasibility → Инфраструктурные требования + Operational Tier |
-| `Recovery Expectation` | Operational Tier → выбор паттернов автовосстановления |
-| `Monitoring Expectation` | Operational Tier → выбор паттернов observability |
-| `Delivery Scope` | Scope In/Out → что входит в работу команды |
+| `Runtime Constraints` | Technical Feasibility → ограничения application design |
+| `Recovery Expectation` | Quality risk → измеримые recovery NFR, без выбора operational mechanism |
+| `Observability Expectation` | Quality risk → application instrumentation requirements |
 | `## Неизвестное` | Топ-5 рисков: начинай с этого списка `[STAKEHOLDER]`, дополняй анализом |
 | `## Риски и стопперы` | Топ-5 рисков: включи, помечай `[STAKEHOLDER]` |
 
 Правило: поле, заполненное на интервью, перевешивает `[ASSUMPTION]`. Помечай такие данные как `[DATA — stakeholder interview]`.
+Перед использованием field проверь `_contract/RUNTIME_CONSTRAINTS_V1.md`: legacy
+`Deployment Constraint` или одновременные legacy/canonical fields означают BLOCKED возврат в
+s0-kickoff, а не основание для PM assumption. Constraint не является deploy authorization.
 
 ---
 
-## Operational capabilities — выбор без технологических defaults
+## Cycle 1 quality capabilities — без operational tooling
 
-На основе Topology, Recovery Expectation, Monitoring Expectation, Delivery Scope и
-существующей инфраструктуры сформируй перечень требуемых **capabilities**, но не
-выбирай инструменты за пользователя. Возможные capabilities: health/readiness,
-structured logs, metrics/traces, alert routing, incident runbooks, backup/restore,
-auto-recovery, capacity/DR evidence. Каждый пункт получает `required`, `optional`
-или `N/A` с причиной и измеримым ожидаемым результатом.
+На основе runtime constraints, Recovery Expectation и Observability Expectation сформируй
+перечень application-level **capabilities**: safe retry/idempotency, graceful shutdown,
+structured logs, metrics/traces и health/readiness contract при применимости. Каждый пункт
+получает `required`, `optional` или `N/A` с причиной и измеримым результатом.
 
-Operational Tier допустим только как пользовательская метка согласованного набора,
-а не как скрытая таблица, автоматически добавляющая Docker, Kubernetes, Prometheus,
-Grafana, конкретный SLO или каналы оповещения. Точные topology, stack, thresholds,
-executor, owner и authorization запрашиваются у пользователя и записываются в
-PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/BLOCKED.
+Project criticality tier допустим только как risk-классификация, а не как скрытая таблица,
+автоматически добавляющая Docker, Kubernetes, Prometheus, Grafana, SLO или каналы.
+Точные quality thresholds передаются в BA-NFR. Delivery/operations tooling не собирается,
+пока Cycle 2/3 `FROZEN / NOT READY`.
 
 ### Валидация противоречий
 
-- Требуемая capability вне Delivery Scope → уточнить владельца и handoff.
-- Recovery action без executor/owner/authorization → BLOCKED.
-- Monitoring capability без существующего или выбранного стека → BLOCKED.
-- SLO/rollback threshold без измеримого NFR → BLOCKED.
-- Выбранный стек противоречит topology/infrastructure constraints → вынести варианты
-  и trade-offs на подтверждение пользователя, не заменять стек самостоятельно.
+- Recovery/observability expectation без измеримого результата → `[OPEN ISSUE]`.
+- Application capability противоречит runtime constraint → вынести trade-offs на подтверждение.
+- Не превращать неизвестный deployment/monitoring stack в BLOCKED Cycle 1: он вне active scope.
 
 ### Обязательное действие в Feasibility
 
@@ -76,7 +78,7 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 1. Объяснить стейкхолдеру что он получит (без технических терминов)
 2. Указать сложность и примерный overhead к бюджету
 3. Получить подтверждение через Veto Protocol
-4. Зафиксировать в артефакте как `Operational Tier: {N} — {название}`
+4. Зафиксировать в артефакте как `Criticality Tier: {N} — {название}`
 
 ---
 
@@ -99,7 +101,7 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 [6] ВЕРДИКТ                      ✅ (обязательно)
 
 Команды:
-  veto [1-4]  — исключить секцию
+  edit [1-4]  — уточнить или изменить данные секции
   edit [что]  — изменить предположение или параметр
   [Enter]     — начать
 ```
@@ -113,7 +115,7 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
    [1-2 предложения: ключевой вывод]
 
 ▶ Следующая: [Название следующей секции]
-  [Enter] продолжить  |  veto — пропустить  |  edit [что] — изменить  |  stop — завершить здесь
+  [Enter] продолжить  |  edit [что] — изменить  |  stop — завершить без Gate-advancing verdict
 ```
 
 Жди ответа. Не переходи к следующей секции без явного подтверждения.
@@ -122,27 +124,12 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 
 | Команда | Действие агента |
 |---------|----------------|
-| `veto` | Пропустить следующую секцию |
-| `veto [N]` | Пропустить секцию по номеру из плана |
 | `edit [что]` | Переспросить конкретное предположение, обновить, продолжить |
-| `stop` | Завершить здесь, записать артефакт с выполненными секциями |
+| `stop` | Завершить без Gate-advancing артефакта; сохранить только DRAFT при необходимости |
 | `restart [N]` | Вернуться к секции N, пересчитать с новыми данными |
 
-### Правила адаптации после вето
-
-- **veto [Technical]** → ВЕРДИКТ не может опираться на техническую оценку. Добавь предупреждение: `⚠️ Вердикт неполный — Technical Feasibility не оценивалась`
-- **veto [Economic]** → ВЕРДИКТ не может ссылаться на ROI/финансы. Добавь предупреждение
-- **veto [Legal]** → Убрать упоминание compliance из Executive Summary
-- **veto + stop** → Записать артефакт в текущем состоянии с пометкой `PARTIAL`
-
-### Запись пропущенных секций в артефакте
-
-Каждая пропущенная секция отмечается в файле:
-```
-## [N]. [Название секции]
-> [SKIPPED — по решению стейкхолдера]
-> Влияние: {что нельзя утверждать в ВЕРДИКТЕ без этой секции}
-```
+Ни одна из четырёх feasibility-осей не может быть пропущена в Gate-advancing артефакте.
+Недостаток данных даёт DRAFT/BLOCKED и конкретный owner/action, а не partial GO.
 
 ---
 
@@ -152,15 +139,10 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 
 | Флаг | Описание |
 |------|----------|
-| `skip:legal` | Пропустить Legal/Compliance (аналог veto в batch-режиме) |
-| `skip:finance` | Пропустить Economic Feasibility |
-| `skip:operational` | Пропустить Operational Feasibility |
-| `skip:technical` | Пропустить Technical Feasibility |
 | `budget:N` | Переопределить бюджет из idea.md значением N |
 | `mode:auto` | Без чекпоинтов — пакетный режим (для CI/автоматизации) |
-| `scope:minimal` | Только Executive Summary + Топ-5 рисков + ВЕРДИКТ |
 
-Пример: `/feasibility my-project skip:legal budget:75000`
+Пример: `/feasibility my-project budget:75000`
 
 Если `mode:auto` не указан → по умолчанию интерактивный режим с чекпоинтами.
 
@@ -180,7 +162,14 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 4. Operational Feasibility (поддержка, процессы)
 5. Legal/Compliance Feasibility
 6. Топ-5 рисков с митигацией
-7. Вердикт: Go / Conditional Go / No-Go
+7. Вердикт до Finance:
+   `Decision: CONDITIONAL_GO`, `decision_status: PRE_FINANCE`,
+   `finance_dependency: OPEN`
+
+Каждая ось имеет строку
+`Axis: technical|economic|operational|legal | Verdict: PASS|CONDITIONAL | Evidence: ... | Owner: ...`.
+Для каждой условной оси добавь
+`Condition: COND-* | Axis: ... | Status: OPEN | Owner: ... | Resolution: ...`.
 
 ## Правила вывода
 - Все числа: явно пометь [DATA] (из входных данных) или [ASSUMPTION]
@@ -190,19 +179,15 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 ## Передача результатов
 Артефакты записываются в stage1-planning/outputs/ — другие агенты читают их самостоятельно через абсолютный путь.
 
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
-2. Перечисли доступные задачи / slash-команды кратким списком
-3. Спроси: какой проект и что нужно сделать?
-Не жди дополнительных инструкций — начинай сразу.
 
 ## Quality Gate — выход из этапа 1
 Перед завершением работы проверь:
-□ Feasibility Study содержит вердикт Go/Conditional Go/No-Go с обоснованием
+□ Feasibility Study честно содержит только pre-Finance `CONDITIONAL_GO`; финальный GO не заявлен
 □ Топ-5 рисков задокументированы с митигацией (DoR-6 для следующего этапа)
 □ Все числа помечены [DATA] или [ASSUMPTION]
 □ Scope In / Scope Out явно определён
+□ Все четыре оси имеют machine-readable `Axis:` строку, evidence и owner; status COMPLETE
+□ Подготовлен exact Human Approval preview; сам агент approval не создаёт
 □ Артефакты записаны в stage1-planning/outputs/
 Если хотя бы один пункт не выполнен — артефакт НЕ считается завершённым.
 
@@ -211,13 +196,16 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 
 □ DoR-1: stage1-planning/inputs/idea.md существует и заполнен (не заглушка — есть бизнес-идея, аудитория, проблема)
 □ DoR-1: PM-input-interview-*.md или заполненный idea.md содержит финансовые ожидания и ограничения
-□ DoR-2: idea.md содержит поле `Deployment Constraint` (Q3.6) — не пустое
+□ DoR-2: idea.md содержит `Runtime Constraints` (Q3.6) либо явное `не определено`
+□ DoR-2: legacy `Deployment Constraint` отсутствует; normalization не конфликтует
 □ DoR-2: idea.md содержит поле `Recovery Expectation` (Q3.7) — не пустое
-□ DoR-2: idea.md содержит поле `Monitoring Expectation` (Q3.8) — не пустое
-□ DoR-2: idea.md содержит поле `Delivery Scope` (Q3.9) — не пустое
+□ DoR-2: idea.md содержит поле `Observability Expectation` (Q3.8) — не пустое
 
-Если DoR-1 не пройден → сообщить пользователю, запустить s0-kickoff /new.
-Если DoR-2 не пройден → сообщить пользователю, запустить s0-kickoff /refresh → выбрать «Block 3». Не начинать работу.
+Если DoR-1 не пройден → остановить текущую работу, назвать failed DoR и попросить пользователя
+открыть launcher и запустить `s0-kickoff /new`. Не вызывай другую роль из текущей session.
+Если DoR-2 не пройден → остановить текущую работу, назвать failed DoR и попросить пользователя
+открыть launcher и запустить `s0-kickoff /refresh` → выбрать «Block 3». Не вызывай другую
+роль из текущей session.
 
 ## DoD — Definition of Done (Тип Д — Документ)
 Источник: quality.md §2. Задача остаётся IN_PROGRESS до выполнения всех пунктов.
@@ -230,17 +218,3 @@ PMO-constraints/BA-NFR. Если информации нет — `[OPEN ISSUE]`/
 □ DoD-10: PM-*.md записан в stage1-planning/outputs/
 
 Авто-проверка: s0-validate /dod-check [PROJECT] D 1
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

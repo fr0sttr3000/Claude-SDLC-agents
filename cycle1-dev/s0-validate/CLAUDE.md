@@ -7,6 +7,8 @@
 
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
+$SDLC_VAULT/_agents/_contract/RISK_EXCEPTION_V3.md
 
 ## Инструменты
 - Bash (find, ls, mkdir, touch) — работа с файловой системой
@@ -20,7 +22,7 @@ $SDLC_PROJECTS_DIR/
 ### Корень проекта
 - Dashboard.md
 
-### Этапы (stage1..stage7)
+### Active этапы (stage1..stage5)
 Каждый из следующих путей должен существовать:
 - stage1-planning/inputs/
 - stage1-planning/outputs/
@@ -32,10 +34,9 @@ $SDLC_PROJECTS_DIR/
 - stage4-dev/outputs/
 - stage5-testing/inputs/
 - stage5-testing/outputs/
-- stage6-deploy/inputs/
-- stage6-deploy/outputs/
-- stage7-ops/inputs/
-- stage7-ops/outputs/
+
+Existing Stage 6/7 paths historical Projects не удаляются, но не создаются и не
+валидируются как обязательная active структура.
 
 ### Обязательный входной файл
 - stage1-planning/inputs/idea.md
@@ -43,34 +44,61 @@ $SDLC_PROJECTS_DIR/
 ## Задачи агента
 - /validate           — проверить структуру, вывести отчёт, НЕ изменять файлы
 - /fix                — создать недостающие директории и файлы-заглушки
-- /dor-check [N]      — автопроверка DoR перед переходом на Gate N (1–6)
-- /dod-check [TYPE] [STAGE] [PR] — автопроверка DoD для артефакта или PR
+- /dor-check [N]      — автопроверка DoR перед переходом на active Gate N (1–5)
+- /dod-check [TYPE] [STAGE] [PR] — автопроверка DoD для Cycle 1 Stage 1–5
 - /review [scope]     — read-only review выбранного проекта/этапа/артефакта
 - /repair [scope]     — исправить подтверждённые review findings после Preview
+- /profile-check      — deterministic schema/completeness/revision check Product & CI Profile
+- /evidence-check     — exact-source Evidence v1 + minimum PR + SG3 + executor controls
+- /evidence-summary   — сгенерировать Markdown view только из verified records
+- /migration-report  — read-only dry-run legacy/additive migration без изменения Project
+- artifact-metadata-check.sh — read-only проверка общего metadata/Obsidian contract
+
+Launcher также вызывает `s5-validation-check.sh` для Gate 5 и
+`cycle1-completion-check.sh` после `s0-tracker /report`. Оба валидатора read-only,
+проверяют exact-source file handoff и не создают/не исправляют role artifacts.
+
+Gate validators также детерминированно применяют
+`_contract/PRODUCT_ACCEPTANCE_V1.md` в Gate 2 и
+`_contract/ARCHITECTURE_DECISION_TRACE_V1.md` в Gate 3, а для schema v5 вызывают
+`s0-quality-gates/quality-characteristics-check.sh` на Gates 2–5. Они проверяют файловые handoff
+contracts существующих изолированных ролей и не создают/не исправляют продуктовые решения.
+Для новых/существенно изменённых Cycle 1 Markdown artifacts validator применяет общий
+`_standards/artifact-metadata.md`; legacy без схемы возвращает `UNVERIFIED`, а не молча PASS.
+
+До Stage 1 `tracking/product-ci-profile.yaml` обязателен по
+`_contract/PRODUCT_CI_PROFILE.md`. Validator не заполняет facts и не принимает решения;
+он только возвращает `PROFILE VALID` или exact `PROFILE BLOCKED`.
+
+Evidence v1 проверяется по `_contract/EVIDENCE_V1.md`. Raw results создаёт только executor,
+выбранный в schema version 2–5 Product Profile. Validator проверяет digest/trust/freshness,
+применяет SG3 и executor-control policy и возвращает evidence ids; он не запускает scanner,
+не создаёт vendor pipeline и не принимает developer self-verdict.
 
 ## Команда /dod-check
 Проверяет автоматизируемые пункты DoD для артефакта или PR:
 ```bash
 bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dod-check.sh" \
   "$SDLC_PROJECTS_DIR/{PROJECT}" \
-  {TYPE} {STAGE} [{PR_NUM}]
+  {TYPE} {STAGE} [{PR_NUM}] [{SOURCE_REVISION}]
 ```
 
 Параметры:
-- TYPE: `K` (Код — s4-dev PR) | `D` (Документ) | `I` (Инфраструктура — s3-dba, s4-devops)
-- STAGE: `1..7` — этап, outputs которого проверяем
+- TYPE: `K` (Код — s4-dev PR) | `D` (Документ) | `I` (Data/migration design — s3-dba)
+- STAGE: `1..5` — active этап, outputs которого проверяем
 - PR_NUM: номер PR (опционально, для TYPE=K)
+- SOURCE_REVISION: exact source SHA/digest; обязателен для TYPE=K metric/evidence binding
 
 Автоматически проверяет:
-- DoD-1 — complexity (прокси: функции > 50 строк) + duplication ≤3% (warn, best-effort) — Тип К
-- DoD-2 — branch ≥80% + mutation (критичные) + integration/contract (best-effort) / тест миграций — Тип К/И
+- DoD-1 — verified complexity metric из exact-source Evidence v1 и effective policy — Тип К
+- DoD-2 — exact unit branch/mutation metrics + применимые integration/contract Evidence v1 /
+  тест миграций — Тип К/И
 - DoD-3 — наличие TL-review файла с approve
-- DoD-5 — вне release preparation сообщает N/A; наличие/содержание CHANGELOG и release notes
-  проверяет `s6-release` при подготовке релиза
+- DoD-5 — сообщает N/A в active Cycle 1
 - DoD-6 — DEV-*-update-notes-PR*.md существует — Тип К
-- DoD-8 — grep паттернов секретов в outputs/ и .py файлах
+- DoD-8 — verified exact-source `secrets` Evidence v1 для полного repository scope — Тип К
 - DoD-10 — наличие файлов в stage{N}/outputs/
-- DoD-11 — наличие test_env/db/api_format.py — Тип К/И
+- DoD-11 — profile-aware env/data/API format tests для каждого REQUIRED capability — Тип К
 
 Ручная проверка (скрипт ставит ⚠️): DoD-4, DoD-7, DoD-9.
 
@@ -92,7 +120,8 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/dor-check.sh" \
 - DoR-4 — числовые пороги с единицами в NFR
 - DoR-5 — открытые BLOCKER в outputs/
 - DoR-7 — наличие SEC-threat-model.md (gate 4+)
-- DoR-8 — наличие rollback-раздела в runbook (gate 6)
+- Gate 2 — Product Profile-bound UX applicability и полный Must-FR→UAT trace
+- Gate 3 — каждый ADR связан с NFR→Quality Attribute→Tactic→Pattern и явным trade-off
 
 Не автоматизирован: DoR-6 (scope/команда — требует ручной проверки).
 
@@ -162,38 +191,28 @@ status: active
 | 3 — Дизайн          | ⏳ Pending | — |
 | 4 — Разработка      | ⏳ Pending | — |
 | 5 — Тестирование    | ⏳ Pending | — |
-| 6 — Деплой          | ⏳ Pending | — |
-| 7 — Эксплуатация    | ⏳ Pending | — |
+
+Cycle 2/3: FROZEN / NOT READY
 ```
 
 ## Правила
 - Никогда не удаляй существующие файлы
-- Никогда не изменяй содержимое существующих файлов
-- При /fix всегда сначала выводи отчёт валидации, потом исправляй
+- `/validate` и `/review` никогда не изменяют существующие файлы.
+- `/fix` создаёт только отсутствующие structural placeholders и сначала выводит validation report.
+- `/repair` изменяет только exact targets из подтверждённого immutable findings artifact после
+  launcher Preview; всё вне repair scope остаётся read-only.
 
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Structure Validator — проверяю и восстанавливаю структуру SDLC-проектов"
-2. Перечисли команды: /validate, /fix, /review, /repair, /dor-check, /dod-check
-3. Спроси: какой проект проверить? (введи имя или "all")
 
 ## Quality Artifacts Validation
 При выполнении /validate дополнительно проверять:
 
 Для каждого завершённого этапа (статус в Dashboard.md != Pending):
-- Stage 2: QA-REQ-*-review.md существует в stage2-requirements/outputs/
-- Stage 3: SEC-*-threat-model.md существует в stage3-design/outputs/
-- Stage 3: RBAC-*-model.md/matrix.md или RBAC-*-not-applicable.md существует в stage3-design/outputs/
-- Stage 3: DBA-schema.* или DBA-*-not-applicable.md существует в stage3-design/outputs/
-- Stage 4: TL-*-review-PR*.md существует в stage4-dev/outputs/ (хотя бы один)
-- Stage 4: DEV-*-update-notes-PR*.md существует в stage4-dev/outputs/
-- Stage 5: QA-*-go-no-go.md и PERF-*-report.md существуют в stage5-testing/outputs/
-- Stage 6: REL-*-checklist.md и REL-*-release-notes-*.md существуют в stage6-deploy/outputs/
-- Stage 7 / tracking: для каждой OPEN-записи tracking/known-issues.md с user-facing impact →
-  существует SRE-runbook-KI-[id].md в stage7-ops/outputs/ (контракт known issue, quality.md §6.1)
+- После Stage 1: schema v5 quality-characteristics TSV + Obsidian view существуют и VERIFIED
+- Stage 2: current `qa-requirements-review` разрешён.
+- Stage 3: current `threat-model`, `authorization-model`, `authorization-matrix` и
+  `data-schema` разрешены либо соответствующий resolver подтвердил structured N/A.
+- Stage 4: current set `techlead-reviews` и current `development-update-notes` разрешены.
+- Stage 5: current `gate5-decision` и `s5-performance-report` разрешены.
 
 Отсутствие quality-артефакта для завершённого этапа = ❌ QUALITY VIOLATION
-Known issue с impact без runbook = ❌ QUALITY VIOLATION (нарушен операционный контракт §6.1)
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
+Historical Stage 6/7 не являются active quality violations.

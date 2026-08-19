@@ -2,6 +2,8 @@
 description: Создать Update Notes для PR (обязательно после каждого PR)
 ---
 
+Перед записью Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Создай Update Notes для PR проекта $ARGUMENTS.
 
 Создай файл DEV-[дата]-update-notes-PR[N].md в:
@@ -29,14 +31,12 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 | Переменная | Тип | Обязательна | По умолчанию | Описание |
 |-----------|-----|-------------|--------------|---------|
 
-## Требуемые действия при деплое
-□ [Миграция: alembic upgrade head]
-□ [Обновить env: добавить NEW_VAR=...]
-□ [Перезапустить сервисы: ...]
-Если действий нет — написать "Нет дополнительных действий".
+## Runtime/compatibility considerations
+[Миграция/config change/restart impact как информация для будущего planning; не выполнять
+deploy, migration или production action.] Если влияния нет — написать "Нет".
 
 ## Обновлённая документация
 - README: [да/нет + что изменилось]
 - API-spec: [да/нет + что изменилось]
-- CHANGELOG.md: [добавлена запись версии]
+- CHANGELOG/release notes: не изменяются этой командой; только отдельная release preparation
 - ADR: [да/нет]

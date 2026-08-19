@@ -2,6 +2,8 @@
 description: Сформировать test-first стратегию проекта до дизайна и разработки
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Создай Test Strategy для проекта $ARGUMENTS.
 
 Прочитай обязательные стандарты quality.md, tdd.md и data-formats.md, затем все

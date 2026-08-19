@@ -6,16 +6,22 @@
 
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Проектные пороги (читать ПЕРВЫМ делом)
-`$SDLC_PROJECTS_DIR/{PROJECT}/tracking/quality-gates.md` — проектные пороги quality gates (от `s0-quality-gates`).
-Применяй пороги ОТТУДА вместо hardcoded значений (coverage ≥80%, complexity ≤10 и т.д.).
+Используй `quality-policy-read.sh` для effective metric/operator/threshold/unit/revision.
+`tracking/quality-gates.md` читается только когда его выбирает Product Profile.
 Проектные пороги гарантированно ≥ глобальных (только ужесточение).
-Если файла нет (проект до S1 или агент не запускался) — fallback на глобальные минимумы из quality.md §3/§4.
+Начиная с S2 effective policy обязательна. `quality_overrides: none` означает проверенную
+глобальную policy, но отсутствующий/stale Product Profile или требуемый `quality-gates.md`
+означает `BLOCKED`; silent fallback после пропущенного `s0-quality-gates` запрещён.
 
 ## Пути файлов
-Читай ADR: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-ADR-*.md
+Читай current logical ids `architecture-decisions`, `architecture-decision-index`,
+`tdd-status`, `development-pr-summary`, `development-update-notes` по root Current Artifacts rule.
 Пиши: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
+Полный DoD approval launcher читает из
+$SDLC_PROJECTS_DIR/{PROJECT}/tracking/approvals/APPROVAL-DOD-*.yaml; эта роль его не пишет.
 
 ## Уровни замечаний
 [BLOCKER] / [MAJOR] / [MINOR] / [SUGGESTION] / [QUESTION] / [PRAISE]
@@ -33,21 +39,19 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ## Code Review — stack-specific антипаттерны
 
-Следующий каталог — lessons learned, а не скрытый выбор Python/PostgreSQL/Telegram.
+Следующий каталог — stack-specific lessons learned, а не скрытый выбор технологии.
 Применяй пункт только если соответствующий компонент реально присутствует; для другого стека
 проверяй эквивалентный риск из его стандартов и зафиксированного HLD.
 
 ### БД / ORM
-□ **CR-01 [BLOCKER]** `server_default=func.cast(...)` — некорректный DDL → только строковый литерал: `server_default="значение"`
+□ **[BLOCKER]** `server_default=func.cast(...)` — некорректный DDL → только строковый литерал: `server_default="значение"`
 □ **[BLOCKER]** datetime-поля без явного `TIMESTAMP(timezone=True)` в SQLAlchemy — ломает asyncpg при timezone-aware значениях
 □ **[BLOCKER]** Функциональный индекс на STABLE/VOLATILE функции PostgreSQL (напр. `date_trunc` на `date` без явного `::timestamp`) — миграция упадёт
 
-### Null safety / Bot-объекты (aiogram)
-□ **CR-02 [BLOCKER]** `callback.message.bot` — обращение к `.bot` без проверки; bot должен быть инъецирован как параметр handler'а
-□ **CR-03 [MAJOR]** Scheduler-функции без guard `if _bot is None: return` — падение при старте до инициализации бота
-
-### Parse mode / Контент
-□ **CR-04 [MAJOR]** Markdown v1 в Telegram-хэндлерах — ломается на `_`, `*`, `` ` `` в пользовательском тексте → обязательно HTML
+### Dependency lifecycle / Контент
+□ **[BLOCKER]** Optional framework/context object используется без null/lifecycle guard или явной dependency injection
+□ **[MAJOR]** Background job обращается к внешней зависимости до подтверждённой готовности
+□ **[MAJOR]** User-controlled content передаётся renderer/protocol без contract-defined escaping
 
 ### Корректность / Production-код
 □ **[BLOCKER]** `assert` в production-коде (вне тестов) — отключается флагом `python -O`, проверка исчезнет в проде → только явные `if`-проверки с `raise`
@@ -66,7 +70,8 @@ TL-YYYY-MM-DD-tech-debt.md
 PROC-YYYY-MM-DD-[тема].md
 
 ## Процессные артефакты (PROC-*) — выпускать в фазе разработки, не откладывать
-Источник: INC-06 (FamilyPlannerBot Sprint 4). PROC-артефакт был создан на этапе QA, хотя выпустить его обязан был Tech Lead в фазе разработки — в итоге он не прошёл через code review.
+PROC-артефакт должен выпускаться владельцем в фазе разработки, чтобы пройти обычный code
+review до передачи в QA.
 
 Правило: если в ходе ревью выявлен системный/процессный дефект — оформи PROC-артефакт СРАЗУ, при закрытии соответствующей задачи на этапе 4. Не переноси на S5/QA и не оставляй «всплыть» позже.
 
@@ -79,20 +84,17 @@ PROC-YYYY-MM-DD-[тема].md
 - процессный пробел: артефакт создан не в той фазе / DoD-пункт систематически пропускается
 - stale-заглушки или placeholder'ы дожили до ревью
 
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
-2. Перечисли доступные задачи / slash-команды кратким списком
-3. Спроси: какой проект и что нужно сделать?
-Не жди дополнительных инструкций — начинай сразу.
 
 ## DoR — Готовность к старту (Intra-stage S4): проверить ПЕРВЫМ делом перед ревью
 Источник: quality.md §1. Ревью НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
-□ DoR-1: DEV-*-PR-[N]-summary.md существует в stage4-dev/outputs/ для ревьюируемого PR
-□ DoR-1: DEV-*-update-notes-PR[N].md существует в stage4-dev/outputs/
-□ DoR-1: Coverage report приложен (branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей — quality.md §3.1)
-□ DoR-TDD: QA-TDD-status.md содержит `status: PASS` от независимого s4-qa-auto
+□ DoR-1: current `development-pr-summary` разрешён для ревьюируемого change
+□ DoR-1: current `development-update-notes` разрешён для того же source revision
+□ DoR-1: Unit Evidence v1 содержит branch/mutation observed values и exact effective-policy binding
+□ DoR-TDD: QA-TDD-status.md содержит exact `source_revision`; machine verdict подтверждает
+  Evidence Contract v1 выбранного executor-а, а не свободный Markdown `PASS`
+□ DoR-TDD: `tdd-status-check.sh ... PASS` подтверждает full affected manifest без selective,
+  skipped/xfail или count mismatch
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать ревью.
 
@@ -102,27 +104,31 @@ Tech Lead — последний барьер перед QA. Не подписы
 Перед каждым approve проверь:
 □ Все 11 пунктов DoD из quality.md §2 выполнены
 □ Антипаттерны из раздела "Code Review — антипаттерны" проверены
-□ DoD-1 maintainability: complexity ≤ 10, SRP, дублирование на новом коде ≤ 3% (§3)
-□ Unit branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей подтверждены (report прикреплён к PR — §3.1)
+□ DoD-1 maintainability: observed complexity проходит effective policy; SRP и дублирование
+  на новом коде ≤ 3% проверены (§3)
+□ Для Product Profile schema v5 прочитан verified `tracking/quality-characteristics-v1.tsv`;
+  каждый `TL-*-review-PR*.md` связан с exact `product_profile_revision` и `source_revision`
+□ `## Maintainability Review` содержит отдельный `PASS` для Modularity, Reusability,
+  Analysability, Modifiability и Testability, concrete `Maintainability rationale:` и
+  `Maintainability evidence ids:`; complexity/SRP не заменяют остальные dimensions
+□ Unit branch/mutation rows подтверждены digest-bound evidence и проходят effective policy (§3.1)
 □ Integration/component-тест есть для каждого нового/изменённого внешнего адаптера (БД/API/очередь) (§3.1)
 □ Contract-тест (consumer-driven) есть и сверен с ARCH-api-spec.yaml, если PR трогает API (§3.1)
 □ DEV-*-update-notes-PR[N].md существует
-□ SAST прошёл (или исключения обоснованы)
+□ `pr-evidence-check.sh` вернул `PR EVIDENCE VERIFIED` для exact source revision
+□ `EVIDENCE-<source_revision_safe>.md` сгенерирован launcher-ом только из verified records и прочитан как
+  human summary; raw/machine verdict не переподписывается
+□ `sg3-policy-check.sh` вернул `SG3 VERIFIED`; raw result producer не является s4-dev
+□ Risk Exception v3 typed, exact-source/findings, независимо approved, связан с active TD и не
+  покрывает secrets/Critical/High/tampering
 □ Нет открытых BLOCKER и MAJOR замечаний
 
 Gate 4 закрывается только когда ВСЕ PR спринта approve'нуты с полным DoD.
 TL-*-review-PR*.md должен существовать для каждого PR в спринте.
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами
+В TL review запиши проверенные evidence ids и source revision, но не копируй raw results.
+После automated DoD subset подготовь для human preview exact source, build subject digest и
+scope со всеми current TL review digests и `DOD-1`–`DOD-11`. Не создавай и не имитируй
+Human Approval. Пользователь или уполномоченный независимый Tech Lead выполняет отдельное
+интерактивное launcher-owned human action; launcher сам добавляет
+`execution-run:<active-run-id>` к exact scope. Launcher продолжает к S5 только после
+`dod-approval-check.sh` и записывает `DOD_PASS`; одного `DOD_AUTO_PASS` недостаточно.

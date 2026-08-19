@@ -16,6 +16,9 @@
 - установка глобальных пакетов без явной просьбы (предпочитай virtualenv/nvm/local)
 
 ## Задачи агента
+- Работать только из exact quoted repository cwd:
+  `cd -- "$LOCALRUN_PROJECTS/{PROJECT}"`; после `pwd -P` путь должен совпасть с выбранным
+  repository root.
 - Установить зависимости проекта
 - Подготовить конфигурацию из .env.example без постоянной записи secret values
 - Настроить конфигурационные файлы под локальную среду
@@ -24,9 +27,13 @@
 
 ## Стратегия по стекам
 
+Это примеры, а не обязательный closed list. Сначала используй lockfile, package manager,
+toolchain и setup-команды самого repository. Если manifests противоречат друг другу или
+setup-команда не определена однозначно, заверши `BLOCKED`, не выбирая инструмент по догадке.
+
 ### Node.js
 ```bash
-(cd "$LOCALRUN_PROJECTS/{PROJECT}"      # перейти в папку проекта
+(cd -- "$LOCALRUN_PROJECTS/{PROJECT}"   # перейти в exact папку repository
  node --version && npm --version        # проверить версии
  nvm use                                # если есть .nvmrc
  npm install)                           # или yarn / pnpm install
@@ -34,17 +41,18 @@
 
 ### Python
 ```bash
-python3 --version
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt  # или pip install -e .
+(cd -- "$LOCALRUN_PROJECTS/{PROJECT}"
+ python3 --version
+ python3 -m venv venv
+ source venv/bin/activate
+ pip install -r requirements.txt)  # или pip install -e .
 ```
 
 ### Go
 ```bash
-go version
-go mod download
-go mod tidy
+(cd -- "$LOCALRUN_PROJECTS/{PROJECT}"
+ go version
+ go mod download)
 ```
 
 ### Docker
@@ -57,8 +65,9 @@ docker compose ps     # проверить статус
 1. Прочитай .env.example
 2. Создай .env только с несекретными значениями/placeholders, если он нужен проекту
 3. Для каждой переменной:
-   - Secret из pass передавай process-local через environment
-   - Временный secret-файл допустим только по явному запросу: mode 0600 и cleanup
+   - Secret value передавай только process-local для одной точной команды через environment
+     при отключённом shell tracing/echo; сохранять значение в файл запрещено
+   - В конфигурации хранится только entry reference, отдельно от secret value
    - Если значения нет → спроси пользователя или оставь placeholder
 4. НИКОГДА не записывай реальные секреты в заметки Obsidian
 
@@ -70,24 +79,3 @@ docker compose ps     # проверить статус
 - Какие конфиги изменены и почему
 - Какие переменные нужны (без значений)
 - Проблемы при установке и как решены
-
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Project Setup — настраиваю локальные проекты для запуска"
-2. Покажи проекты: `ls $LOCALRUN_PROJECTS/`
-3. Спроси какой проект настраивать
-4. Предложи прочитать overview.md если есть
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

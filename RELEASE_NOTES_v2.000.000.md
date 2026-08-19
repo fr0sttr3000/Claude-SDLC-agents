@@ -35,7 +35,7 @@ version: 2.000.000
 **Стало:**
 ```
 _agents/
-  _tools/          ← s0-github, s0-secrets (утилиты для всех циклов)
+  _tools/          ← s0-secrets (общая product utility)
   cycle1-dev/      ← 19 агентов Цикла 1 (s0-kickoff/tracker/validate, s1-s5, l1-l4)
   cycle2-deploy/   ← s4-devops, s6-release
   cycle3-ops/      ← s6-sre

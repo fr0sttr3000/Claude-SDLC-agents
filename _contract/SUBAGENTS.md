@@ -1,82 +1,45 @@
 # Subagent Contract
 
-Subagents are an optional execution capability available to every SDLC stage
-and step. They do not create a second SDLC workflow and do not change artifact,
-gate, security, or ownership contracts.
+Supervisor + Worker — сохранённый опциональный принцип исполнения. Он не создаёт второй SDLC,
+не меняет artifact/gate/security contracts и никогда не передаёт worker-у ownership этапа.
 
-## Explicit settings
+## Текущий исполняемый статус
 
-- `SDLC_SUBAGENTS=off|auto|cross-runtime` — default is `off`; the launcher asks explicitly.
-- `SDLC_SUBAGENT_MAX=<1..16>` — maximum concurrent read-only workers.
-- `SDLC_SUBAGENT_PROFILE=<runtime|provider|model|host|endpoint>` — required for
-  `cross-runtime`; worker must be Claude, Codex or Local `codex-oss`; local worker
-  requires exact provider/model. Gemini/custom local hosts are primary-only until
-  they provide an enforceable read-only adapter.
-- `SDLC_SUBAGENT_TASKS=analysis,research,review,test-interpretation` — explicit
-  allowlist; a deployment or write-capable task kind is invalid.
-- A runtime/agent host must report an explicit error when `auto` is requested
-  but the selected host cannot provide subagents. It must not silently ignore
-  the setting or switch runtime/model.
+**Workers: `BLOCKED / NOT SUPPORTED`.** Единственное допустимое значение —
+`SDLC_SUBAGENTS=off`.
 
-The dispatcher injects the selected policy into every task and interactive
-prompt, including individually launched agents and every cycle step.
+- `SDLC_SUBAGENTS=auto|cross-runtime` отклоняется launcher-ом и `_runtimes/agent-run.sh`;
+- прямой `_runtimes/subagent-run.sh` всегда возвращает non-zero;
+- Cycle 2/3 target сначала отклоняется общим frozen guard как `FROZEN / NOT READY`;
+- legacy profile/task/max settings не включают capability и не обходят dispatcher;
+- silent fallback на другой runtime/model запрещён.
 
-## Supervisor + Worker
+Причина fail-closed режима: текущие adapters способны запретить worker-у запись, но не доказывают
+ограничение чтения одним exact project scope на уровне runtime/OS. Prompt с `READ_SCOPE`, allowlist
+задач или последующая проверка supervisor-ом не являются security boundary.
 
-In `cross-runtime` mode the primary step profile is the supervisor profile and
-the explicit subagent profile is the worker profile. The profiles may use
-different vendors or a cloud supervisor with an exact Local worker model.
+## Инварианты будущего включения
 
-- the supervisor decomposes work and creates every bounded packet;
-- workers are invoked only through the universal read-only worker dispatcher;
-- the supervisor must verify every finding against canonical files before use;
-- worker output is advisory session data, not an SDLC artifact or gate evidence;
-- the worker dispatcher starts from an environment allowlist and does not
-  inherit supervisor secrets;
-- worker failure is BLOCKED or explicit retry; no model/provider/runtime fallback;
-- the execution Preview identifies supervisor and worker profiles separately.
+Workers можно вернуть только отдельным evidence-backed изменением, которое одновременно докажет:
 
-## Ownership and write boundary
+1. canonical active-agent guard применяется primary и worker dispatcher-ами;
+2. read scope ограничен capability-механизмом runtime/OS, а не текстом prompt;
+3. worker не имеет write tools, write mounts или доступа к sibling projects/secrets;
+4. environment строится allowlist-ом без vendor session state и secret values;
+5. nested delegation, gate signing и operational actions запрещены технически;
+6. negative fixtures покрывают `/`, HOME, sibling project, symlink/path traversal, frozen target,
+   secret leakage, write attempt и unsupported runtime;
+7. primary остаётся единственным writer/gate signer и проверяет advisory findings;
+8. worker failure означает `BLOCKED` или явный retry без fallback.
 
-- The primary stage agent is the sole writer and the sole signer of its gate.
-- Subagents are read-only: search, inspection, independent analysis, test-result
-  interpretation and bounded review.
-- A subagent cannot edit project files, execute deploy/auto-heal actions,
-  approve a gate, create another SDLC role, or start nested subagents.
-- The primary agent must verify subagent findings against canonical files before
-  using them and remains accountable for the result.
+До выполнения всех условий нельзя публиковать capability matrix с поддержанными workers.
 
-## Context isolation
+## Допустимая будущая модель
 
-Each assignment must contain a bounded packet:
+Каждый пакет должен содержать один разрешённый task kind, один конкретный вопрос, exact read scope
+и формат ответа. Conversation history, secrets, sibling-worker results и unbounded context не
+передаются. Worker output остаётся advisory session data, а межэтапный handoff — только файловым.
 
-1. one allowed task kind;
-2. one concrete question;
-3. explicit input paths/read scope;
-4. required response format;
-5. prohibition on writes and nested delegation.
-
-The absolute read scope must resolve strictly inside the configured project root;
-filesystem root, HOME and paths outside that root are rejected.
-
-Do not pass conversation history, secrets, sibling subagent results, or
-unbounded project context. Subagent findings return to the primary agent in the
-runtime session; canonical hand-off between SDLC stages remains file-only.
-
-## Suitable work
-
-- parallel read-only analysis of requirements, architecture or code;
-- independent risk, security, test or operational review;
-- mapping requirements to tests;
-- interpretation of logs, metrics and validation reports.
-- Cycle 2: infrastructure discovery, deploy-test design, supply-chain/policy
-  review and independent validation-evidence analysis;
-- Cycle 3: observability-stack, failure-scenario, incident/dedup, capacity and
-  disaster-recovery evidence review.
-
-Subagents must not execute deploy, rollback, production failure injection,
-live drill, auto-heal or any other operational action. They must not edit a
-test manifest or Cycle 2/3 status file.
-
-Do not delegate a task when it is too small to benefit, requires a single
-coherent write, or would cross the primary agent's authorization boundary.
+Подходящие задачи после будущего включения: bounded analysis/research/review и интерпретация уже
+полученных test results внутри active Cycle 1. Deploy, rollback, production drill, auto-heal,
+редактирование artifacts, подписание gates и любые frozen Cycle 2/3 actions запрещены.

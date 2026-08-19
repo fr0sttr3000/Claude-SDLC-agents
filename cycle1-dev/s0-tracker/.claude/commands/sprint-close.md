@@ -4,6 +4,11 @@ description: Закрыть текущий спринт с итогами вып
 
 Закрой текущий спринт для проекта $ARGUMENTS.
 
+До изменения status запусти
+`bash $SDLC_VAULT/_agents/cycle1-dev/s0-validate/tracker-sprint-close-check.sh $SDLC_PROJECTS_DIR/$ARGUMENTS N`.
+Он повторно проверяет Tech Debt/Patch SLA и task-level DoD каждой DONE. Только
+`TRACKER SPRINT VERIFIED` разрешает считать velocity и готовить close transaction.
+
 Шаги:
 1. Прочитай current-sprint.md:
    $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/current-sprint.md
@@ -16,6 +21,9 @@ description: Закрыть текущий спринт с итогами вып
    - TODO: N задач (→ вернуть в backlog или перенести)
    - BLOCKED: N задач (→ перенести с пометкой)
    - CANCELLED: N задач
+
+   Не исправляй invalid DONE молча. Любая DONE без `TASK DOD VERIFIED` блокирует закрытие
+   и не входит в velocity; верни exact task id владельцу ledger.
 
 3. Выведи итоговый отчёт спринта:
 ```

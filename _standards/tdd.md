@@ -1,8 +1,9 @@
 # Стандарт Test-Driven Development — SDLC Vault
 
 > Канонический контракт test-first разработки. Читается всеми агентами,
-> которые создают или изменяют исполняемый код, миграции, инфраструктурную
-> конфигурацию, CI/CD, правила мониторинга или auto-heal.
+> которые создают или изменяют исполняемый код и миграции поддерживаемого Cycle 1.
+> Cycle 2/3 имеют статус `FROZEN / NOT READY`: их прежние loops ниже сохранены
+> только как historical implementation baseline и не являются действующим standard.
 
 ## 1. Неизменяемый порядок
 
@@ -26,23 +27,23 @@
 | Артефакт | Test-first доказательство | Исполнитель Green |
 |----------|---------------------------|-------------------|
 | Код приложения, библиотека, API | unit + integration + contract тесты | s4-dev |
-| DB schema / migration | schema/migration test, upgrade→downgrade→upgrade | s3-dba / s4-dev |
-| IaC, pipeline, deployment config | lint/schema/policy test + sandbox smoke | s4-devops |
-| Monitoring/alert rules | rule test с временным рядом/fixture + fire-drill scenario | s4-devops / s6-sre |
-| Auto-heal/playbook | failure-injection scenario + permissions/idempotency test | s4-devops / s6-sre |
+| DB schema / migration | Stage 3 design defines schema/migration test requirements; Stage 4 QA proves Red and runs upgrade→downgrade→upgrade | s4-dev |
 | Документы/требования/дизайн | acceptance/validation checklist определяется до правки | владелец документа |
 
 Документы не требуют фиктивного unit-теста. Для них test-first означает заранее
 определённый проверяемый контракт: schema, checklist, traceability или gate
 validator. Неприменимость должна быть записана с обоснованием.
 
+`s3-dba` owns only data design and migration runbook (DoD Type D). It never creates or
+executes the Green migration. `s4-qa-auto` writes the native migration test first and records
+Red; `s4-dev` owns the minimum Green implementation; independent QA then executes the full
+affected suite.
+
 ## 3. Артефакты и передача состояния
 
 - Стратегия: `stage2-requirements/outputs/QA-*-test-strategy.md`.
 - TDD-отчёт: `stage4-dev/outputs/QA-*-tdd-report.md`.
 - Машиночитаемое состояние: `stage4-dev/outputs/QA-TDD-status.md`.
-- Cycle 2: `stage6-deploy/outputs/DEPLOY-TDD-status.md`, deploy test plan/report.
-- Cycle 3: `stage7-ops/outputs/OPS-TDD-status.md`, ops test plan/report.
 - Тесты пишутся в репозитории разрабатываемого проекта в принятой для его стека
   структуре.
 
@@ -50,28 +51,40 @@ validator. Неприменимость должна быть записана �
 
 ```yaml
 status: RED|PASS|FAIL|BLOCKED
+schema_version: 1
 project: <project>
 scope: <FR/AC/change identifiers>
+source_revision: <40/64-hex VCS object id or sha256:64-hex source-tree digest>
 test_command: <exact command>
 red_evidence: <path or concise observed failure>
 last_run: <ISO-8601 UTC>
 failed_tests: <integer>
 repair_iteration: <integer>
+regression_scope: not-yet-run|full-affected|partial
+affected_test_manifest: stage4-dev/outputs/QA-affected-tests-v1.tsv|none
+affected_test_manifest_sha256: <64-hex|none>
+expected_test_count: <integer>
+executed_test_count: <integer>
 ```
 
-Cycle 2/3 status дополнительно содержит
-`goal_profile_revision: <integer>`. Несовпадение с текущей revision профиля
-означает BLOCKED и требует новых tests/Red для изменённого scope.
+Полная schema, `QA-affected-tests-v1.tsv` и deterministic validation определены в
+`_contract/TDD_STATUS_V1.md`. `PASS` допустим только для `full-affected`, когда manifest
+связан с той же source revision, каждый scope id имеет native test file, нет skip/xfail и
+expected/executed counts совпадают.
 
-Перед стартом Green статус обязан быть `RED`. После запуска тестов:
+Перед стартом Green статус обязан быть `RED`, вызванным ожидаемым функциональным падением
+теста. Ошибка environment/infrastructure, отсутствующий tool/dependency, permission/network
+failure или незапустившийся test runner означает `BLOCKED`, а не `RED`. После запуска тестов:
+
+Каждый статус, включая Red, привязан к точной ревизии исходников. Свободное имя ветки,
+`latest`, короткий SHA и текст вроде `current` не являются exact revision.
 
 - `PASS` — можно продолжить к static QA/review;
 - `FAIL` — оркестратор возвращает управление s4-dev;
 - `BLOCKED` — цикл останавливается и сообщает причину пользователю.
 
-Все три status-файла используют тот же обязательный минимум полей. Статус
-Cycle 2/3 относится только к deliverables из актуального
-`tracking/SDLC-goals.md`; изменение scope требует нового Red evidence.
+Historical `DEPLOY-TDD-status.md` и `OPS-TDD-status.md` могут существовать в старых
+проектах, но не являются входом active gates и не дают права запускать Cycle 2/3.
 
 ## 4. Repair loop
 
@@ -89,31 +102,6 @@ s4-qa-auto /write-tests (Red)
 `TDD_MAX_REPAIR_ITERATIONS` (по умолчанию 3). Исчерпание лимита не разрешает
 пропустить тесты: этап получает BLOCKED и требует решения пользователя.
 
-Петля Cycle 2:
-
-```
-s4-devops /deploy-intake
-  → s4-devops /write-deploy-tests (Red)
-  → s4-devops /pipeline → /runbook → /prepare-delivery
-  → s4-devops /run-deploy-tests
-      PASS → s6-release /release-notes → /release-checklist
-      FAIL → /pipeline → /runbook → /prepare-delivery → /run-deploy-tests
-```
-
-Петля Cycle 3:
-
-```
-s6-sre /ops-intake
-  → s6-sre /write-ops-tests (Red)
-  → s6-sre /configure-ops
-  → s6-sre /run-ops-tests
-      PASS → /post-deploy → /gate7
-      FAIL → /configure-ops → /run-ops-tests
-```
-
-После исчерпания общего лимита TDD_MAX_REPAIR_ITERATIONS статус становится
-BLOCKED. Обязательные test/gate steps нельзя пропустить.
-
 ## 5. Запреты
 
 - Нельзя ослаблять assertion, удалять тест, добавлять skip/xfail или менять
@@ -126,18 +114,42 @@ BLOCKED. Обязательные test/gate steps нельзя пропусти�
 - Тестовый агент не пишет production-код; агент реализации не подписывает
   собственный тестовый вердикт.
 
-## 6. Циклы 2 и 3
+## 6. Historical implementation baseline — Cycle 2/3 (FROZEN / NOT SUPPORTED)
 
-TDD сохраняется после Cycle 1 и применяется только к явно выбранной цели:
+Раздел ниже сохраняет прежнюю последовательность для инвентаризации и будущего redesign.
+Он ненормативен: launcher не запускает эти loops, active gates их не требуют, а изменение
+текста не считается развитием Cycle 2/3.
+
+Прежняя петля Cycle 2:
+
+```
+s4-devops /deploy-intake
+  → s4-devops /write-deploy-tests (Red)
+  → s4-devops /pipeline → /runbook → /prepare-delivery
+  → s4-devops /run-deploy-tests
+      PASS → s6-release /release-notes → /release-checklist
+      FAIL → /pipeline → /runbook → /prepare-delivery → /run-deploy-tests
+```
+
+Прежняя петля Cycle 3:
+
+```
+s6-sre /ops-intake
+  → s6-sre /write-ops-tests (Red)
+  → s6-sre /configure-ops
+  → s6-sre /run-ops-tests
+      PASS → /post-deploy → /gate7
+      FAIL → /configure-ops → /run-ops-tests
+```
+
+Прежний scope был привязан к следующим артефактам:
 
 - `tracking/SDLC-goals.md` — единый per-project контракт Cycle 2/3;
 - Cycle 2 сначала пишет policy/schema/supply-chain/sandbox/rollback tests, затем
   создаёт только заказанные deliverables, затем запускает полный deploy suite;
 - Cycle 3 сначала пишет rule/fixture/fire-drill/permissions/recovery tests,
   затем меняет только заказанную ops-конфигурацию, затем повторяет полный suite;
-- если отдельного тестового агента нет, вердикт определяется exit code и
-  измеряемым harness; bounded read-only subagent может проверять evidence, но
-  не писать тест/конфигурацию/status и не подписывать gate.
+- `DEPLOY-TDD-status.md` и `OPS-TDD-status.md`;
+- `goal_profile_revision` и старый `tracking/SDLC-goals.md`.
 
-Непроверенный monitoring rule, playbook или auto-heal action блокирует
-соответствующий Quality Gate.
+Эти artifacts не подтверждают readiness и не блокируют завершение поддерживаемого Cycle 1.

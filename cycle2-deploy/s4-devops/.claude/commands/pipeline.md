@@ -2,6 +2,10 @@
 description: Реализовать выбранные pipeline, IaC и supply-chain deliverables после RED
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /pipeline
 
 Реализуй минимальную delivery automation для проекта $ARGUMENTS.

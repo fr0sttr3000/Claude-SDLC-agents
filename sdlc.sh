@@ -28,7 +28,15 @@ export SDLC_SUBAGENT_PROFILE="${SDLC_SUBAGENT_PROFILE:-}"
 export SDLC_SUBAGENT_TASKS="${SDLC_SUBAGENT_TASKS:-}"
 export SDLC_SUBAGENT_RUNNER="${SDLC_SUBAGENT_RUNNER:-$AGENTS/_runtimes/subagent-run.sh}"
 export SDLC_RUNTIME_ROUTING="${SDLC_RUNTIME_ROUTING:-}"
+export SDLC_EXECUTION_RUN_ID="${SDLC_EXECUTION_RUN_ID:-}"
+export SDLC_EXECUTION_PLAN_SHA256="${SDLC_EXECUTION_PLAN_SHA256:-}"
+export SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256="${SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256:-}"
 AGENT_RUNNER="$AGENTS/_runtimes/agent-run.sh"
+COMMAND_CAPABILITIES_FILE="$AGENTS/_contract/command-capabilities-v1.tsv"
+CURRENT_ARTIFACT_GROUPS_FILE="$AGENTS/_contract/current-artifact-groups-v1.tsv"
+CYCLE1_STEPS_FILE="$AGENTS/_contract/cycle1-steps-v1.tsv"
+CURRENT_ARTIFACT_TOOL="$AGENTS/cycle1-dev/s0-validate/current-artifact.sh"
+source "$AGENTS/_runtimes/runtime-boundary.sh"
 BASE_PROFILE=""
 LAUNCHER_BASE_PROFILE=""
 LAUNCHER_ROUTING_POLICY=""
@@ -43,8 +51,14 @@ FIRST_RUN_WIZARD=0
 PROJECT_CONSOLE_INTRO_PENDING=1
 PENDING_FIRST_RUN_AI_SETUP=""
 EXECUTION_PREVIEW_BLOCKED=0
+RELEASE_NOTES_VERSION=""
+RELEASE_NOTES_SOURCE=""
+RELEASE_NOTES_MANIFEST_REF=""
+RELEASE_NOTES_MANIFEST_SHA=""
+RELEASE_NOTES_TARGET_REF=""
 declare -a EXECUTION_STEP_PROFILES=()
 declare -a EXECUTION_STEP_SOURCES=()
+declare -A JOURNAL_VALIDATED_FILE_SHA=()
 
 # ─── цвета ────────────────────────────────────────────────────────────────────
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[0;33m'
@@ -101,7 +115,7 @@ render_first_run_intro() {
     'Добро пожаловать. Этот launcher помогает выбрать проект и безопасно запустить нужный SDLC-сценарий.' \
     '' \
     'Что сейчас произойдёт:' \
-    '  1. Runtime — выберем primary routing и способ использования AI-помощников.' \
+    '  1. Runtime — выберем primary routing и покажем fail-closed статус workers.' \
     '  2. Projects — укажем, где launcher ищет доступные SDLC-проекты.' \
     '  3. View — выберем подробный или краткий вид одного и того же меню.' \
     '' \
@@ -152,7 +166,11 @@ initialize_first_run_execution_policy() {
 
   case "${SDLC_SUBAGENTS:-}" in
     "") SDLC_SUBAGENTS="off" ;;
-    off|auto|cross-runtime) ;;
+    off) ;;
+    auto|cross-runtime)
+      echo -e "${R}BLOCKED: workers отключены до capability-enforced bounded read scope.${N}"
+      return 1
+      ;;
     *) echo -e "${R}SDLC_SUBAGENTS должен быть off, auto или cross-runtime${N}"; return 1 ;;
   esac
   [[ -n "${SDLC_SUBAGENT_MAX:-}" ]] || SDLC_SUBAGENT_MAX=2
@@ -170,10 +188,7 @@ initialize_first_run_execution_policy() {
 render_first_run_execution_policy() {
   echo -e "  Профиль исполнения: ${C}${SDLC_RUNTIME_ROUTING}${N}"
   echo -e "  Silent fallback: ${C}выключен${N}"
-  echo -e "  Subagents: ${C}${SDLC_SUBAGENTS}${N} (лимит: ${SDLC_SUBAGENT_MAX})"
-  if [[ "$SDLC_SUBAGENTS" == "cross-runtime" ]]; then
-    render_subagent_execution_summary
-  fi
+  echo -e "  Subagents: ${C}off${N} — workers временно BLOCKED"
   echo -e "  Изменить позже: ${W}Project Console → Configuration${N}"
   echo
 }
@@ -263,9 +278,31 @@ is_recognized_sdlc_project() {
 console_action_map() {
   printf '%s\n' \
     '0|unfinished' '1|kickoff' '2|overview' '3|review' '4|repair' \
-    '5|goal' '6|cycle' '7|agent' '8|goal-config' '9|ai' \
+    '5|cycle1' '6|cycle23-frozen' '7|agent' '9|ai' \
     'u|utilities' 'p|projects' 'l|local-repositories' \
     'g|launcher-settings' 'v|view' '?|help' 'q|exit'
+}
+
+cycle23_support_status() {
+  printf '%s\n' 'FROZEN / NOT READY'
+}
+
+cycle23_execution_available() {
+  return 1
+}
+
+cycle23_frozen_notice() {
+  echo -e "${Y}Cycle 2/3 — $(cycle23_support_status).${N}"
+  echo 'Их historical implementation baseline сохранён, но execution и настройка цели'
+  echo 'недоступны в supported launcher до отдельного решения о разморозке.'
+}
+
+render_cycle23_frozen_status() {
+  printf '%s\n' \
+    'CYCLE 2/3 STATUS: FROZEN / NOT READY' \
+    'Supported route: только Cycle 1.' \
+    'Существующий код Cycle 2/3 сохранён как historical implementation baseline.' \
+    'Запуск, goal configuration и AI routing для Cycle 2/3 недоступны.'
 }
 
 render_project_selector() {
@@ -297,7 +334,7 @@ render_launcher_entry_intro() {
     'LAUNCHER ГОТОВ' \
     'Настройка завершена. Теперь выберите проект — контекст, с которым будете работать.' \
     'Выбор проекта ничего не запускает и не изменяет его файлы.' \
-    'После выбора откроется Project Console: Kickoff, обзор, Review, Repair, Goal, Cycle или один Agent.' \
+    'После выбора откроется Project Console: Kickoff, обзор, Review, Repair, Cycle 1 или один Agent.' \
     'Работа начинается только после выбора действия; операции запуска показывают границы и предпросмотр.'
 }
 
@@ -310,7 +347,7 @@ render_project_console_intro() {
     'КОНТЕКСТ ПРОЕКТА ОТКРЫТ' \
     'Сейчас ничего не запущено: launcher ждёт, что именно вы хотите сделать.' \
     'Обзор и Review работают без изменений; Repair отделён от проверки.' \
-    'Для Goal, Cycle и Agent сначала показываются границы и предпросмотр запуска.'
+    'Для Cycle 1 и Agent сначала показываются границы и предпросмотр запуска.'
 }
 
 render_project_console() {
@@ -320,9 +357,9 @@ render_project_console() {
   if [[ "$view" == compact ]]; then
     printf '%s\n' \
       '0 Незавершённый запуск' '1 Kickoff' '2 Обзор проекта' \
-      '3 Review' '4 Repair' '5 Режим цели' '6 Один Cycle' \
-      '7 Один Agent' '8 Настроить Goal/Cycle 2/Cycle 3' \
-      '9 AI routing/workers' 'u Утилиты проекта' 'p Другой проект' \
+      '3 Review' '4 Repair' '5 Cycle 1' \
+      '6 Cycle 2/3 — FROZEN / NOT READY' '7 Один Agent' \
+      '9 AI routing/worker status' 'u Утилиты проекта' 'p Другой проект' \
       'l Локальные репозитории' 'g Настройки launcher-а' \
       "v $next_view" '? Пояснить действие' 'q Завершить launcher'
   else
@@ -332,12 +369,11 @@ render_project_console() {
       '2 Обзор проекта — входы, результаты, циклы и состояние без изменений' \
       '3 Review проекта — только проверить, ничего не исправлять' \
       '4 Repair проекта — сначала показать точные изменения, затем запросить запуск' \
-      '5 Режим цели — Cycle 1 и явно выбранное продолжение Cycle 2/Cycle 3' \
-      '6 Запустить только один Cycle — Cycle 1, Cycle 2 или Cycle 3' \
-      '7 Запустить только один Agent — один агент и одна команда' \
-      '8 Настроить Goal/Cycle 2/Cycle 3 — изменить маршрут без полного перезапуска' \
-      '9 Настроить AI — выбрать основных исполнителей и AI-помощников' \
-      'u Утилиты проекта — secrets, tracker, gates, GitHub и validation' \
+      '5 Запустить Cycle 1 — единственный поддерживаемый SDLC route' \
+      '6 Cycle 2/3 — FROZEN / NOT READY; показать статус без запуска' \
+      '7 Запустить только один Agent — Cycle 1 или общая утилита' \
+      '9 Настроить AI — выбрать primary и проверить статус workers' \
+      'u Утилиты проекта — secret mappings, tracker, gates и validation' \
       'p Выбрать другой SDLC Project' \
       'l Локальные репозитории — clone, setup, build и local run' \
       'g Настройки launcher-а — каталоги, интерфейс и общие параметры' \
@@ -349,9 +385,9 @@ render_action_help() {
   case "${1:-}" in
     cycle)
       printf '%s\n' \
-        'Результат: один явно выбранный Cycle.' \
-        'Входит: ТОЛЬКО CYCLE 1, либо отдельно Cycle 2, либо отдельно Cycle 3.' \
-        'Не входит: остальные циклы и режим цели.' \
+        'Результат: запуск поддерживаемого Cycle 1.' \
+        'Входит: ТОЛЬКО CYCLE 1.' \
+        'Не входит: Cycle 2/3 — FROZEN / NOT READY.' \
         'Сейчас: выбор ничего не запускает.' \
         'Далее: Проверка запуска покажет проект, шаги, AI и исключённый scope.' ;;
     *)
@@ -371,10 +407,9 @@ dispatch_console_action() {
     2) menu_project_overview ;;
     3) menu_project_review ;;
     4) menu_project_repair ;;
-    5) run_goal_mode selected ;;
-    6) menu_cycle_select ;;
+    5) run_cycle1 selected ;;
+    6) render_cycle23_frozen_status ;;
     7) menu_single_agent ;;
-    8) menu_goal_profile ;;
     9) menu_ai_assignment ;;
     u) menu_utilities ;;
     p) project_selector ;;
@@ -434,11 +469,18 @@ render_execution_preview() {
         "$agent" "$task" "$route" "$source" "$worker_label" \
         "${SDLC_SUBAGENT_TASKS:-missing}" "${SDLC_SUBAGENT_MAX:-?}"
     else
-      printf '  - %s | %s | %s | source=%s | subagents=%s/%s\n' \
-        "$agent" "$task" "$route" "$source" "${SDLC_SUBAGENTS:-?}" "${SDLC_SUBAGENT_MAX:-?}"
+      printf '  - %s | %s | %s | source=%s | workers=%s\n' \
+        "$agent" "$task" "$route" "$source" "${SDLC_SUBAGENTS:-?}"
     fi
     idx=$((idx + 1))
   done
+  if [[ -n "${RELEASE_NOTES_VERSION:-}" ]]; then
+    printf '\nRELEASE NOTES BOUNDARY:\n'
+    printf '  VERSION:  %s\n  SOURCE:   %s\n  INPUT:    %s\n  TARGET:   %s\n' \
+      "$RELEASE_NOTES_VERSION" "$RELEASE_NOTES_SOURCE" \
+      "$RELEASE_NOTES_MANIFEST_REF" "$RELEASE_NOTES_TARGET_REF"
+    printf '  ACTIONS:  Markdown only; no external publication/build/deploy/production/Cycle 2/3\n'
+  fi
   apply_profile "$saved_profile" >/dev/null 2>&1 || true
   printf '\nNo action has run yet.\n'
 }
@@ -461,10 +503,14 @@ confirm_execution_preview() {
   esac
 }
 
-# ─── project-local Execution Journal ─────────────────────────────────────────
+# ─── launcher-owned Execution Journal (outside agent Project write scope) ─────────
 journal_root() {
-  local project="${1:-$PROJECT}"
-  printf '%s/%s/tracking/execution-journal\n' "$PROJECTS" "$project"
+  local project="${1:-$PROJECT}" project_dir canonical key state_base
+  project_dir="$PROJECTS/$project"
+  canonical="$(cd "$project_dir" 2>/dev/null && pwd -P)" || return 1
+  key="$(printf '%s' "$canonical" | sha256sum | awk '{print substr($1,1,16)}')"
+  state_base="${SDLC_JOURNAL_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/sdlc-agents/execution-journal}"
+  printf '%s/projects/%s-%s\n' "$state_base" "$project" "$key"
 }
 
 journal_run_dir() {
@@ -476,6 +522,7 @@ journal_json_escape() {
   local value="${1:-}"
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
+  value="${value//$'\t'/\\t}"
   value="${value//$'\n'/\\n}"
   value="${value//$'\r'/\\r}"
   printf '%s' "$value"
@@ -505,20 +552,42 @@ journal_yaml_unquote() {
 
 journal_append_event() {
   local run_id="$1" event="$2" status="$3" step="${4:-0}" step_status="${5:-UNKNOWN}"
-  local agent="${6:-}" task="${7:-}" evidence="${8:-}" dir
+  local agent="${6:-}" task="${7:-}" evidence="${8:-}" dir events sequence prev_hash
+  local payload event_hash timestamp current_file_sha
+  case "$status" in PLANNED|READY|RUNNING|WAITING_USER|BLOCKED|INTERRUPTED|COMPLETED|CANCELLED) ;; *) return 1 ;; esac
+  case "$step_status" in PENDING|RUNNING|PROCESS_OK|READ_ONLY_VERIFIED|ARTIFACT_VERIFIED|GATE_PASS|DOD_AUTO_PASS|DOD_PASS|UNVERIFIED|GATE_BLOCKED|DOD_BLOCKED|FAILED|SKIPPED|INTERRUPTED|UNKNOWN) ;; *) return 1 ;; esac
   dir="$(journal_run_dir "$PROJECT" "$run_id")"
   [[ -d "$dir" ]] || return 1
-  printf '{"time":"%s","event":"%s","status":"%s","step":%s,"step_status":"%s","agent":"%s","task":"%s","evidence":"%s"}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "$(journal_json_escape "$event")" "$(journal_json_escape "$status")" \
+  events="$dir/events.jsonl"
+  current_file_sha="$(sha256sum "$events" | awk '{print $1}')"
+  if [[ "${JOURNAL_VALIDATED_FILE_SHA[$run_id]:-}" != "$current_file_sha" ]]; then
+    journal_validate_run "$PROJECT" "$run_id" || return 1
+    JOURNAL_VALIDATED_FILE_SHA["$run_id"]="$current_file_sha"
+  fi
+  sequence=$(( $(wc -l < "$events") + 1 ))
+  if (( sequence == 1 )); then
+    prev_hash=GENESIS
+  else
+    prev_hash="$(tail -1 "$events" | sed -n 's/.*"event_hash":"\([0-9a-f]\{64\}\)"}$/\1/p')"
+    [[ "$prev_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
+  fi
+  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  payload="$(printf '{"time":"%s","event":"%s","sequence":%s,"status":"%s","step":%s,"step_status":"%s","agent":"%s","task":"%s","evidence":"%s","prev_hash":"%s"}' \
+    "$timestamp" "$(journal_json_escape "$event")" "$sequence" \
+    "$(journal_json_escape "$status")" \
     "${step:-0}" "$(journal_json_escape "$step_status")" \
     "$(journal_json_escape "$agent")" "$(journal_json_escape "$task")" \
-    "$(journal_json_escape "$evidence")" >> "$dir/events.jsonl"
+    "$(journal_json_escape "$evidence")" "$prev_hash")"
+  event_hash="$(printf '%s' "$payload" | sha256sum | awk '{print $1}')"
+  printf '%s\n' "${payload%\}},\"event_hash\":\"$event_hash\"}" >> "$events"
+  JOURNAL_VALIDATED_FILE_SHA["$run_id"]="$(sha256sum "$events" | awk '{print $1}')"
 }
 
 journal_write_state() {
   local run_id="$1" status="$2" step="${3:-0}" total="${4:-0}"
   local step_status="${5:-UNKNOWN}" current="${6:-}" dir tmp
+  case "$status" in PLANNED|READY|RUNNING|WAITING_USER|BLOCKED|INTERRUPTED|COMPLETED|CANCELLED) ;; *) return 1 ;; esac
+  case "$step_status" in PENDING|RUNNING|PROCESS_OK|READ_ONLY_VERIFIED|ARTIFACT_VERIFIED|GATE_PASS|DOD_AUTO_PASS|DOD_PASS|UNVERIFIED|GATE_BLOCKED|DOD_BLOCKED|FAILED|SKIPPED|INTERRUPTED|UNKNOWN) ;; *) return 1 ;; esac
   dir="$(journal_run_dir "$PROJECT" "$run_id")"
   [[ -d "$dir" ]] || return 1
   tmp="$(mktemp "$dir/state.md.tmp.XXXXXX")" || return 1
@@ -542,7 +611,7 @@ journal_ensure_root() {
   tmp="$(mktemp "$root/README.md.tmp.XXXXXX")" || return 1
   printf '%s\n' \
     '# Execution Journal' '' \
-    'Project-local, runtime-neutral orchestration evidence.' \
+    'Launcher-owned, runtime-neutral orchestration evidence outside agent Project write scope.' \
     'Each run has an immutable plan, atomic state and append-only events.' \
     'Interrupted/unknown work is never treated as success.' > "$tmp"
   mv "$tmp" "$readme"
@@ -550,7 +619,7 @@ journal_ensure_root() {
 
 journal_create_run() {
   local type="$1" scope="$2" excluded="$3" dir entry idx=0 agent task plan_tmp
-  local stamp goal_revision='none'
+  local stamp
   if [[ "${USE_EXISTING_FROZEN_ROUTES:-0}" == 1 ]]; then
     [[ ${#EXECUTION_STEP_PROFILES[@]} -eq ${#RUN_CYCLE[@]} ]] || return 1
   else
@@ -562,23 +631,21 @@ journal_create_run() {
   journal_ensure_root || return 1
   mkdir -p "$dir"
   plan_tmp="$(mktemp "$dir/plan.md.tmp.XXXXXX")" || return 1
-  if [[ -f "$(goal_profile_path)" ]]; then
-    goal_revision="$(awk -F': ' '$1 == "revision" { print $2; exit }' "$(goal_profile_path)")"
-    goal_revision="${goal_revision:-unknown}"
-  fi
   {
     printf '%s\n' '---'
     printf 'run_id: %s\nproject: %s\nproject_path: %s\ntype: %s\nscope: %s\nexcluded: %s\n' \
       "$CURRENT_RUN_ID" "$(journal_yaml_quote "$PROJECT")" "$(journal_yaml_quote "$(project_path)")" \
       "$type" "$(journal_yaml_quote "$scope")" "$(journal_yaml_quote "$excluded")"
+    printf 'parent_run_id: %s\n' "${PARENT_RUN_ID:-none}"
     printf 'runtime_routing: %s\nsubagents: %s\nsubagent_max: %s\nsubagent_profile: %s\nsubagent_tasks: %s\ncreated_at: %s\n' \
       "${SDLC_RUNTIME_ROUTING:-}" "${SDLC_SUBAGENTS:-}" "${SDLC_SUBAGENT_MAX:-}" \
       "${SDLC_SUBAGENT_PROFILE:-none}" "${SDLC_SUBAGENT_TASKS:-none}" \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    printf 'goal_profile_revision: %s\ntdd_cycle1: %s\ntdd_cycle2: %s\ntdd_cycle3: %s\n' \
-      "$goal_revision" "$(read_cycle_tdd_status 1 2>/dev/null || printf 'UNKNOWN')" \
-      "$(read_cycle_tdd_status 2 2>/dev/null || printf 'UNKNOWN')" \
-      "$(read_cycle_tdd_status 3 2>/dev/null || printf 'UNKNOWN')"
+    printf 'supported_scope: cycle1\ntdd_cycle1: %s\ncycle23_status: FROZEN / NOT READY\n' \
+      "$(read_cycle_tdd_status 1 2>/dev/null || printf 'UNKNOWN')"
+    printf 'product_ci_profile_schema: %s\nproduct_ci_profile_revision: %s\n' \
+      "$(read_product_ci_profile_field schema_version 2>/dev/null || printf 'UNKNOWN')" \
+      "$(read_product_ci_profile_field revision 2>/dev/null || printf 'UNKNOWN')"
     printf '%s\n' '---' '' '# Frozen execution plan' ''
     for entry in "${RUN_CYCLE[@]:-}"; do
       [[ -n "$entry" ]] || continue
@@ -592,6 +659,7 @@ journal_create_run() {
     done
   } > "$plan_tmp"
   mv "$plan_tmp" "$dir/plan.md"
+  sha256sum "$dir/plan.md" | awk '{print $1}' > "$dir/plan.sha256"
   : > "$dir/events.jsonl"
   journal_write_state "$CURRENT_RUN_ID" PLANNED 0 "$idx" PENDING ''
   journal_append_event "$CURRENT_RUN_ID" run_created PLANNED 0 PENDING '' '' 'immutable plan snapshot created'
@@ -667,16 +735,518 @@ journal_mark_interrupted_runs() {
   done < <(find "$root" -mindepth 2 -maxdepth 2 -name state.md -print0 2>/dev/null)
 }
 
-journal_resume_point() {
-  local project="$1" run_id="$2" events last=0 step event
-  events="$(journal_run_dir "$project" "$run_id")/events.jsonl"
-  [[ -f "$events" ]] || return 1
-  while IFS= read -r event; do
-    [[ "$event" =~ ^\{\"time\":\"[^\"]*\",\"event\":\"(step_succeeded|step_skipped)\",\"status\":\"[^\"]*\",\"step\":([0-9]+), ]] || continue
-    step="${BASH_REMATCH[2]}"
-    [[ "$step" =~ ^[0-9]+$ ]] && (( step > last )) && last="$step"
+journal_validate_run() {
+  local project="$1" run_id="$2" dir plan events digest expected actual total line step
+  local sequence expected_sequence=1 prev_hash=GENESIS row_prev event_hash payload calculated
+  local status step_status
+  dir="$(journal_run_dir "$project" "$run_id")"
+  plan="$dir/plan.md"; events="$dir/events.jsonl"; digest="$dir/plan.sha256"
+  for file in "$plan" "$events" "$digest"; do
+    [[ -f "$file" && ! -L "$file" ]] || return 1
+  done
+  expected="$(awk 'NF {print $1; exit}' "$digest")"
+  actual="$(sha256sum "$plan" | awk '{print $1}')"
+  [[ "$expected" =~ ^[0-9a-f]{64}$ && "$actual" == "$expected" ]] || return 1
+  grep -Fqx "run_id: $run_id" "$plan" || return 1
+  grep -Fqx "project: \"${project//\"/\\\"}\"" "$plan" || return 1
+  total="$(grep -Ec '^[0-9]+\. ' "$plan" || true)"
+  (( total > 0 )) || return 1
+  while IFS= read -r line; do
+    grep -Eq '^\{"time":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z","event":"[a-z0-9_]+","sequence":[1-9][0-9]*,"status":"[A-Z_]+","step":[0-9]+,"step_status":"[A-Z_]+","agent":"([^"\\]|\\.)*","task":"([^"\\]|\\.)*","evidence":"([^"\\]|\\.)*","prev_hash":"(GENESIS|[0-9a-f]{64})","event_hash":"[0-9a-f]{64}"\}$' <<< "$line" || return 1
+    sequence="$(sed -n 's/.*"sequence":\([0-9][0-9]*\),"status".*/\1/p' <<< "$line")"
+    [[ "$sequence" == "$expected_sequence" ]] || return 1
+    row_prev="$(sed -n 's/.*"prev_hash":"\([A-Z0-9a-f]*\)","event_hash".*/\1/p' <<< "$line")"
+    [[ "$row_prev" == "$prev_hash" ]] || return 1
+    event_hash="$(sed -n 's/.*"event_hash":"\([0-9a-f]\{64\}\)"}$/\1/p' <<< "$line")"
+    [[ "$event_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
+    payload="$(sed -E 's/,"event_hash":"[0-9a-f]{64}"}$/}/' <<< "$line")"
+    calculated="$(printf '%s' "$payload" | sha256sum | awk '{print $1}')"
+    [[ "$calculated" == "$event_hash" ]] || return 1
+    status="$(sed -n 's/.*"status":"\([A-Z_]*\)","step".*/\1/p' <<< "$line")"
+    step_status="$(sed -n 's/.*"step_status":"\([A-Z_]*\)","agent".*/\1/p' <<< "$line")"
+    case "$status" in PLANNED|READY|RUNNING|WAITING_USER|BLOCKED|INTERRUPTED|COMPLETED|CANCELLED) ;; *) return 1 ;; esac
+    case "$step_status" in PENDING|RUNNING|PROCESS_OK|READ_ONLY_VERIFIED|ARTIFACT_VERIFIED|GATE_PASS|DOD_AUTO_PASS|DOD_PASS|UNVERIFIED|GATE_BLOCKED|DOD_BLOCKED|FAILED|SKIPPED|INTERRUPTED|UNKNOWN) ;; *) return 1 ;; esac
+    step="$(sed -n 's/.*"step":\([0-9][0-9]*\),"step_status".*/\1/p' <<< "$line")"
+    [[ "$step" =~ ^[0-9]+$ ]] || return 1
+    (( step >= 0 && step <= total )) || return 1
+    prev_hash="$event_hash"
+    expected_sequence=$((expected_sequence + 1))
   done < "$events"
-  printf '%s\n' "$((last + 1))"
+}
+
+journal_resume_point() {
+  local project="$1" run_id="$2" events plan total next=1 step event event_type
+  local event_agent event_task entry agent task gate
+  declare -A proven=() gate_passed=() dod_auto=() dod_full=() completion_passed=()
+  journal_validate_run "$project" "$run_id" || return 1
+  events="$(journal_run_dir "$project" "$run_id")/events.jsonl"
+  plan="$(journal_run_dir "$project" "$run_id")/plan.md"
+  total="$(grep -Ec '^[0-9]+\. ' "$plan")"
+  while IFS= read -r event; do
+    event_type="$(sed -n 's/.*"event":"\([a-z0-9_]*\)","sequence".*/\1/p' <<< "$event")"
+    step="$(sed -n 's/.*"step":\([0-9][0-9]*\),"step_status".*/\1/p' <<< "$event")"
+    [[ "$step" =~ ^[0-9]+$ ]] || continue
+    event_agent="$(sed -n 's/.*"agent":"\([^"]*\)","task".*/\1/p' <<< "$event")"
+    event_task="$(sed -n 's/.*"task":"\([^"]*\)","evidence".*/\1/p' <<< "$event")"
+    case "$event_type" in
+      step_artifact_verified|step_read_only_verified|step_skipped)
+        (( step >= 1 && step <= total )) && proven["$step:$event_agent:$event_task"]=1
+        ;;
+      gate_pass) gate_passed["$step:$event_task"]=1 ;;
+      software_dod_auto_pass) dod_auto["$step:$event_agent:$event_task"]=1 ;;
+      software_dod_approved) dod_full["$step:$event_agent:$event_task"]=1 ;;
+      cycle1_completion_pass) completion_passed["$step:$event_agent:$event_task"]=1 ;;
+    esac
+  done < "$events"
+  while (( next <= total )); do
+    entry="$(sed -n "s/^${next}\\. //p" "$plan")"
+    agent="${entry%%:*}"
+    task="${entry#*:}"
+    [[ -n "${proven[$next:$agent:$task]:-}" ]] || break
+    gate="$(cycle1_gate_before_entry "$agent" "$task" 2>/dev/null || true)"
+    [[ -z "$gate" || -n "${gate_passed[$next:Gate $gate]:-}" ]] || break
+    gate="$(cycle1_gate_after_entry "$agent" "$task" 2>/dev/null || true)"
+    [[ -z "$gate" || -n "${gate_passed[$next:Gate $gate]:-}" ]] || break
+    if cycle1_software_dod_after_entry "$agent" "$task"; then
+      [[ -n "${dod_auto[$next:$agent:$task]:-}" &&
+         -n "${dod_full[$next:$agent:$task]:-}" ]] || break
+    fi
+    if cycle1_completion_after_entry "$agent" "$task"; then
+      [[ -n "${completion_passed[$next:$agent:$task]:-}" ]] || break
+    fi
+    next=$((next + 1))
+  done
+  printf '%s\n' "$next"
+}
+
+journal_root_cycle_run() {
+  local project="$1" current="$2" dir plan parent type depth=0
+  declare -A seen=()
+  while :; do
+    [[ "$current" =~ ^[A-Za-z0-9._-]+$ && -z "${seen[$current]:-}" ]] || return 1
+    seen["$current"]=1
+    depth=$((depth + 1))
+    (( depth <= 64 )) || return 1
+    journal_validate_run "$project" "$current" || return 1
+    dir="$(journal_run_dir "$project" "$current")"
+    plan="$dir/plan.md"
+    parent="$(awk -F': ' '$1 == "parent_run_id" {print $2; exit}' "$plan")"
+    type="$(awk -F': ' '$1 == "type" {print $2; exit}' "$plan")"
+    if [[ "$parent" == none ]]; then
+      [[ "$type" == CYCLE ]] || return 1
+      printf '%s\n' "$current"
+      return 0
+    fi
+    [[ "$type" == RESUME && "$parent" =~ ^[A-Za-z0-9._-]+$ ]] || return 1
+    current="$parent"
+  done
+}
+
+# Canonical capability registry for every active command template.
+command_capability_record() {
+  local agent="$1" task="$2" command
+  [[ -f "$COMMAND_CAPABILITIES_FILE" && "$task" == /* ]] || return 1
+  command="${task%% *}"
+  awk -F '\t' -v agent="$agent" -v command="$command" '
+    NR > 1 && $2 == agent && $3 == command { print; found=1; exit }
+    END { exit(found ? 0 : 1) }
+  ' "$COMMAND_CAPABILITIES_FILE"
+}
+
+command_capability_field() {
+  local record="$1" field="$2"
+  awk -F '\t' -v field="$field" '{ print $field }' <<< "$record"
+}
+
+command_capability() {
+  local record
+  record="$(command_capability_record "$1" "$2")" || return 1
+  command_capability_field "$record" 4
+}
+
+command_access() {
+  local record
+  record="$(command_capability_record "$1" "$2")" || return 1
+  command_capability_field "$record" 5
+}
+
+command_result_verifier() {
+  local record
+  record="$(command_capability_record "$1" "$2")" || return 1
+  command_capability_field "$record" 6
+}
+
+command_metadata_stages() {
+  local record
+  record="$(command_capability_record "$1" "$2")" || return 1
+  command_capability_field "$record" 7
+}
+
+command_metadata_types() {
+  local record
+  record="$(command_capability_record "$1" "$2")" || return 1
+  command_capability_field "$record" 8
+}
+
+command_supported_by_one_agent() {
+  local capability
+  capability="$(command_capability "$1" "$2")" || return 1
+  [[ "$capability" == read-only-no-output || "$capability" == mutating-declared-output ]]
+}
+
+tracker_special_command() {
+  [[ "${1:-}" == s0-tracker ]] || return 1
+  case "${2%% *}" in
+    /sprint-close|/sprint-init|/task-add|/task-block|/task-done) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+tracker_special_expected_verifier() {
+  [[ "${1:-}" == s0-tracker ]] || return 1
+  case "${2%% *}" in
+    /sprint-close) printf '%s\n' tracker-sprint-close-postconditions ;;
+    /sprint-init) printf '%s\n' tracker-sprint-init-postconditions ;;
+    /task-add|/task-block) printf '%s\n' tracker-task-postconditions ;;
+    /task-done) printf '%s\n' tracker-task-done-postconditions ;;
+    *) return 1 ;;
+  esac
+}
+
+tracker_prompt_value() {
+  local task="${1:-}" key="${2:-}"
+  [[ "$key" =~ ^[a-z-]+$ ]] || return 1
+  if [[ " $task " =~ [[:space:]]${key}=([^[:space:]]+) ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+# The canonical output registry owns logical ids, compatibility names and current tracking.
+# Each output line is one required group; "|" separates allowed alternatives.
+cycle1_declared_output_groups() {
+  local agent="$1" task="$2" command="${2%% *}" version='' rows pattern
+  [[ -f "$CURRENT_ARTIFACT_GROUPS_FILE" ]] || return 1
+  rows="$(awk -F'\t' -v agent="$agent" -v command="$command" '
+    NR > 1 && $1 == agent && $2 == command { print $7 }
+  ' "$CURRENT_ARTIFACT_GROUPS_FILE")"
+  [[ -n "$rows" ]] || return 1
+  if [[ "$command" == /release-notes ]]; then
+    version="${task#/release-notes }"
+    [[ "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || return 1
+  fi
+  while IFS= read -r pattern; do
+    printf '%s\n' "${pattern//\{version\}/$version}"
+  done <<< "$rows"
+}
+
+cycle1_tracks_current_outputs() {
+  local agent="$1" command="${2%% *}"
+  [[ -f "$CURRENT_ARTIFACT_GROUPS_FILE" ]] || return 1
+  awk -F'\t' -v agent="$agent" -v command="$command" '
+    NR > 1 && $1 == agent && $2 == command && $6 == "yes" { found=1 }
+    END { exit(found ? 0 : 1) }
+  ' "$CURRENT_ARTIFACT_GROUPS_FILE"
+}
+
+declared_output_files() {
+  local agent="$1" task="$2" root="$(project_path)" group pattern
+  while IFS= read -r group; do
+    IFS='|' read -r -a patterns <<< "$group"
+    for pattern in "${patterns[@]}"; do
+      find "$root" -type f -path "$root/$pattern" -print0 2>/dev/null
+    done
+  done < <(cycle1_declared_output_groups "$agent" "$task")
+}
+
+declared_output_fingerprint() {
+  local agent="$1" task="$2" root="$(project_path)" file
+  cycle1_declared_output_groups "$agent" "$task" >/dev/null || return 1
+  while IFS= read -r -d '' file; do
+    printf '%s\t%s\n' "${file#"$root/"}" "$(cksum < "$file" | awk '{print $1 ":" $2}')"
+  done < <(declared_output_files "$agent" "$task" | sort -zu)
+}
+
+verify_declared_outputs() {
+  local agent="$1" task="$2" before="$3" root="$(project_path)"
+  local group pattern found after ref checksum metadata_output metadata_stages metadata_types
+  local -a changed_refs=()
+  local -A before_checksums=()
+  if ! cycle1_declared_output_groups "$agent" "$task" >/dev/null; then
+    DECLARED_OUTPUT_REASON="no declared-output mapping for $agent $task"
+    return 1
+  fi
+  while IFS= read -r group; do
+    found=0
+    IFS='|' read -r -a patterns <<< "$group"
+    for pattern in "${patterns[@]}"; do
+      if find "$root" -type f -path "$root/$pattern" -print -quit 2>/dev/null | grep -q .; then
+        found=1
+        break
+      fi
+    done
+    if [[ $found -ne 1 ]]; then
+      DECLARED_OUTPUT_REASON="missing declared output group: $group"
+      return 1
+    fi
+  done < <(cycle1_declared_output_groups "$agent" "$task")
+  after="$(declared_output_fingerprint "$agent" "$task")" || return 1
+  if [[ "$after" == "$before" ]]; then
+    DECLARED_OUTPUT_REASON='declared outputs exist but were not changed by this process'
+    return 1
+  fi
+  while IFS=$'\t' read -r ref checksum; do
+    [[ -n "$ref" ]] && before_checksums["$ref"]="$checksum"
+  done <<< "$before"
+  while IFS=$'\t' read -r ref checksum; do
+    [[ -n "$ref" ]] || continue
+    if [[ "${before_checksums[$ref]:-}" != "$checksum" ]]; then
+      changed_refs+=("$ref")
+    fi
+  done <<< "$after"
+  (( ${#changed_refs[@]} > 0 )) || {
+    DECLARED_OUTPUT_REASON='declared output snapshot changed without a new/modified path'
+    return 1
+  }
+  metadata_stages="$(command_metadata_stages "$agent" "$task" 2>/dev/null || true)"
+  metadata_types="$(command_metadata_types "$agent" "$task" 2>/dev/null || true)"
+  local group_changed changed_ref
+  while IFS= read -r group; do
+    group_changed=0
+    IFS='|' read -r -a patterns <<< "$group"
+    for pattern in "${patterns[@]}"; do
+      for changed_ref in "${changed_refs[@]}"; do
+        if [[ "$changed_ref" == $pattern ]]; then
+          group_changed=1
+          break 2
+        fi
+      done
+    done
+    if [[ $group_changed -ne 1 ]]; then
+      DECLARED_OUTPUT_REASON="stale declared output group: $group"
+      return 1
+    fi
+  done < <(cycle1_declared_output_groups "$agent" "$task")
+  for ref in "${changed_refs[@]}"; do
+    [[ "$ref" == *.md ]] || continue
+    if [[ -z "$metadata_stages" || "$metadata_stages" == - ||
+          -z "$metadata_types" || "$metadata_types" == - ]]; then
+      DECLARED_OUTPUT_REASON="$ref has no registry-bound metadata stage/type contract"
+      return 1
+    fi
+    if ! metadata_output="$(bash "$AGENTS/cycle1-dev/s0-validate/artifact-metadata-check.sh" \
+      "$root" "$ref" "$agent" "$metadata_stages" "$metadata_types" 2>&1)"; then
+      DECLARED_OUTPUT_REASON="$ref metadata invalid: $metadata_output"
+      return 1
+    fi
+  done
+  DECLARED_OUTPUT_CHANGED_REFS="$(IFS=,; printf '%s' "${changed_refs[*]}")"
+  local current_output='' plan_sha=''
+  if cycle1_tracks_current_outputs "$agent" "$task" &&
+     [[ -n "${CURRENT_RUN_ID:-}" && -d "$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")" ]]; then
+    plan_sha="$(awk 'NF {print $1; exit}' "$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")/plan.sha256")"
+    if ! current_output="$(bash "$CURRENT_ARTIFACT_TOOL" update "$root" "$agent" "$task" \
+      "$CURRENT_RUN_ID" "$plan_sha" "$DECLARED_OUTPUT_CHANGED_REFS" 2>&1)"; then
+      DECLARED_OUTPUT_REASON="current artifact update failed: $current_output"
+      return 1
+    fi
+  fi
+  DECLARED_OUTPUT_REASON="declared outputs changed and metadata verified: $DECLARED_OUTPUT_CHANGED_REFS"
+  [[ -z "$current_output" ]] || DECLARED_OUTPUT_REASON+="; $current_output"
+}
+
+cycle1_step_field() {
+  local agent="$1" task="${2%% *}" column="$3"
+  awk -F'\t' -v agent="$agent" -v task="$task" -v column="$column" '
+    NR > 1 && $2 == agent && $3 == task { print $column; found=1; exit }
+    END { exit(found ? 0 : 1) }
+  ' "$CYCLE1_STEPS_FILE"
+}
+
+cycle1_gate_before_entry() {
+  local value
+  value="$(cycle1_step_field "$1" "$2" 4)" || return 1
+  [[ "$value" != none ]] || return 1
+  printf '%s\n' "$value"
+}
+
+cycle1_gate_after_entry() {
+  local value
+  value="$(cycle1_step_field "$1" "$2" 5)" || return 1
+  [[ "$value" != none ]] || return 1
+  printf '%s\n' "$value"
+}
+
+cycle1_software_dod_after_entry() {
+  [[ "$(cycle1_step_field "$1" "$2" 6 2>/dev/null || true)" == full ]]
+}
+
+cycle1_completion_after_entry() {
+  [[ "$(cycle1_step_field "$1" "$2" 7 2>/dev/null || true)" == full ]]
+}
+
+release_notes_after_entry() {
+  [[ "$1:$2" == 's0-tracker:/release-notes 'v* ]]
+}
+
+release_manifest_field() {
+  local field="$1" manifest="$(project_path)/tracking/completion/CYCLE1-completion-v2.yaml"
+  [[ -f "$manifest" ]] || return 1
+  awk -F: -v wanted="$field" '$1 == wanted { value=$0; sub(/^[^:]*:[[:space:]]*/, "", value); sub(/[[:space:]]+$/, "", value); print value; exit }' "$manifest"
+}
+
+run_release_notes_validator() {
+  bash "$AGENTS/cycle1-dev/s0-validate/release-notes-check.sh" "$(project_path)" "$1"
+}
+
+prepare_release_notes_context() {
+  local task="$1" version manifest target output
+  if [[ ! "$task" =~ ^/release-notes[[:space:]]+(v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
+    echo -e "${R}BLOCKED: version должна иметь вид vMAJOR.MINOR.PATCH без ведущих нулей.${N}"
+    return 1
+  fi
+  version="${BASH_REMATCH[1]}"
+  if ! output="$(run_cycle1_completion_validator 2>&1)"; then
+    printf '%s\n' "$output"
+    echo -e "${R}BLOCKED: release notes требуют verified Cycle 1 completion.${N}"
+    return 1
+  fi
+  manifest="$(project_path)/tracking/completion/CYCLE1-completion-v2.yaml"
+  target="$(project_path)/tracking/releases/REL-$version-release-notes.md"
+  RELEASE_NOTES_VERSION="$version"
+  RELEASE_NOTES_SOURCE="$(release_manifest_field source_revision)"
+  RELEASE_NOTES_MANIFEST_REF='tracking/completion/CYCLE1-completion-v2.yaml'
+  RELEASE_NOTES_MANIFEST_SHA="$(sha256sum "$manifest" | awk '{print $1}')"
+  RELEASE_NOTES_TARGET_REF="tracking/releases/REL-$version-release-notes.md"
+  if [[ -e "$target" ]]; then
+    if [[ -f "$target" && ! -L "$target" ]] && run_release_notes_validator "$version" >/dev/null 2>&1; then
+      echo "RELEASE NOTES NO-OP: valid artifact already exists for version=$version source=$RELEASE_NOTES_SOURCE path=$RELEASE_NOTES_TARGET_REF"
+      return 2
+    fi
+    echo -e "${R}BLOCKED: existing release-notes target conflicts with verified version/source: $RELEASE_NOTES_TARGET_REF${N}"
+    return 1
+  fi
+  return 0
+}
+
+product_ci_profile_file() {
+  printf '%s/tracking/product-ci-profile.yaml\n' "$(project_path)"
+}
+
+read_product_ci_profile_field() {
+  local field="$1" file
+  file="$(product_ci_profile_file)"
+  [[ -f "$file" ]] || return 1
+  awk -F: -v wanted="$field" '
+    $1 == wanted {
+      value=$0
+      sub(/^[^:]*:[[:space:]]*/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "$file"
+}
+
+require_product_ci_profile() {
+  local validator="$AGENTS/cycle1-dev/s0-validate/product-ci-profile-check.sh"
+  if ! bash "$validator" "$(project_path)"; then
+    echo -e "${R}BLOCKED: до Stage 1 нужен valid Product & CI Profile.${N}"
+    echo -e "Запусти ${C}s0-kickoff /product-ci-profile${N} для Project $PROJECT."
+    return 1
+  fi
+}
+
+run_cycle1_gate_validator() {
+  bash "$AGENTS/cycle1-dev/s0-validate/dor-check.sh" "$(project_path)" "$1"
+}
+
+run_cycle1_software_dod_validator() {
+  local source
+  source="$(read_cycle_tdd_field 1 source_revision)" || {
+    echo -e "${R}DOD BLOCKED: exact TDD source revision отсутствует.${N}"
+    return 1
+  }
+  bash "$AGENTS/cycle1-dev/s0-validate/dod-check.sh" "$(project_path)" K 4 '' "$source"
+}
+
+run_cycle1_full_dod_validator() {
+  local source output approval_ref root_run root_dir plan_sha request
+  local approval_id subject_digest scope evidence_producer
+  source="$(read_cycle_tdd_field 1 source_revision)" || {
+    echo -e "${R}DOD APPROVAL BLOCKED: exact TDD source revision отсутствует.${N}"
+    return 1
+  }
+  if ! output="$(bash "$AGENTS/cycle1-dev/s0-validate/dod-approval-check.sh" \
+    "$(project_path)" "$source" "${CURRENT_RUN_ID:-}" 2>&1)"; then
+    if [[ -z "${CURRENT_RUN_ID:-}" ||
+      "$output" != *'exact source/run requires one full DoD approval, found 0'* ]]; then
+      printf '%s\n' "$output"
+      return 1
+    fi
+    request="$(bash "$AGENTS/cycle1-dev/s0-validate/dod-approval-check.sh" \
+      "$(project_path)" "$source" "$CURRENT_RUN_ID" request 2>&1)" || {
+      printf '%s\n' "$request"
+      return 1
+    }
+    printf '%s\n' "$request"
+    approval_id="$(awk -F': ' '$1 == "approval_id" {print $2; exit}' <<< "$request")"
+    subject_digest="$(awk -F': ' '$1 == "subject_digest" {print $2; exit}' <<< "$request")"
+    scope="$(awk -F': ' '$1 == "scope" {sub(/^[^:]*:[[:space:]]*/, "", $0); print; exit}' <<< "$request")"
+    evidence_producer="$(awk -F': ' '$1 == "evidence_producer" {print $2; exit}' <<< "$request")"
+    [[ "$approval_id" =~ ^APPROVAL-DOD-[A-Z0-9._-]+$ &&
+      "$subject_digest" =~ ^[0-9a-f]{64}$ && -n "$scope" &&
+      "$evidence_producer" == s4-dev ]] || {
+      echo -e "${R}DOD APPROVAL BLOCKED: invalid launcher approval request.${N}"
+      return 1
+    }
+    bash "$AGENTS/_runtimes/human-approval-record.sh" "$(project_path)" \
+      "$approval_id" "$source" "$subject_digest" "$scope" "$evidence_producer" || return 1
+    output="$(bash "$AGENTS/cycle1-dev/s0-validate/dod-approval-check.sh" \
+      "$(project_path)" "$source" "$CURRENT_RUN_ID" 2>&1)" || {
+      printf '%s\n' "$output"
+      return 1
+    }
+  fi
+  printf '%s\n' "$output"
+  approval_ref="$(sed -n 's/^DOD APPROVAL VERIFIED: approval=\([^[:space:]]*\).*/\1/p' <<< "$output")"
+  [[ -n "$approval_ref" ]] || return 1
+  if [[ -n "${CURRENT_RUN_ID:-}" ]]; then
+    root_run="$(journal_root_cycle_run "$PROJECT" "$CURRENT_RUN_ID")" || return 1
+    root_dir="$(journal_run_dir "$PROJECT" "$root_run")"
+    plan_sha="$(awk 'NF {print $1; exit}' "$root_dir/plan.sha256")"
+    bash "$AGENTS/cycle1-dev/s0-validate/current-artifact.sh" update \
+      "$(project_path)" launcher /full-dod-approval "$CURRENT_RUN_ID" "$plan_sha" "$approval_ref"
+  fi
+}
+
+run_cycle1_completion_validator() {
+  bash "$AGENTS/cycle1-dev/s0-validate/cycle1-completion-check.sh" "$(project_path)"
+}
+
+prepare_cycle1_completion_context() {
+  local run_id="${1:-$CURRENT_RUN_ID}" root_run root_dir manifest
+  root_run="$(journal_root_cycle_run "$PROJECT" "$run_id")" || return 1
+  root_dir="$(journal_run_dir "$PROJECT" "$root_run")"
+  manifest="$(project_path)/tracking/current-artifacts-v1.tsv"
+  [[ -f "$root_dir/plan.sha256" && -f "$manifest" ]] || return 1
+  SDLC_EXECUTION_RUN_ID="$run_id"
+  SDLC_EXECUTION_PLAN_SHA256="$(awk 'NF {print $1; exit}' "$root_dir/plan.sha256")"
+  SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256="$(sha256sum "$manifest" | awk '{print $1}')"
+  export SDLC_EXECUTION_RUN_ID SDLC_EXECUTION_PLAN_SHA256 SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256
+}
+
+clear_cycle1_completion_context() {
+  SDLC_EXECUTION_RUN_ID=''
+  SDLC_EXECUTION_PLAN_SHA256=''
+  SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256=''
+  export SDLC_EXECUTION_RUN_ID SDLC_EXECUTION_PLAN_SHA256 SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256
+}
+
+run_cycle1_execution_proof_create() {
+  bash "$AGENTS/cycle1-dev/s0-validate/cycle1-execution-proof-check.sh" \
+    create "$(project_path)" "$CURRENT_RUN_ID"
 }
 
 expand_path() {
@@ -717,6 +1287,17 @@ runtime_label() {
     "") echo "не выбран" ;;
     *) echo "$AGENT_RUNTIME" ;;
   esac
+}
+
+runtime_supports_interactive() {
+  case "$AGENT_RUNTIME:${LOCAL_AGENT_HOST:-}" in
+    codex:*|local:codex-oss) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+report_interactive_codex_block() {
+  echo -e "${R}BLOCKED: interactive Codex cannot disable ambient user configuration; use a registered command in task mode.${N}"
 }
 
 runtime_bin() {
@@ -1167,34 +1748,13 @@ ensure_routing_policy() {
 }
 
 configure_subagent_settings() {
-  local context="${1:-standalone}" choice max
+  local context="${1:-standalone}"
   echo
   render_subagent_mode_choice "$context"
-  read -rp "Выбери [1-3]: " choice
-  case "$choice" in
-    1)
-      SDLC_SUBAGENTS="off"
-      max="${SDLC_SUBAGENT_MAX:-2}"
-      SDLC_SUBAGENT_PROFILE=""
-      SDLC_SUBAGENT_TASKS=""
-      ;;
-    2)
-      SDLC_SUBAGENTS="auto"
-      read -rp "Максимум subagents [1-16]: " max
-      SDLC_SUBAGENT_PROFILE=""
-      SDLC_SUBAGENT_TASKS=""
-      ;;
-    3)
-      configure_cross_runtime_subagents || return 1
-      return 0
-      ;;
-    *) echo -e "${R}Неверный выбор${N}"; return 1 ;;
-  esac
-  valid_menu_index "$max" 16 || {
-    echo -e "${R}Допустимо целое число 1..16${N}"
-    return 1
-  }
-  SDLC_SUBAGENT_MAX="$max"
+  SDLC_SUBAGENTS="off"
+  SDLC_SUBAGENT_MAX=2
+  SDLC_SUBAGENT_PROFILE=""
+  SDLC_SUBAGENT_TASKS=""
   export SDLC_SUBAGENTS SDLC_SUBAGENT_MAX SDLC_SUBAGENT_PROFILE SDLC_SUBAGENT_TASKS
   write_config_value SDLC_SUBAGENTS "$SDLC_SUBAGENTS"
   write_config_value SDLC_SUBAGENT_MAX "$SDLC_SUBAGENT_MAX"
@@ -1205,29 +1765,17 @@ configure_subagent_settings() {
 render_subagent_mode_choice() {
   local context="${1:-standalone}"
   if [[ "$context" == "first-run" ]]; then
-    echo -e "${W}Шаг 2 из 2 — AI-помощники${N}"
+    echo -e "${W}Шаг 2 из 2 — статус AI-помощников${N}"
   else
-    echo -e "${W}AI-помощники${N}"
+    echo -e "${W}Статус AI-помощников${N}"
   fi
-  echo -e "${W}Нужны ли основному исполнителю AI-помощники?${N}"
+  echo -e "${W}Worker execution policy${N}"
   echo
-  echo "Помощник получает только ограниченную задачу: например, провести анализ,"
-  echo "исследование, ревью или помочь интерпретировать тесты. Он работает в режиме"
-  echo "только чтения, не изменяет файлы проекта и не закрывает quality gates."
-  echo "Основной исполнитель проверяет результат помощника и отвечает за итог этапа."
-  echo "Этот выбор не добавляет и не убирает этапы. Сейчас ничего не запускается."
+  echo "Workers временно недоступны: текущие adapters не доказывают ограничение чтения"
+  echo "точным project scope на уровне runtime/OS. Prompt-only ограничение недостаточно."
+  echo "Launcher продолжит с единственным изолированным primary; workers fail-closed."
   echo
-  echo -e "  ${Y}1)${N} Работать без помощников"
-  echo "     Все задачи выполняет выбранный основной исполнитель."
-  echo
-  echo -e "  ${Y}2)${N} Помощники той же AI-системы"
-  echo "     Основной исполнитель сможет подключать встроенных read-only помощников,"
-  echo "     если выбранная AI-система это поддерживает."
-  echo
-  echo -e "  ${Y}3)${N} Отдельная AI-модель как помощник"
-  echo "     Можно явно выбрать другой runtime и точную модель, например Codex как"
-  echo "     основной исполнитель и локальную модель для анализа и ревью."
-  echo "     Затем будут запрошены разрешённые задачи и максимум помощников."
+  echo -e "  ${Y}off${N} Работать без помощников (единственный доступный режим)"
 }
 
 render_first_run_ai_routing_choice() {
@@ -1251,7 +1799,7 @@ render_first_run_ai_routing_choice() {
     '  4) Спрашивать при подготовке каждого запуска' \
     '     Launcher соберёт назначения для всех нужных шагов до Preview. Это даёт больше контроля, но требует больше ответов.' \
     '' \
-    'Следующий шаг: выберем, нужны ли основному исполнителю помощники.'
+    'Следующий шаг: launcher подтвердит, что workers временно отключены fail-closed.'
 }
 
 configure_first_run_ai_mode() {
@@ -1273,21 +1821,15 @@ configure_first_run_ai_mode() {
 
 ensure_subagent_settings() {
   case "${SDLC_SUBAGENTS:-}" in
-    off|auto)
+    off|"")
+      SDLC_SUBAGENTS=off
       SDLC_SUBAGENT_PROFILE=''
       SDLC_SUBAGENT_TASKS=''
       ;;
-    cross-runtime)
-      validate_subagent_profile "${SDLC_SUBAGENT_PROFILE:-}" || {
-        echo -e "${R}Для cross-runtime нужен точный SDLC_SUBAGENT_PROFILE${N}"
-        return 1
-      }
-      SDLC_SUBAGENT_TASKS="$(normalize_subagent_tasks "${SDLC_SUBAGENT_TASKS:-}")" || {
-        echo -e "${R}Некорректный SDLC_SUBAGENT_TASKS${N}"
-        return 1
-      }
+    auto|cross-runtime)
+      echo -e "${R}BLOCKED: worker execution отключён до capability-enforced bounded read scope.${N}"
+      return 1
       ;;
-    "") configure_subagent_settings || return 1 ;;
     *) echo -e "${R}SDLC_SUBAGENTS должен быть off, auto или cross-runtime${N}"; return 1 ;;
   esac
   valid_menu_index "${SDLC_SUBAGENT_MAX:-}" 16 || {
@@ -1352,55 +1894,15 @@ subagent_profile_label() {
 }
 
 render_subagent_execution_summary() {
-  local supervisor worker
-  supervisor="$(preview_route_label 2>/dev/null || printf 'BLOCKED: incomplete supervisor')"
-  worker="$(subagent_profile_label 2>/dev/null || printf 'BLOCKED: incomplete worker')"
-  printf '  Supervisor: %s\n' "$supervisor"
-  printf '  Worker: %s\n' "$worker"
-  printf '  Worker tasks: %s\n' "${SDLC_SUBAGENT_TASKS:-не настроены}"
-  printf '%s\n' '  Verification: supervisor always verifies' '  Worker fallback: OFF'
+  printf '  Primary: %s\n' "$(preview_route_label 2>/dev/null || printf 'BLOCKED: incomplete primary')"
+  printf '%s\n' \
+    '  Workers: BLOCKED until capability-enforced bounded read scope exists' \
+    '  Fallback: OFF'
 }
 
 configure_cross_runtime_subagents() {
-  local supervisor_profile worker_profile task_choice max
-  supervisor_profile="$(current_profile)"
-  echo
-  echo -e "${W}Worker profile${N} — отдельная модель только для ограниченных задач чтения."
-  echo -e "  Поддержаны: Claude, Codex или Local codex-oss; для них launcher принудительно запрещает запись."
-  echo -e "  Gemini и произвольные local-host здесь недоступны: их read-only режим пока нельзя гарантировать."
-  select_step_profile || { apply_profile "$supervisor_profile" >/dev/null 2>&1 || true; return 1; }
-  worker_profile="$SELECTED_PROFILE"
-  apply_profile "$supervisor_profile" || return 1
-  validate_subagent_profile "$worker_profile" || {
-    echo -e "${R}Выбранный профиль нельзя безопасно использовать как read-only worker.${N}"
-    return 1
-  }
-  echo
-  echo -e "  ${Y}1)${N} Все безопасные read-only задачи"
-  echo -e "  ${Y}2)${N} Analysis + research"
-  echo -e "  ${Y}3)${N} Review + test-result interpretation"
-  read -rp "Worker task policy [1-3]: " task_choice
-  case "$task_choice" in
-    1) SDLC_SUBAGENT_TASKS='analysis,research,review,test-interpretation' ;;
-    2) SDLC_SUBAGENT_TASKS='analysis,research' ;;
-    3) SDLC_SUBAGENT_TASKS='review,test-interpretation' ;;
-    *) echo -e "${R}Неверный выбор${N}"; return 1 ;;
-  esac
-  read -rp "Максимум одновременных workers [1-16]: " max
-  valid_menu_index "$max" 16 || {
-    echo -e "${R}Допустимо целое число 1..16${N}"
-    return 1
-  }
-  SDLC_SUBAGENTS='cross-runtime'
-  SDLC_SUBAGENT_MAX="$max"
-  SDLC_SUBAGENT_PROFILE="$worker_profile"
-  export SDLC_SUBAGENTS SDLC_SUBAGENT_MAX SDLC_SUBAGENT_PROFILE SDLC_SUBAGENT_TASKS
-  write_config_value SDLC_SUBAGENTS "$SDLC_SUBAGENTS"
-  write_config_value SDLC_SUBAGENT_MAX "$SDLC_SUBAGENT_MAX"
-  write_config_value SDLC_SUBAGENT_PROFILE "$SDLC_SUBAGENT_PROFILE"
-  write_config_value SDLC_SUBAGENT_TASKS "$SDLC_SUBAGENT_TASKS"
-  echo -e "${G}✓ Supervisor + Worker настроен${N}"
-  [[ "$FIRST_RUN_WIZARD" == "1" ]] || render_subagent_execution_summary
+  echo -e "${R}BLOCKED: cross-runtime workers отключены до capability-enforced bounded read scope.${N}"
+  return 1
 }
 
 write_routing_entry() {
@@ -1497,15 +1999,7 @@ save_project_ai_config() {
   local profile="$1" policy="$2" path dir tmp tasks
   case "$policy" in single|per-stage|per-agent|ask) ;; *) return 1 ;; esac
   [[ "$profile" != *$'\n'* && "$profile" != *$'\r'* && "$profile" != *'"'* ]] || return 1
-  case "${SDLC_SUBAGENTS:-off}" in
-    off|auto) ;;
-    cross-runtime)
-      validate_subagent_profile "${SDLC_SUBAGENT_PROFILE:-}" || return 1
-      tasks="$(normalize_subagent_tasks "${SDLC_SUBAGENT_TASKS:-}")" || return 1
-      SDLC_SUBAGENT_TASKS="$tasks"
-      ;;
-    *) return 1 ;;
-  esac
+  [[ "${SDLC_SUBAGENTS:-off}" == off ]] || return 1
   path="$(project_ai_config_path)"
   dir="$(dirname "$path")"
   mkdir -p "$dir"
@@ -1593,7 +2087,6 @@ declare -A AGENT_DESC=(
   [l4-run]="Local Runner — запустить и проверить проект"
   [s0-kickoff]="Project Kickoff — интервью для нового проекта / обновление беклога"
   [s0-secrets]="Secrets Manager — pass: добавить, ротировать, env"
-  [s0-github]="GitHub Sync — init репо, push, pull, PR"
   [s0-validate]="Structure Validator — проверить и починить структуру проекта"
   [s0-tracker]="Sprint & Task Tracker — спринты, задачи, план vs факт"
   [s0-quality-gates]="Quality Gates Configurator — проектные пороги качества из risk-профиля"
@@ -1607,7 +2100,7 @@ declare -A AGENT_DESC=(
   [s2-security]="Security Requirements Engineer — abuse cases, классификация данных, ASVS (SG1, shift-left)"
   [s3-arch]="Solution Architect — HLD, ADR, API Spec"
   [s3-security]="Security Engineer — Threat Model"
-  [s3-rbac]="RBAC Designer — роли, матрица прав, RLS, SQL схема"
+  [s3-rbac]="Authorization Designer — stack-neutral роли, права и enforcement model"
   [s3-dba]="DBA — DB Schema, Migrations"
   [s4-dev]="Backend Developer — Код, PR Summary"
   [s4-qa-auto]="SDET TDD — тесты до кода, Red/PASS и repair verdict"
@@ -1625,9 +2118,7 @@ declare -A AGENT_DESC=(
 # Формат: "агент|задача|позиция|описание"
 # позиция: before — до основного цикла, after — после основного цикла
 declare -a OPTIONAL_AGENTS_DEF=(
-  "s0-validate|/validate|before|Проверить и починить структуру проекта до старта"
-  "s0-secrets|Настрой секреты для проекта|before|Настройка секретов через pass"
-  "s0-tracker|/sprint-init|before|Инициализировать спринт перед циклом"
+  "s0-validate|/validate|before|Проверить структуру проекта до старта"
   "s0-validate|/validate|after|Проверить артефакты после завершения цикла"
 )
 
@@ -1636,37 +2127,11 @@ OPTIONAL_BEFORE=()
 OPTIONAL_AFTER=()
 
 # ─── Цикл 1 — Разработка (агент:задача) ───────────────────────────────────────
-# Только агенты cycle1-dev/ + сквозные _tools. Деплой/эксплуатация — Циклы 2/3.
-declare -a CYCLE1_AGENTS=(
-  "s1-pm:/feasibility"
-  "s1-pm:/vision"
-  "s1-pmo:/charter"
-  "s1-pmo:/risks"
-  "s1-finance:/business-case"
-  "s0-quality-gates:/configure"
-  "s2-ba:/extract-requirements"
-  "s2-ba:/brd"
-  "s2-po:/stories"
-  "s2-qa-req:/testability-review"
-  "s2-test-strategy:/strategy"
-  "s2-security:/security-requirements"
-  "s3-arch:/hld"
-  "s3-arch:/adr"
-  "s3-security:/threat-model"
-  "s3-rbac:/rbac-model"
-  "s3-dba:/schema"
-  "s4-qa-auto:/write-tests"
-  "s4-dev:/dev-report"
-  "s4-qa-auto:/run-tests"
-  "s4-techlead:/review"
-  "s5-qa:/test-plan"
-  "s5-qa-auto:/e2e-report"
-  "s5-perf:/load-test"
-  "s5-security:/security-test"
-  "s5-qa:/go-no-go"
-  "s0-tracker:/report"
-  "s0-github:/push"
-)
+# Единственный порядок берётся из machine registry; второй hard-coded DAG запрещён.
+declare -a CYCLE1_AGENTS=()
+if [[ -f "$CYCLE1_STEPS_FILE" ]]; then
+  mapfile -t CYCLE1_AGENTS < <(awk -F'\t' 'NR > 1 { print $2 ":" $3 }' "$CYCLE1_STEPS_FILE")
+fi
 
 # ─── Цикл 2 — Деплой ──────────────────────────────────────────────────────────
 declare -a CYCLE2_AGENTS=(
@@ -1790,7 +2255,7 @@ header() {
     echo -e "  Local:   ${C}${LOCAL_AGENT_HOST:-?} / ${LOCAL_MODEL_PROVIDER:-?} / ${LOCAL_MODEL:-?}${N}"
   fi
   echo -e "  Routing: ${C}${SDLC_RUNTIME_ROUTING:-не выбран}${N}"
-  echo -e "  Agents:  ${C}subagents=${SDLC_SUBAGENTS:-не выбрано}, max=${SDLC_SUBAGENT_MAX:-?}${N}"
+  echo -e "  Workers: ${C}off — BLOCKED до bounded read enforcement${N}"
   if [[ "${SDLC_SUBAGENTS:-}" == "cross-runtime" ]]; then
     echo -e "  Worker:  ${C}$(subagent_profile_label 2>/dev/null || printf 'не настроен')${N}"
     echo -e "  Verify:  ${C}supervisor; fallback OFF${N}"
@@ -1876,7 +2341,7 @@ create_project() {
   fi
 
   for stage in stage1-planning stage2-requirements stage3-design \
-               stage4-dev stage5-testing stage6-deploy stage7-ops; do
+               stage4-dev stage5-testing; do
     mkdir -p "$dir/$stage/inputs" "$dir/$stage/outputs"
   done
 
@@ -1924,8 +2389,8 @@ status: active
 | 3 — Дизайн          | ⏳ Pending | — |
 | 4 — Разработка      | ⏳ Pending | — |
 | 5 — Тестирование    | ⏳ Pending | — |
-| 6 — Деплой          | ⏳ Pending | — |
-| 7 — Эксплуатация    | ⏳ Pending | — |
+
+Cycle 2/3: FROZEN / NOT READY
 DASH
 
   echo -e "${G}✓ Проект '$name' создан${N}"
@@ -1954,11 +2419,20 @@ run_agent() {
   local project="$2"
   local task="$3"
   local access="${ACTIVE_AGENT_ACCESS:-write}"
-  local agent_dir
+  local agent_dir project_dir="$PROJECTS/$project"
+  case "$agent" in
+    s4-devops|s6-release|s6-sre)
+      cycle23_frozen_notice
+      return 1
+      ;;
+  esac
   agent_dir=$(find_agent_dir "$agent")
 
   if [[ ! -d "$agent_dir" ]]; then
     echo -e "${R}Агент '$agent' не найден${N}"; return 1
+  fi
+  if [[ ! -d "$project_dir" ]]; then
+    echo -e "${R}Каталог проекта не найден: $project_dir${N}"; return 1
   fi
 
   if [[ ! -x "$AGENT_RUNNER" ]]; then
@@ -1992,6 +2466,8 @@ run_agent() {
     prompt="Проект: $project."$'\n\n'"$task"
   fi
 
+  runtime_validate_prompt "$prompt" || return 1
+
   echo
   echo -e "${B}┌─ Агент ────────────────────────────────────────────┐${N}"
   echo -e "${B}│${N} ${W}$agent${N} — ${AGENT_DESC[$agent]}"
@@ -2007,11 +2483,15 @@ run_agent() {
   echo
   if [[ -n "$prompt" ]]; then
     echo -e "  ${Y}Enter${N} — запустить задачу (выбранный runtime завершится автоматически)"
+  elif ! runtime_supports_interactive; then
+    echo -e "  ${C}task-only${N} — сначала выберите зарегистрированную команду"
   else
     echo -e "  ${Y}Enter${N} — открыть интерактивный режим выбранного runtime"
   fi
-  if [[ "$access" == write ]]; then
+  if [[ "$access" == write ]] && runtime_supports_interactive; then
     echo -e "  ${Y}i${N}     — открыть интерактивный диалог с агентом"
+  elif [[ "$access" == write ]]; then
+    echo -e "  ${C}Codex task-only${N} — интерактивный режим недоступен"
   else
     echo -e "  ${C}read-only${N} — запись и интерактивный режим запрещены launcher-ом"
   fi
@@ -2033,12 +2513,17 @@ run_agent() {
         echo -e "${R}Интерактивный режим недоступен для read-only действия.${N}"
         return 1
       fi
+      if ! runtime_supports_interactive; then
+        report_interactive_codex_block
+        return 1
+      fi
       echo
       echo -e "${C}Интерактивный режим — ${W}$agent${N} — ${AGENT_DESC[$agent]}"
       [[ -n "$prompt" ]] && echo -e "${Y}Задача этого шага:${N} $prompt"
       echo -e "${Y}Для выхода используй команду выхода выбранного runtime.${N}"
       echo
-      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "${prompt:-начни сессию}"
+      "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+        --project-dir "$project_dir" --mode interactive --prompt "${prompt:-начни сессию}"
       local rc=$?
       echo
       if [[ $rc -eq 0 ]]; then
@@ -2054,12 +2539,17 @@ run_agent() {
       if [[ -n "$prompt" ]]; then
         echo -e "${C}Запускаю ($(runtime_label)): ${W}$prompt${N}"
         echo
-        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode task \
-          --access "$access" --prompt "$prompt" || rc=$?
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+          --project-dir "$project_dir" --mode task --access "$access" --prompt "$prompt" || rc=$?
       else
+        if ! runtime_supports_interactive; then
+          report_interactive_codex_block
+          return 1
+        fi
         echo -e "${C}Открываю интерактивный режим выбранного runtime...${N}"
         echo
-        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" --mode interactive --prompt "начни сессию" || rc=$?
+        "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
+          --project-dir "$project_dir" --mode interactive --prompt "начни сессию" || rc=$?
       fi
       echo
       if [[ $rc -eq 0 ]]; then
@@ -2086,8 +2576,6 @@ menu_single_agent() {
     "Цикл 1 · S4 — Разработка"
     "Цикл 1 · S5 — Тестирование"
     "Tools — общие утилиты (все циклы)"
-    "Цикл 2 — Деплой (test-first)"
-    "Цикл 3 — Эксплуатация (test-first)"
   )
   local -a groups=(
     "s0-kickoff s0-tracker s0-validate s0-quality-gates"
@@ -2096,9 +2584,7 @@ menu_single_agent() {
     "s3-arch s3-security s3-rbac s3-dba"
     "s4-qa-auto s4-dev s4-techlead"
     "s5-qa s5-qa-auto s5-perf s5-security"
-    "s0-github s0-secrets"
-    "s4-devops s6-release"
-    "s6-sre"
+    "s0-secrets"
   )
 
   local i=1
@@ -2132,51 +2618,38 @@ menu_single_agent() {
   if [[ -d "$cmd_dir" ]] && compgen -G "$cmd_dir/*.md" > /dev/null 2>&1; then
     echo
     echo -e "${C}Команды агента:${N}"
-    local j=1
+    local j=1 special_count=0
     local -a cmds=()
     for f in "$cmd_dir"/*.md; do
       local cname desc
       cname="/"$(basename "$f" .md)
+      if ! command_supported_by_one_agent "$agent" "$cname"; then
+        ((special_count++))
+        continue
+      fi
       desc=$(grep '^description:' "$f" 2>/dev/null | sed 's/description: *//')
       echo -e "  ${Y}$j)${N} ${W}$cname${N} — $desc"
       cmds+=("$cname")
       ((j++))
     done
-    echo -e "  ${Y}$j)${N} Ввести произвольную задачу"
-    echo -e "  ${Y}$((j+1)))${N} Открыть интерактивный режим сразу"
+    (( special_count == 0 )) ||
+      echo -e "  ${C}$special_count special command(s) доступны только через их launcher workflow.${N}"
     echo -e "  ${Y}b)${N} Назад"
     echo
-    read -rp "$(echo -e "${W}Выбери [1-$((j+1))/b]:${N} ")" cmd_choice
+    if (( ${#cmds[@]} == 0 )); then
+      echo -e "${Y}У этого Agent нет команд для generic One Agent route.${N}"
+      return
+    fi
+    read -rp "$(echo -e "${W}Выбери [1-${#cmds[@]}/b]:${N} ")" cmd_choice
 
     [[ "$cmd_choice" == "b" || "$cmd_choice" == "B" ]] && return
-    if ! valid_menu_index "$cmd_choice" "$((j+1))"; then
+    if ! valid_menu_index "$cmd_choice" "${#cmds[@]}"; then
       echo -e "${R}Неверный выбор${N}"; sleep 1; return
-    elif [[ "$cmd_choice" == "$((j+1))" ]]; then
-      # сразу в интерактив
-      run_agent_with_preview "$agent" "$PROJECT" ""
-      echo
-      read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
-      return
-    elif [[ "$cmd_choice" == "$j" ]]; then
-      read -rp "$(echo -e "${W}Задача:${N} ")" task
-    else
-      task="${cmds[$((cmd_choice-1))]}"
     fi
+    task="${cmds[$((cmd_choice-1))]}"
   else
-    echo
-    echo -e "  ${Y}1)${N} Ввести задачу"
-    echo -e "  ${Y}2)${N} Открыть интерактивный режим"
-    echo -e "  ${Y}b)${N} Назад"
-    echo
-    read -rp "$(echo -e "${W}Выбери [1-2/b]:${N} ")" mode_choice
-    [[ "$mode_choice" == "b" || "$mode_choice" == "B" ]] && return
-    if [[ "$mode_choice" == "2" ]]; then
-      run_agent_with_preview "$agent" "$PROJECT" ""
-      echo
-      read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
-      return
-    fi
-    read -rp "$(echo -e "${W}Задача:${N} ")" task
+    echo -e "${Y}У этого Agent нет зарегистрированных active commands.${N}"
+    return
   fi
 
   run_agent_with_preview "$agent" "$PROJECT" "$task"
@@ -2644,6 +3117,9 @@ prompt_goal_cycle() {
 }
 
 configure_goal_profile() {
+  cycle23_frozen_notice
+  return 1
+  # Historical implementation below is intentionally retained for a future redesign.
   local scope="${1:-full}" key confirm
   if ! load_goal_profile; then
     GOAL_VALUES=()
@@ -2732,74 +3208,12 @@ ensure_goal_profile_for_cycle() {
 }
 
 offer_goal_profile_at_cycle1_entry() {
-  local choice has_profile=0
-  while true; do
-    has_profile=0
-    load_goal_profile && has_profile=1
-    echo
-    echo -e "${G}Текущий запуск: ТОЛЬКО Cycle 1 — разработка.${N}"
-    echo -e "Cycle 2 и Cycle 3 в этом запуске ${W}не стартуют${N}."
-    if [[ $has_profile -eq 1 ]]; then
-      echo -e "Сохранённый маршрут режима цели: ${C}$(goal_route_label)${N}"
-    else
-      echo -e "${Y}Маршрут для будущего режима цели пока не настроен.${N}"
-    fi
-    echo
-    echo -e "  ${Y}1)${N} Запустить только Cycle 1 сейчас"
-    echo -e "  ${Y}2)${N} Настроить маршрут и параметры Cycle 2/3, затем запустить Cycle 1"
-    [[ $has_profile -eq 1 ]] && echo -e "  ${Y}3)${N} Показать сохранённый профиль"
-    echo -e "  ${Y}q)${N} Отменить запуск"
-    read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
-    case "$choice" in
-      1) return 0 ;;
-      2) configure_goal_profile full || continue ;;
-      3)
-        if [[ $has_profile -eq 1 ]]; then
-          show_goal_profile
-          read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _
-        else
-          echo -e "${R}Профиль ещё не создан.${N}"
-        fi
-        ;;
-      q|Q) return 1 ;;
-      *) echo -e "${R}Выбери показанный вариант.${N}" ;;
-    esac
-  done
+  return 0
 }
 
 menu_goal_profile() {
-  header
-  echo -e "${W}── Цели Cycle 2/3 ───────────────────────────────────${N}"
-  echo
-  [[ -n "${PROJECT:-}" ]] || { pick_project || return; }
-  while true; do
-    header
-    echo -e "${W}── Цели Cycle 2/3 — $PROJECT ─────────────────────────${N}"
-    echo
-    if load_goal_profile; then
-      echo -e "  Текущий маршрут: ${C}$(goal_route_label)${N}"
-    else
-      echo -e "  Текущий маршрут: ${Y}не настроен${N}"
-    fi
-    echo
-    echo -e "  ${Y}1)${N} Выбрать маршрут и настроить весь профиль"
-    echo -e "  ${Y}2)${N} Включить/выключить или изменить только Cycle 2"
-    echo -e "  ${Y}3)${N} Включить/выключить или изменить только Cycle 3"
-    echo -e "  ${Y}4)${N} Показать профиль"
-    echo -e "  ${Y}5)${N} Показать историю revision"
-    echo -e "  ${Y}b)${N} Назад"
-    echo
-    read -rp "$(echo -e "${W}Выбери [1-5/b]:${N} ")" choice
-    case "$choice" in
-      1) configure_goal_profile full ;;
-      2) configure_goal_profile 2 ;;
-      3) configure_goal_profile 3 ;;
-      4) show_goal_profile; read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _ ;;
-      5) show_goal_profile_history; read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _ ;;
-      b|B) return ;;
-      *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
-    esac
-  done
+  render_cycle23_frozen_status
+  return 1
 }
 
 cycle_tdd_status_file() {
@@ -2836,9 +3250,49 @@ read_cycle_tdd_status() {
   printf '%s\n' "${status^^}"
 }
 
+validate_cycle1_tdd_status() {
+  local expected="$1"
+  bash "$AGENTS/cycle1-dev/s0-validate/tdd-status-check.sh" "$(project_path)" "$expected"
+}
+
+cycle1_pr_evidence_check() {
+  bash "$AGENTS/cycle1-dev/s0-validate/pr-evidence-check.sh" "$1" "$2"
+}
+
+cycle1_evidence_summary() {
+  bash "$AGENTS/cycle1-dev/s0-validate/evidence-v1-summary.sh" "$1" "$2"
+}
+
+prepare_cycle1_techlead_evidence() {
+  local root source safe_source output tmp evidence_output
+  root="$(project_path)"
+  validate_cycle1_tdd_status PASS >/dev/null || return 1
+  source="$(read_cycle_tdd_field 1 source_revision)" || return 1
+  evidence_output="$(cycle1_pr_evidence_check "$root" "$source" 2>&1)" || {
+    printf '%s\n' "$evidence_output" >&2
+    return 1
+  }
+  safe_source="${source//:/-}"
+  output="$root/stage4-dev/outputs/EVIDENCE-$safe_source.md"
+  mkdir -p "$(dirname "$output")"
+  tmp="$(mktemp "${output}.tmp.XXXXXX")" || return 1
+  if cycle1_evidence_summary "$root" "$source" > "$tmp"; then
+    mv "$tmp" "$output"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
+  printf '%s\n' "$evidence_output"
+  echo "EVIDENCE SUMMARY VERIFIED: source=$source path=${output#"$root/"}"
+}
+
 cycle_tdd_revision_matches() {
   local cycle="$1" status_revision
-  [[ "$cycle" == "1" ]] && return 0
+  if [[ "$cycle" == "1" ]]; then
+    status_revision="$(read_cycle_tdd_field "$cycle" source_revision || true)"
+    [[ "$status_revision" =~ ^([0-9a-fA-F]{40}|[0-9a-fA-F]{64}|sha256:[0-9a-fA-F]{64})$ ]]
+    return
+  fi
   status_revision="$(read_cycle_tdd_field "$cycle" goal_profile_revision || true)"
   load_goal_profile || return 1
   [[ -n "$status_revision" && "$status_revision" == "${GOAL_VALUES[revision]:-}" ]]
@@ -2870,7 +3324,15 @@ require_cycle_tdd_red() {
     return 1
   fi
   if ! cycle_tdd_revision_matches "$cycle"; then
-    echo -e "${R}TDD BLOCKER Cycle $cycle: goal_profile_revision устарела или отсутствует.${N}"
+    if [[ "$cycle" == 1 ]]; then
+      echo -e "${R}TDD BLOCKER Cycle 1: source_revision отсутствует или не является exact SHA/digest.${N}"
+    else
+      echo -e "${R}TDD BLOCKER Cycle $cycle: goal_profile_revision устарела или отсутствует.${N}"
+    fi
+    return 1
+  fi
+  if [[ "$cycle" == 1 ]] && ! validate_cycle1_tdd_status RED; then
+    echo -e "${R}TDD BLOCKER Cycle 1: QA-TDD-status/Red evidence не прошёл schema validation.${N}"
     return 1
   fi
 }
@@ -2890,27 +3352,63 @@ run_cycle_tdd_repair_loop() {
   }
 
   status="$(read_cycle_tdd_status "$cycle" || true)"
-  if [[ "$cycle" != "1" ]] && ! cycle_tdd_revision_matches "$cycle"; then
+  if ! cycle_tdd_revision_matches "$cycle"; then
     set_cycle_tdd_status_blocked "$cycle" || true
-    echo -e "${R}TDD BLOCKED Cycle $cycle: evidence относится к другой revision профиля цели.${N}"
+    if [[ "$cycle" == 1 ]]; then
+      echo -e "${R}TDD BLOCKED Cycle 1: evidence не связано с exact source revision.${N}"
+    else
+      echo -e "${R}TDD BLOCKED Cycle $cycle: evidence относится к другой revision профиля цели.${N}"
+    fi
     return 1
   fi
   while [[ "$status" == "FAIL" && $iteration -lt $max_iterations ]]; do
+    if [[ "$cycle" == 1 ]] && ! validate_cycle1_tdd_status FAIL; then
+      set_cycle_tdd_status_blocked "$cycle" || true
+      echo -e "${R}TDD BLOCKED: FAIL не подтверждает полный affected regression set.${N}"
+      return 1
+    fi
     ((iteration++))
     echo -e "${Y}TDD repair Cycle $cycle — $iteration/$max_iterations: тесты FAIL.${N}"
     local entry agent task
     for entry in "${repair_steps[@]}"; do
       agent="${entry%%:*}"
       task="${entry#*:}"
+      local repair_before='UNMAPPED'
+      if [[ "$cycle" == 1 ]]; then
+        repair_before="$(declared_output_fingerprint "$agent" "$task" 2>/dev/null || printf 'UNMAPPED')"
+      fi
       run_agent "$agent" "$PROJECT" "$task"
       rc=$?
       [[ $rc -eq 0 ]] || { set_cycle_tdd_status_blocked "$cycle" || true; return 1; }
+      if [[ "$cycle" == 1 ]]; then
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" repair_process_ok RUNNING "${EXECUTION_LAST_STEP:-0}" PROCESS_OK "$agent" "$task" 'runtime exit code 0'
+        if ! verify_declared_outputs "$agent" "$task" "$repair_before"; then
+          set_cycle_tdd_status_blocked "$cycle" || true
+          [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+            journal_append_event "$CURRENT_RUN_ID" repair_artifact_unverified BLOCKED "${EXECUTION_LAST_STEP:-0}" UNVERIFIED "$agent" "$task" "$DECLARED_OUTPUT_REASON"
+          echo -e "${R}TDD BLOCKED: repair process не изменил declared outputs: $DECLARED_OUTPUT_REASON.${N}"
+          return 1
+        fi
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" repair_artifact_verified RUNNING "${EXECUTION_LAST_STEP:-0}" ARTIFACT_VERIFIED "$agent" "$task" "$DECLARED_OUTPUT_REASON"
+      fi
     done
     status="$(read_cycle_tdd_status "$cycle" || true)"
   done
 
   case "$status" in
     PASS)
+      if ! cycle_tdd_revision_matches "$cycle"; then
+        set_cycle_tdd_status_blocked "$cycle" || true
+        echo -e "${R}TDD BLOCKED Cycle $cycle: PASS не связан с допустимой exact revision.${N}"
+        return 1
+      fi
+      if [[ "$cycle" == 1 ]] && ! validate_cycle1_tdd_status PASS; then
+        set_cycle_tdd_status_blocked "$cycle" || true
+        echo -e "${R}TDD BLOCKED Cycle 1: selective/partial PASS не принимается.${N}"
+        return 1
+      fi
       echo -e "${G}✓ TDD PASS после $iteration repair iteration(s).${N}"
       return 0
       ;;
@@ -2969,6 +3467,44 @@ execute_cycle() {
     EXECUTION_LAST_TASK="$task"
     EXECUTION_LAST_REASON='dispatch requested'
 
+    local capability access previous_access="${ACTIVE_AGENT_ACCESS:-}"
+    capability="$(command_capability "$agent" "$task" 2>/dev/null || true)"
+    access="$(command_access "$agent" "$task" 2>/dev/null || true)"
+    if [[ -z "$capability" || -z "$access" || "$capability" == orchestrated-special ]]; then
+      EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+      EXECUTION_LAST_REASON="unsupported command capability: ${capability:-unregistered}"
+      step_log+=("  ${R}✗${N}  $label${opt_tag} — capability contract отсутствует")
+      ((aborted++))
+      break
+    fi
+
+    local boundary_gate=''
+    if [[ "$cycle_id" == 1 ]]; then
+      boundary_gate="$(cycle1_gate_before_entry "$agent" "$task" 2>/dev/null || true)"
+    fi
+    if [[ -n "$boundary_gate" ]]; then
+      echo
+      echo -e "${B}── Gate $boundary_gate перед $agent $task ──${N}"
+      local gate_output gate_evidence
+      if gate_output="$(run_cycle1_gate_validator "$boundary_gate" 2>&1)"; then
+        printf '%s\n' "$gate_output"
+        gate_evidence="$(grep -E '^[[:space:]]*(PR EVIDENCE|SG3|EXECUTOR CONTROLS|QUALITY POLICY) VERIFIED:' <<< "$gate_output" | sed 's/^[[:space:]]*//' | tr '\n' ';' | sed 's/;$//' || true)"
+        [[ -n "$gate_evidence" ]] || gate_evidence='deterministic validator exit code 0'
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" gate_pass RUNNING "$step" GATE_PASS '' "Gate $boundary_gate" "$gate_evidence"
+      else
+        printf '%s\n' "$gate_output"
+        EXECUTION_LAST_STEP_STATUS=GATE_BLOCKED
+        EXECUTION_LAST_REASON="Gate $boundary_gate FAIL/BLOCKED/UNVERIFIED"
+        EXECUTION_LAST_ACTION="Gate $boundary_gate before $agent $task"
+        step_log+=("  ${R}✗${N}  Gate $boundary_gate — следующий Stage заблокирован")
+        ((aborted++))
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" gate_blocked BLOCKED "$step" GATE_BLOCKED '' "Gate $boundary_gate" "$EXECUTION_LAST_REASON"
+        break
+      fi
+    fi
+
     echo
     echo -e "${B}━━━ $cycle_title — Шаг $step / $total ━━━━━━━━━━━━━━━━━━${N}${opt_tag}"
     if [[ -n "${CURRENT_RUN_ID:-}" && -d "$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")" ]]; then
@@ -2982,6 +3518,23 @@ execute_cycle() {
       step_log+=("  ${R}✗${N}  $label — TDD RED отсутствует")
       ((aborted++))
       break
+    fi
+    if [[ "$entry" == "s4-techlead:/review" ]]; then
+      local techlead_evidence_output
+      if techlead_evidence_output="$(prepare_cycle1_techlead_evidence 2>&1)"; then
+        printf '%s\n' "$techlead_evidence_output"
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" techlead_evidence_ready RUNNING "$step" ARTIFACT_VERIFIED "$agent" "$task" "$techlead_evidence_output"
+      else
+        printf '%s\n' "$techlead_evidence_output"
+        EXECUTION_LAST_STEP_STATUS=GATE_BLOCKED
+        EXECUTION_LAST_REASON='Tech Lead input evidence FAIL/BLOCKED/UNVERIFIED'
+        step_log+=("  ${R}✗${N}  $label — verified evidence summary отсутствует")
+        ((aborted++))
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" techlead_evidence_blocked BLOCKED "$step" UNVERIFIED "$agent" "$task" "$EXECUTION_LAST_REASON"
+        break
+      fi
     fi
     if [[ "$entry" == "s4-devops:/pipeline" ]] && ! require_cycle_tdd_red 2; then
       EXECUTION_LAST_STEP_STATUS=FAILED
@@ -3016,10 +3569,26 @@ execute_cycle() {
       break
     fi
 
+    local declared_before='UNMAPPED'
+    if [[ "$capability" == mutating-declared-output ]]; then
+      declared_before="$(declared_output_fingerprint "$agent" "$task" 2>/dev/null || printf 'UNMAPPED')"
+    fi
+    if [[ "$cycle_id" == 1 ]] && cycle1_completion_after_entry "$agent" "$task"; then
+      if ! prepare_cycle1_completion_context "$CURRENT_RUN_ID"; then
+        EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+        EXECUTION_LAST_REASON='completion runtime context unavailable'
+        step_log+=("  ${R}✗${N}  $label — current manifest/plan context отсутствует")
+        ((aborted++))
+        break
+      fi
+    fi
     ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[$idx]:-}"
+    ACTIVE_AGENT_ACCESS="$access"
     run_agent "$agent" "$PROJECT" "$task"
     local rc=$?
     ACTIVE_EXECUTION_PROFILE=""
+    ACTIVE_AGENT_ACCESS="$previous_access"
+    clear_cycle1_completion_context
 
     if [[ $rc -eq 0 && "$entry" == "s4-qa-auto:/run-tests" ]]; then
       run_cycle_tdd_repair_loop 1
@@ -3054,12 +3623,115 @@ execute_cycle() {
       [[ -z "${CURRENT_RUN_ID:-}" ]] ||
         journal_append_event "$CURRENT_RUN_ID" step_skipped RUNNING "$step" SKIPPED "$agent" "$task" 'optional step skipped'
     elif [[ $rc -eq 0 ]]; then
-      EXECUTION_LAST_STEP_STATUS=SUCCEEDED
-      EXECUTION_LAST_REASON='runtime exit code 0'
-      step_log+=("  ${G}✓${N}  $label${opt_tag}")
-      ((done_count++))
       [[ -z "${CURRENT_RUN_ID:-}" ]] ||
-        journal_append_event "$CURRENT_RUN_ID" step_succeeded RUNNING "$step" SUCCEEDED "$agent" "$task" 'runtime exit code 0'
+        journal_append_event "$CURRENT_RUN_ID" step_process_ok RUNNING "$step" PROCESS_OK "$agent" "$task" 'runtime exit code 0'
+      if [[ "$capability" == read-only-no-output ]]; then
+        EXECUTION_LAST_STEP_STATUS=READ_ONLY_VERIFIED
+        EXECUTION_LAST_REASON='capability-enforced read-only command completed'
+        step_log+=("  ${G}✓${N}  $label${opt_tag} — read-only verified")
+        ((done_count++))
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" step_read_only_verified RUNNING "$step" READ_ONLY_VERIFIED \
+            "$agent" "$task" "$EXECUTION_LAST_REASON"
+        continue
+      fi
+      if verify_declared_outputs "$agent" "$task" "$declared_before"; then
+        EXECUTION_LAST_STEP_STATUS=ARTIFACT_VERIFIED
+        EXECUTION_LAST_REASON="$DECLARED_OUTPUT_REASON"
+        step_log+=("  ${G}✓${N}  $label${opt_tag} — artifact verified")
+        ((done_count++))
+        [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+          journal_append_event "$CURRENT_RUN_ID" step_artifact_verified RUNNING "$step" ARTIFACT_VERIFIED "$agent" "$task" "$DECLARED_OUTPUT_REASON"
+
+        if [[ "$cycle_id" == 1 ]] && cycle1_software_dod_after_entry "$agent" "$task"; then
+          if run_cycle1_software_dod_validator; then
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" software_dod_auto_pass RUNNING "$step" DOD_AUTO_PASS "$agent" "$task" 'deterministic automated DoD subset exit code 0'
+          else
+            EXECUTION_LAST_STEP_STATUS=DOD_BLOCKED
+            EXECUTION_LAST_REASON='software DoD FAIL/BLOCKED/UNVERIFIED'
+            step_log+=("  ${R}✗${N}  Software DoD — implementation unit заблокирован")
+            ((aborted++))
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" software_dod_blocked BLOCKED "$step" DOD_BLOCKED "$agent" "$task" "$EXECUTION_LAST_REASON"
+            break
+          fi
+          if run_cycle1_full_dod_validator; then
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" software_dod_approved RUNNING "$step" DOD_PASS \
+                "$agent" "$task" 'independent Human Approval v1 covers DOD-1..DOD-11 and current review digests'
+          else
+            EXECUTION_LAST_STEP_STATUS=DOD_BLOCKED
+            EXECUTION_LAST_REASON='full Software DoD approval FAIL/BLOCKED/UNVERIFIED'
+            step_log+=("  ${R}✗${N}  Full Software DoD — independent approval отсутствует")
+            ((aborted++))
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" software_dod_blocked BLOCKED "$step" DOD_BLOCKED "$agent" "$task" "$EXECUTION_LAST_REASON"
+            break
+          fi
+        fi
+
+        if [[ "$cycle_id" == 1 ]]; then
+          boundary_gate="$(cycle1_gate_after_entry "$agent" "$task" 2>/dev/null || true)"
+        else
+          boundary_gate=''
+        fi
+        if [[ -n "$boundary_gate" ]]; then
+          local gate_output gate_evidence
+          if gate_output="$(run_cycle1_gate_validator "$boundary_gate" 2>&1)"; then
+            printf '%s\n' "$gate_output"
+            gate_evidence="$(grep -E '^[[:space:]]*(PR EVIDENCE|SG3|EXECUTOR CONTROLS|QUALITY POLICY) VERIFIED:' <<< "$gate_output" | sed 's/^[[:space:]]*//' | tr '\n' ';' | sed 's/;$//' || true)"
+            [[ -n "$gate_evidence" ]] || gate_evidence='deterministic validator exit code 0'
+            journal_append_event "$CURRENT_RUN_ID" gate_pass RUNNING "$step" GATE_PASS '' "Gate $boundary_gate" "$gate_evidence"
+          else
+            printf '%s\n' "$gate_output"
+            EXECUTION_LAST_STEP_STATUS=GATE_BLOCKED
+            EXECUTION_LAST_REASON="Gate $boundary_gate FAIL/BLOCKED/UNVERIFIED"
+            step_log+=("  ${R}✗${N}  Gate $boundary_gate — Cycle 1 validation заблокирована")
+            ((aborted++))
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" gate_blocked BLOCKED "$step" GATE_BLOCKED '' "Gate $boundary_gate" "$EXECUTION_LAST_REASON"
+            break
+          fi
+        fi
+
+        if [[ "$cycle_id" == 1 ]] && cycle1_completion_after_entry "$agent" "$task"; then
+          local completion_output
+          if ! completion_output="$(run_cycle1_execution_proof_create 2>&1)"; then
+            printf '%s\n' "$completion_output"
+            EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+            EXECUTION_LAST_REASON='full Cycle 1 execution proof FAIL/BLOCKED/UNVERIFIED'
+            step_log+=("  ${R}✗${N}  Cycle 1 completion — execution proof заблокирован")
+            ((aborted++))
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" cycle1_completion_blocked BLOCKED "$step" UNVERIFIED "$agent" "$task" "$EXECUTION_LAST_REASON"
+            break
+          elif completion_output="$(run_cycle1_completion_validator 2>&1)"; then
+            printf '%s\n' "$completion_output"
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" cycle1_completion_pass RUNNING "$step" ARTIFACT_VERIFIED "$agent" "$task" "$completion_output"
+          else
+            printf '%s\n' "$completion_output"
+            EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+            EXECUTION_LAST_REASON='Cycle 1 completion FAIL/BLOCKED/UNVERIFIED'
+            step_log+=("  ${R}✗${N}  Cycle 1 completion — manifest/evidence bundle заблокированы")
+            ((aborted++))
+            [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+              journal_append_event "$CURRENT_RUN_ID" cycle1_completion_blocked BLOCKED "$step" UNVERIFIED "$agent" "$task" "$EXECUTION_LAST_REASON"
+            break
+          fi
+        fi
+      else
+        EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+        EXECUTION_LAST_REASON="$DECLARED_OUTPUT_REASON"
+        step_log+=("  ${R}✗${N}  $label${opt_tag} — artifact unverified")
+        ((aborted++))
+        if [[ -n "${CURRENT_RUN_ID:-}" ]]; then
+          journal_append_event "$CURRENT_RUN_ID" step_artifact_unverified BLOCKED "$step" UNVERIFIED "$agent" "$task" "$DECLARED_OUTPUT_REASON"
+        fi
+        echo -e "${R}Цикл заблокирован на шаге $step: ${DECLARED_OUTPUT_REASON}.${N}"
+        break
+      fi
     else
       EXECUTION_LAST_STEP_STATUS=FAILED
       EXECUTION_LAST_REASON="runtime exit code $rc"
@@ -3088,12 +3760,29 @@ execute_cycle() {
 }
 
 execute_previewed_cycle() {
-  local rc=0 total="${#RUN_CYCLE[@]}"
+  local rc=0 total="${#RUN_CYCLE[@]}" plan_sha current_output
   journal_create_run "$EXECUTION_TYPE" "$EXECUTION_SCOPE" "$EXECUTION_EXCLUDED" || return 1
   journal_acquire_lease "$CURRENT_RUN_ID" || {
     echo -e "${R}Run уже выполняется другим launcher process.${N}"
     return 1
   }
+  if [[ "$EXECUTION_TYPE" == CYCLE && "${EXECUTION_CYCLE_ID:-0}" -eq 1 &&
+        -z "${PARENT_RUN_ID:-}" ]]; then
+    plan_sha="$(awk 'NF {print $1; exit}' "$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")/plan.sha256")"
+    if current_output="$(bash "$CURRENT_ARTIFACT_TOOL" begin-run "$(project_path)" \
+      "$CURRENT_RUN_ID" "$plan_sha" 2>&1)"; then
+      journal_append_event "$CURRENT_RUN_ID" current_artifact_run_started READY 0 PENDING \
+        '' '' "$current_output"
+    else
+      printf '%s\n' "$current_output"
+      journal_write_state "$CURRENT_RUN_ID" BLOCKED 0 "$total" UNVERIFIED \
+        'current artifact generation'
+      journal_append_event "$CURRENT_RUN_ID" current_artifact_run_blocked BLOCKED 0 UNVERIFIED \
+        '' '' "$current_output"
+      journal_release_lease "$CURRENT_RUN_ID"
+      return 1
+    fi
+  fi
   if [[ -n "${PARENT_RUN_ID:-}" ]]; then
     journal_append_event "$PARENT_RUN_ID" retry_child_created INTERRUPTED 0 UNKNOWN '' '' "child run $CURRENT_RUN_ID"
   fi
@@ -3102,8 +3791,11 @@ execute_previewed_cycle() {
   journal_write_state "$CURRENT_RUN_ID" RUNNING 0 "$total" PENDING ''
   execute_cycle "$EXECUTION_TITLE" "$EXECUTION_CYCLE_ID" || rc=$?
   if [[ $rc -eq 0 ]]; then
-    journal_write_state "$CURRENT_RUN_ID" COMPLETED "$total" "$total" SUCCEEDED ''
-    journal_append_event "$CURRENT_RUN_ID" run_completed COMPLETED "$total" SUCCEEDED '' '' 'all planned steps completed'
+    journal_write_state "$CURRENT_RUN_ID" COMPLETED "$total" "$total" \
+      "${EXECUTION_LAST_STEP_STATUS:-ARTIFACT_VERIFIED}" ''
+    journal_append_event "$CURRENT_RUN_ID" run_completed COMPLETED "$total" \
+      "${EXECUTION_LAST_STEP_STATUS:-ARTIFACT_VERIFIED}" '' '' \
+      'all planned steps satisfied their registered result verifiers'
   else
     journal_write_state "$CURRENT_RUN_ID" BLOCKED "${EXECUTION_LAST_STEP:-0}" "$total" \
       "${EXECUTION_LAST_STEP_STATUS:-UNKNOWN}" "${EXECUTION_LAST_ACTION:-}"
@@ -3130,6 +3822,7 @@ run_cycle1() {
   echo
   [[ "$mode" == "standalone" ]] && { pick_project || return; }
   [[ "$mode" != "chained" ]] && { offer_goal_profile_at_cycle1_entry || return; }
+  require_product_ci_profile || return 1
 
   # выбор необязательных шагов
   configure_optional_steps
@@ -3173,7 +3866,7 @@ run_cycle1() {
   echo
   EXECUTION_TYPE=CYCLE
   EXECUTION_SCOPE='ТОЛЬКО Cycle 1'
-  EXECUTION_EXCLUDED='Cycle 2, Cycle 3'
+  EXECUTION_EXCLUDED='Cycle 2/3 — FROZEN / NOT READY'
   EXECUTION_TITLE='Цикл 1 — Разработка'
   EXECUTION_CYCLE_ID=1
   local rc=0
@@ -3184,102 +3877,21 @@ run_cycle1() {
 
 # ─── Цикл 2 — Деплой ──────────────────────────────────────────────────────────
 run_cycle2() {
-  local mode="${1:-standalone}" rc=0
-  header
-  echo -e "${W}── Цикл 2 — Деплой ───────────────────────────────────${N}"
-  echo
-  [[ "$mode" == "standalone" ]] && { pick_project || return; }
-  ensure_goal_profile_for_cycle 2 || return 1
-  if [[ "${GOAL_VALUES[cycle2_enabled]:-}" != "yes" ]]; then
-    echo -e "${Y}Cycle 2 явно отключён в профиле цели. Измени его через «Цели Cycle 2/3».${N}"
-    return 1
-  fi
-  local -a RUN_CYCLE=("${CYCLE2_AGENTS[@]}")
-  local -a RUN_OPTIONAL=()
-  local entry
-  for entry in "${RUN_CYCLE[@]}"; do RUN_OPTIONAL+=(0); done
-  echo -e "  Профиль: ${C}$(goal_profile_path)${N}"
-  echo -e "  Шагов: ${W}${#RUN_CYCLE[@]}${N}; tests → RED до delivery implementation."
-  EXECUTION_TYPE=CYCLE
-  EXECUTION_SCOPE='ТОЛЬКО Cycle 2'
-  EXECUTION_EXCLUDED='Cycle 1, Cycle 3'
-  EXECUTION_TITLE='Цикл 2 — Деплой'
-  EXECUTION_CYCLE_ID=2
-  preview_and_execute_cycle || rc=$?
-  [[ "$mode" == "standalone" ]] && read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
-  return "$rc"
+  cycle23_frozen_notice
+  return 1
 }
 
 # ─── Цикл 3 — Эксплуатация ────────────────────────────────────────────────────
 run_cycle3() {
-  local mode="${1:-standalone}" rc=0
-  header
-  echo -e "${W}── Цикл 3 — Эксплуатация ─────────────────────────────${N}"
-  echo
-  [[ "$mode" == "standalone" ]] && { pick_project || return; }
-  ensure_goal_profile_for_cycle 3 || return 1
-  if [[ "${GOAL_VALUES[cycle3_enabled]:-}" != "yes" ]]; then
-    echo -e "${Y}Cycle 3 явно отключён в профиле цели. Измени его через «Цели Cycle 2/3».${N}"
-    return 1
-  fi
-  local -a RUN_CYCLE=("${CYCLE3_AGENTS[@]}")
-  local -a RUN_OPTIONAL=()
-  local entry
-  for entry in "${RUN_CYCLE[@]}"; do RUN_OPTIONAL+=(0); done
-  echo -e "  Профиль: ${C}$(goal_profile_path)${N}"
-  echo -e "  Шагов: ${W}${#RUN_CYCLE[@]}${N}; ops tests → RED до ops configuration."
-  EXECUTION_TYPE=CYCLE
-  EXECUTION_SCOPE='ТОЛЬКО Cycle 3'
-  EXECUTION_EXCLUDED='Cycle 1, Cycle 2'
-  EXECUTION_TITLE='Цикл 3 — Эксплуатация'
-  EXECUTION_CYCLE_ID=3
-  preview_and_execute_cycle || rc=$?
-  [[ "$mode" == "standalone" ]] && read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
-  return "$rc"
+  cycle23_frozen_notice
+  return 1
 }
 
 # ─── Режим цели (Cycle 1 → выбранные Cycle 2/3) ────────────────────────────────
 run_goal_mode() {
   local mode="${1:-standalone}"
-  header
-  echo -e "${W}── Режим цели ─────────────────────────────────────────${N}"
-  echo
-  [[ "$mode" == "standalone" ]] && { pick_project || return; }
-  local choice
-  while true; do
-    if ! load_goal_profile ||
-       ! goal_profile_mode_consistent ||
-       ! goal_profile_complete_for_cycle 2 ||
-       ! goal_profile_complete_for_cycle 3; then
-      echo -e "${Y}Для режима цели сначала выбери явный маршрут.${N}"
-      configure_goal_profile full || return 1
-      load_goal_profile || return 1
-    fi
-    echo
-    echo -e "${W}Будет выполнено:${N} ${G}$(goal_route_label)${N}"
-    echo -e "  ${Y}1)${N} Запустить этот маршрут"
-    echo -e "  ${Y}2)${N} Изменить маршрут или параметры"
-    echo -e "  ${Y}3)${N} Показать профиль"
-    echo -e "  ${Y}q)${N} Отменить"
-    read -rp "$(echo -e "${W}Выбери действие:${N} ")" choice
-    case "$choice" in
-      1) break ;;
-      2) configure_goal_profile full || return 1 ;;
-      3) show_goal_profile; read -rp "$(echo -e "${W}Нажми Enter...${N} ")" _ ;;
-      q|Q) return 1 ;;
-      *) echo -e "${R}Выбери показанный вариант.${N}" ;;
-    esac
-  done
-  run_cycle1 chained || return 1
-  load_goal_profile || return 1
-  [[ "${GOAL_VALUES[goal_mode]:-}" == "cycle1-only" ]] && return 0
-  if [[ "${GOAL_VALUES[cycle2_enabled]:-}" == "yes" ]]; then
-    run_cycle2 chained || return 1
-  fi
-  if [[ "${GOAL_VALUES[goal_mode]:-}" =~ ^(through-cycle3|custom)$ ]] &&
-     [[ "${GOAL_VALUES[cycle3_enabled]:-}" == "yes" ]]; then
-    run_cycle3 chained || return 1
-  fi
+  echo 'Legacy goal mode is limited to supported Cycle 1; Cycle 2/3 are FROZEN / NOT READY.'
+  run_cycle1 "$mode"
 }
 
 # ─── подменю выбора цикла ─────────────────────────────────────────────────────
@@ -3288,15 +3900,13 @@ menu_cycle_select() {
   echo -e "${W}── Что хотите сделать? ───────────────────────────────${N}"
   echo
   echo -e "  ${Y}1)${N} ${G}🔧 Только Cycle 1${N} — разработка без запуска deploy/ops"
-  echo -e "  ${Y}2)${N} ${C}🚀 Деплой${N} (Цикл 2, test-first)"
-  echo -e "  ${Y}3)${N} ${C}📊 Эксплуатация${N} (Цикл 3, test-first)"
+  echo -e "  ${Y}2)${N} Cycle 2/3 — ${Y}FROZEN / NOT READY${N} (только показать статус)"
   echo -e "  ${Y}b)${N} Назад"
   echo
-  read -rp "$(echo -e "${W}Выбери [1-3/b]:${N} ")" choice
+  read -rp "$(echo -e "${W}Выбери [1-2/b]:${N} ")" choice
   case "$choice" in
     1) run_cycle1 selected ;;
-    2) run_cycle2 selected ;;
-    3) run_cycle3 selected ;;
+    2) render_cycle23_frozen_status ;;
     b|B) return ;;
     *) echo -e "${R}Неверный выбор${N}"; sleep 0.5 ;;
   esac
@@ -3358,20 +3968,61 @@ post_kickoff_menu() {
   printf '%s\n' \
     '' 'KICKOFF ЗАВЕРШЁН. Что дальше?' \
     '  1) Подготовить запуск только Cycle 1' \
-    '  2) Настроить режим цели и подготовить его запуск' \
-    '  3) Проверить входные данные проекта' \
-    '  4) Вернуться в Project Console'
+    '  2) Проверить входные данные проекта' \
+    '  3) Вернуться в Project Console' \
+    '  Cycle 2/3: FROZEN / NOT READY'
   read -r choice
   case "$choice" in
     1) run_cycle1 selected ;;
-    2) configure_goal_profile full && run_goal_mode selected ;;
-    3) menu_project_inputs_review ;;
-    4|b|B|'') return 0 ;;
+    2) menu_project_inputs_review ;;
+    3|b|B|'') return 0 ;;
     *) return 1 ;;
   esac
 }
 
 # ─── валидация структуры ──────────────────────────────────────────────────────
+execute_structure_dispatch() {
+  local action="$1" name output rc=0
+  shift
+  [[ "$action" == validate || "$action" == fix ]] || return 1
+  (( $# > 0 )) || return 1
+  for name in "$@"; do
+    valid_project_name "$name" || { echo -e "${R}BLOCKED: invalid Project name: $name${N}"; rc=1; continue; }
+    if [[ ! -d "$PROJECTS/$name" || -L "$PROJECTS/$name" ]]; then
+      echo -e "${R}BLOCKED: unsafe or missing Project directory: $name${N}"
+      rc=1
+      continue
+    fi
+    echo -e "${B}── $action: $name ──${N}"
+    if [[ "$action" == validate ]]; then
+      bash "$AGENTS/cycle1-dev/s0-validate/structure-check.sh" "$PROJECTS/$name" check || rc=1
+    else
+      if ! bash "$AGENTS/cycle1-dev/s0-validate/structure-check.sh" "$PROJECTS/$name" fix; then
+        rc=1
+      elif ! bash "$AGENTS/cycle1-dev/s0-validate/structure-check.sh" "$PROJECTS/$name" check; then
+        echo -e "${R}BLOCKED: post-fix structure verification failed for $name.${N}"
+        rc=1
+      fi
+    fi
+  done
+  return "$rc"
+}
+
+preview_structure_dispatch() {
+  local action="$1" access name confirm
+  shift
+  [[ "$action" == validate ]] && access=read-only || access=write-missing-only
+  echo -e "${W}Structure action preview${N}"
+  echo -e "  Action: ${C}$action${N}"
+  echo -e "  Access: ${C}$access${N}"
+  echo -e "  Targets (${#}):"
+  for name in "$@"; do echo "    - $name"; done
+  echo '  Excluded: every other directory and all existing file contents'
+  read -rp 'Выполнить exact plan? [y/N]: ' confirm
+  [[ "$confirm" =~ ^[yY]$ ]] || return 1
+  execute_structure_dispatch "$action" "$@"
+}
+
 menu_validate_project() {
   header
   echo -e "${W}── Валидация и починка структуры проекта ────────────${N}"
@@ -3400,15 +4051,26 @@ menu_validate_project() {
       else
         pick_project || return
       fi
-      local project="$PROJECT"
-      local task; [[ "$choice" == "1" ]] && task="/validate" || task="/fix"
-      run_agent "s0-validate" "$project" "$task"
+      local action; [[ "$choice" == "1" ]] && action=validate || action=fix
+      preview_structure_dispatch "$action" "$PROJECT"
       ;;
     2|4)
       [[ "$PROJECTS_MODE" == "single" ]] && { echo -e "${R}Неверный выбор${N}"; sleep 0.5; return; }
-      local task
-      [[ "$choice" == "2" ]] && task="/validate" || task="/fix"
-      run_agent "s0-validate" "all" "$task"
+      local action name d
+      local -a collection_projects=()
+      [[ "$choice" == "2" ]] && action=validate || action=fix
+      while IFS= read -r -d '' d; do
+        name="$(basename "$d")"
+        [[ "$name" == _* || "$name" == .* ]] && continue
+        valid_project_name "$name" || continue
+        is_recognized_sdlc_project "$d" || continue
+        collection_projects+=("$name")
+      done < <(find "$PROJECTS" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+      if (( ${#collection_projects[@]} == 0 )); then
+        echo -e "${Y}Нет распознанных SDLC Projects для $action.${N}"
+        return
+      fi
+      preview_structure_dispatch "$action" "${collection_projects[@]}"
       ;;
     *)
       echo -e "${R}Неверный выбор${N}"; sleep 0.5; return
@@ -3422,12 +4084,12 @@ menu_validate_project() {
 print_project_progress() {
   local d="$1" name="$2" stages_done=0 s bar=""
   for s in stage1-planning stage2-requirements stage3-design stage4-dev \
-            stage5-testing stage6-deploy stage7-ops; do
+            stage5-testing; do
     [[ -n "$(ls -A "$d/$s/outputs" 2>/dev/null)" ]] && ((stages_done++))
   done
   for ((k=0; k<stages_done; k++)); do bar+="█"; done
-  for ((k=stages_done; k<7; k++)); do bar+="░"; done
-  echo -e "  ${W}$name${N}  ${C}$bar${N} $stages_done/7"
+  for ((k=stages_done; k<5; k++)); do bar+="░"; done
+  echo -e "  ${W}$name${N}  ${C}$bar${N} $stages_done/5  ${Y}Cycle 2/3 FROZEN${N}"
 }
 
 menu_list_projects() {
@@ -3456,17 +4118,158 @@ menu_list_projects() {
 }
 
 # ─── project-scoped Console actions ──────────────────────────────────────────
+cycle1_one_agent_preflight() {
+  local agent="$1" task="$2" gate output
+  gate="$(cycle1_gate_before_entry "$agent" "$task" 2>/dev/null || true)"
+  if [[ -n "$gate" ]]; then
+    if output="$(run_cycle1_gate_validator "$gate" 2>&1)"; then
+      printf '%s\n' "$output"
+      journal_append_event "$CURRENT_RUN_ID" gate_pass RUNNING 1 GATE_PASS '' "Gate $gate" "$output"
+    else
+      printf '%s\n' "$output"
+      journal_append_event "$CURRENT_RUN_ID" gate_blocked BLOCKED 1 GATE_BLOCKED '' "Gate $gate" 'One Agent preflight blocked'
+      return 1
+    fi
+  fi
+  if [[ "$agent:$task" == 's4-dev:/dev-report' ]] && ! require_cycle_tdd_red 1; then
+    return 1
+  fi
+  if [[ "$agent:$task" == 's4-techlead:/review' ]]; then
+    prepare_cycle1_techlead_evidence
+  fi
+}
+
+cycle1_one_agent_postflight() {
+  local agent="$1" task="$2" gate output
+  if cycle1_software_dod_after_entry "$agent" "$task"; then
+    run_cycle1_software_dod_validator || return 1
+    journal_append_event "$CURRENT_RUN_ID" software_dod_auto_pass RUNNING 1 DOD_AUTO_PASS \
+      "$agent" "$task" 'deterministic automated DoD subset exit code 0'
+    run_cycle1_full_dod_validator || {
+      journal_append_event "$CURRENT_RUN_ID" software_dod_blocked BLOCKED 1 DOD_BLOCKED \
+        "$agent" "$task" 'full Software DoD approval FAIL/BLOCKED/UNVERIFIED'
+      return 1
+    }
+    journal_append_event "$CURRENT_RUN_ID" software_dod_approved RUNNING 1 DOD_PASS \
+      "$agent" "$task" 'independent Human Approval v1 covers DOD-1..DOD-11 and current review digests'
+  fi
+  gate="$(cycle1_gate_after_entry "$agent" "$task" 2>/dev/null || true)"
+  if [[ -n "$gate" ]]; then
+    if output="$(run_cycle1_gate_validator "$gate" 2>&1)"; then
+      printf '%s\n' "$output"
+      journal_append_event "$CURRENT_RUN_ID" gate_pass RUNNING 1 GATE_PASS '' "Gate $gate" "$output"
+    else
+      printf '%s\n' "$output"
+      journal_append_event "$CURRENT_RUN_ID" gate_blocked BLOCKED 1 GATE_BLOCKED '' "Gate $gate" 'One Agent postflight blocked'
+      return 1
+    fi
+  fi
+}
+
 execute_previewed_agent() {
-  local rc=0
+  local rc=0 declared_before='UNMAPPED' release_manifest_before='' release_version=''
+  local release_output current_manifest_sha tracker_before='' previous_access="${ACTIVE_AGENT_ACCESS:-}"
+  if release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    release_version="${SINGLE_TASK#/release-notes }"
+    release_manifest_before="$RELEASE_NOTES_MANIFEST_SHA"
+  fi
   journal_create_run AGENT "$SINGLE_AGENT $SINGLE_TASK" 'другие primary Agents и Cycles' || return 1
   journal_acquire_lease "$CURRENT_RUN_ID" || return 1
   journal_write_state "$CURRENT_RUN_ID" RUNNING 1 1 RUNNING "$SINGLE_AGENT $SINGLE_TASK"
+  if ! cycle1_one_agent_preflight "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 GATE_BLOCKED "$SINGLE_AGENT $SINGLE_TASK"
+    journal_release_lease "$CURRENT_RUN_ID"
+    return 1
+  fi
+  if [[ "$SINGLE_CAPABILITY" == mutating-declared-output ]] ||
+     release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    declared_before="$(declared_output_fingerprint "$SINGLE_AGENT" "$SINGLE_TASK" 2>/dev/null || printf 'UNMAPPED')"
+  fi
+  if tracker_special_command "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    tracker_before="$(project_snapshot_sha256)"
+  fi
+  if cycle1_completion_after_entry "$SINGLE_AGENT" "$SINGLE_TASK" &&
+     ! prepare_cycle1_completion_context "$CURRENT_RUN_ID"; then
+    journal_append_event "$CURRENT_RUN_ID" cycle1_completion_blocked BLOCKED 1 UNVERIFIED \
+      "$SINGLE_AGENT" "$SINGLE_TASK" 'completion runtime context unavailable'
+    journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+    journal_release_lease "$CURRENT_RUN_ID"
+    return 1
+  fi
   ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[0]:-}"
+  ACTIVE_AGENT_ACCESS="$SINGLE_ACCESS"
   run_agent "$SINGLE_AGENT" "$SINGLE_PROJECT_NAME" "$SINGLE_TASK" || rc=$?
   ACTIVE_EXECUTION_PROFILE=""
+  ACTIVE_AGENT_ACCESS="$previous_access"
+  clear_cycle1_completion_context
+  if [[ $rc -eq 0 && "$SINGLE_AGENT:$SINGLE_TASK" == "s4-qa-auto:/run-tests" ]]; then
+    run_cycle_tdd_repair_loop 1 || rc=$?
+  fi
   if [[ $rc -eq 0 ]]; then
-    journal_append_event "$CURRENT_RUN_ID" step_succeeded COMPLETED 1 SUCCEEDED "$SINGLE_AGENT" "$SINGLE_TASK" 'runtime exit code 0'
-    journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 SUCCEEDED ''
+    journal_append_event "$CURRENT_RUN_ID" step_process_ok RUNNING 1 PROCESS_OK "$SINGLE_AGENT" "$SINGLE_TASK" 'runtime exit code 0'
+    if [[ "$SINGLE_CAPABILITY" == read-only-no-output ]]; then
+      journal_append_event "$CURRENT_RUN_ID" step_read_only_verified COMPLETED 1 READ_ONLY_VERIFIED \
+        "$SINGLE_AGENT" "$SINGLE_TASK" 'capability-enforced read-only command completed'
+      journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 READ_ONLY_VERIFIED ''
+    elif tracker_special_command "$SINGLE_AGENT" "$SINGLE_TASK"; then
+      if verify_tracker_special_command "$SINGLE_TASK" "$tracker_before"; then
+        journal_append_event "$CURRENT_RUN_ID" tracker_artifact_verified COMPLETED 1 ARTIFACT_VERIFIED \
+          "$SINGLE_AGENT" "${SINGLE_TASK%%$'\n'*}" "$TRACKER_VERIFICATION_REASON"
+        journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 ARTIFACT_VERIFIED ''
+      else
+        rc=1
+        journal_append_event "$CURRENT_RUN_ID" tracker_artifact_unverified BLOCKED 1 UNVERIFIED \
+          "$SINGLE_AGENT" "${SINGLE_TASK%%$'\n'*}" "${TRACKER_VERIFICATION_REASON:-tracker postcondition failed}"
+        journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT ${SINGLE_TASK%% *}"
+      fi
+    elif verify_declared_outputs "$SINGLE_AGENT" "$SINGLE_TASK" "$declared_before"; then
+      journal_append_event "$CURRENT_RUN_ID" step_artifact_verified RUNNING 1 ARTIFACT_VERIFIED \
+        "$SINGLE_AGENT" "$SINGLE_TASK" "$DECLARED_OUTPUT_REASON"
+      if ! cycle1_one_agent_postflight "$SINGLE_AGENT" "$SINGLE_TASK"; then
+        rc=1
+        journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 GATE_BLOCKED "$SINGLE_AGENT $SINGLE_TASK"
+      fi
+      if [[ $rc -eq 0 ]] && release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
+        current_manifest_sha="$(sha256sum "$(project_path)/tracking/completion/CYCLE1-completion-v2.yaml" | awk '{print $1}')"
+        if [[ -z "$release_manifest_before" || "$current_manifest_sha" != "$release_manifest_before" ]]; then
+          rc=1
+          journal_append_event "$CURRENT_RUN_ID" release_notes_blocked BLOCKED 1 UNVERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" 'completion manifest changed during release-notes generation'
+          journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+        elif release_output="$(run_release_notes_validator "$release_version" 2>&1)"; then
+          printf '%s\n' "$release_output"
+          journal_append_event "$CURRENT_RUN_ID" release_notes_verified COMPLETED 1 ARTIFACT_VERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" "$release_output"
+          journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 ARTIFACT_VERIFIED ''
+        else
+          printf '%s\n' "$release_output"
+          rc=1
+          journal_append_event "$CURRENT_RUN_ID" release_notes_blocked BLOCKED 1 UNVERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" 'Release Notes v1 FAIL/BLOCKED/UNVERIFIED'
+          journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+        fi
+      elif [[ $rc -eq 0 ]] && cycle1_completion_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
+        local completion_output
+        if ! completion_output="$(run_cycle1_execution_proof_create 2>&1)"; then
+          printf '%s\n' "$completion_output"
+          rc=1
+          journal_append_event "$CURRENT_RUN_ID" cycle1_completion_blocked BLOCKED 1 UNVERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" 'full Cycle 1 execution proof FAIL/BLOCKED/UNVERIFIED'
+          journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+        elif completion_output="$(run_cycle1_completion_validator 2>&1)"; then
+          printf '%s\n' "$completion_output"
+          journal_append_event "$CURRENT_RUN_ID" cycle1_completion_pass COMPLETED 1 ARTIFACT_VERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" "$completion_output"
+          journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 ARTIFACT_VERIFIED ''
+        else
+          printf '%s\n' "$completion_output"
+          rc=1
+          journal_append_event "$CURRENT_RUN_ID" cycle1_completion_blocked BLOCKED 1 UNVERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" 'Cycle 1 completion FAIL/BLOCKED/UNVERIFIED'
+          journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+        fi
+      elif [[ $rc -eq 0 ]]; then
+        journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 ARTIFACT_VERIFIED ''
+      fi
+    else
+      rc=1
+      journal_append_event "$CURRENT_RUN_ID" step_artifact_unverified BLOCKED 1 UNVERIFIED "$SINGLE_AGENT" "$SINGLE_TASK" "$DECLARED_OUTPUT_REASON"
+      journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+    fi
   else
     journal_append_event "$CURRENT_RUN_ID" step_failed BLOCKED 1 FAILED "$SINGLE_AGENT" "$SINGLE_TASK" "runtime exit code $rc"
     journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 FAILED "$SINGLE_AGENT $SINGLE_TASK"
@@ -3479,6 +4282,30 @@ run_agent_with_preview() {
   SINGLE_AGENT="$1"
   SINGLE_PROJECT_NAME="$2"
   SINGLE_TASK="$3"
+  RELEASE_NOTES_VERSION=''
+  RELEASE_NOTES_SOURCE=''
+  RELEASE_NOTES_MANIFEST_REF=''
+  RELEASE_NOTES_MANIFEST_SHA=''
+  RELEASE_NOTES_TARGET_REF=''
+  runtime_validate_prompt "$SINGLE_TASK" || return 1
+  SINGLE_CAPABILITY="$(command_capability "$SINGLE_AGENT" "$SINGLE_TASK" 2>/dev/null || true)"
+  SINGLE_ACCESS="$(command_access "$SINGLE_AGENT" "$SINGLE_TASK" 2>/dev/null || true)"
+  if [[ -z "$SINGLE_CAPABILITY" || -z "$SINGLE_ACCESS" ]]; then
+    echo -e "${R}BLOCKED: command отсутствует в capability registry.${N}"
+    return 1
+  fi
+  if [[ "$SINGLE_CAPABILITY" == orchestrated-special ]] &&
+     ! release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK" &&
+     ! tracker_special_command "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    echo -e "${R}BLOCKED: $SINGLE_AGENT ${SINGLE_TASK%% *} требует отдельный launcher workflow.${N}"
+    return 1
+  fi
+  if release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
+    prepare_release_notes_context "$SINGLE_TASK"
+    local context_rc=$?
+    [[ $context_rc -eq 2 ]] && return 0
+    [[ $context_rc -eq 0 ]] || return "$context_rc"
+  fi
   local -a RUN_CYCLE=("$SINGLE_AGENT:$SINGLE_TASK")
   local -a RUN_OPTIONAL=(0)
   render_execution_preview AGENT "$SINGLE_AGENT ${SINGLE_TASK:-interactive}" 'другие primary Agents и Cycles'
@@ -3516,12 +4343,12 @@ prepare_scoped_project_action() {
       EXECUTION_SCOPE='весь выбранный Project'
       EXECUTION_EXCLUDED='другие Projects'
       ;;
-    cycle:[1-3])
+    cycle:1)
       value="${scope#cycle:}"
       EXECUTION_SCOPE="только Cycle $value выбранного Project"
       EXECUTION_EXCLUDED='остальные Cycles и другие Projects'
       ;;
-    stage:[0-7])
+    stage:[0-5])
       value="${scope#stage:}"
       EXECUTION_SCOPE="только Stage $value выбранного Project"
       EXECUTION_EXCLUDED='остальные Stages и другие Projects'
@@ -3529,6 +4356,7 @@ prepare_scoped_project_action() {
     agent:*)
       value="${scope#agent:}"
       [[ -n "$value" && -d "$(find_agent_dir "$value")" ]] || return 1
+      case "$value" in s4-devops|s6-release|s6-sre) return 1 ;; esac
       EXECUTION_SCOPE="только Agent $value и связанные с ним artifacts"
       EXECUTION_EXCLUDED='другие Agents, Cycles и Projects'
       ;;
@@ -3552,12 +4380,386 @@ prepare_scoped_project_action() {
   RUN_OPTIONAL=(0)
 }
 
-run_scoped_project_action() {
-  local previous_access="${ACTIVE_AGENT_ACCESS:-}" rc=0
-  ACTIVE_AGENT_ACCESS="$SCOPED_ACTION_ACCESS"
-  run_agent s0-validate "$PROJECT" "/$SCOPED_ACTION scope=$SCOPED_ACTION_SCOPE" || rc=$?
+project_snapshot_sha256() {
+  local root="$(project_path)" file
+  {
+    while IFS= read -r -d '' file; do
+      [[ ! -L "$file" ]] || continue
+      printf '%s\t%s\n' "${file#"$root/"}" "$(sha256sum "$file" | awk '{print $1}')"
+    done < <(find "$root" -type f -print0 2>/dev/null | sort -z)
+  } | sha256sum | awk '{print $1}'
+}
+
+tracker_next_task_id() {
+  local backlog="$(project_path)/tracking/backlog.md" next
+  if [[ ! -e "$backlog" && ! -L "$backlog" ]]; then
+    printf '%s\n' T-001
+    return 0
+  fi
+  [[ -f "$backlog" && ! -L "$backlog" ]] || return 1
+  next="$(awk -F'|' '
+    function trim(v) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v}
+    /^\|/ {
+      id=trim($2)
+      if (id ~ /^T-[0-9]+$/) {
+        number=id; sub(/^T-/, "", number)
+        if ((number + 0) > maximum) maximum=number + 0
+      }
+    }
+    END {print maximum + 1}
+  ' "$backlog")" || return 1
+  [[ "$next" =~ ^[1-9][0-9]*$ ]] || return 1
+  printf 'T-%03d\n' "$next"
+}
+
+tracker_current_sprint_number() {
+  local current="$(project_path)/tracking/current-sprint.md" number
+  [[ -f "$current" && ! -L "$current" ]] || return 1
+  number="$(awk -F: '$1 == "sprint" {value=$0; sub(/^[^:]*:[[:space:]]*/, "", value); print value; exit}' "$current")"
+  [[ "$number" =~ ^[1-9][0-9]*$ ]] || return 1
+  printf '%s\n' "$number"
+}
+
+tracker_task_status_in_file() {
+  local file="$1" task_id="$2"
+  awk -F'|' -v wanted="$task_id" '
+    function trim(v) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v}
+    /^\|/ {
+      if (!status_col) {
+        for (i=1; i<=NF; i++) if (trim($i) == "Статус" || trim($i) == "Status") status_col=i
+      }
+      if (trim($2) == wanted && status_col) {print trim($status_col); found++}
+    }
+    END {if (found != 1) exit 1}
+  ' "$file"
+}
+
+tracker_task_occurrences_have_status() {
+  local task_id="$1" expected="$2" minimum="$3" maximum="$4"
+  local root="$(project_path)" file status rows sprint_number count=0
+  local -a files=("$root/tracking/backlog.md" "$root/tracking/current-sprint.md")
+  TRACKER_TASK_MATCHED_FILES=()
+  if sprint_number="$(tracker_current_sprint_number 2>/dev/null)"; then
+    files+=("$root/tracking/sprints/sprint-$(printf '%02d' "$sprint_number").md")
+  fi
+  for file in "${files[@]}"; do
+    if [[ -L "$file" ]]; then
+      return 1
+    fi
+    [[ -f "$file" ]] || continue
+    rows="$(awk -F'|' -v wanted="$task_id" '
+      function trim(v) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v}
+      /^\|/ && trim($2) == wanted {n++}
+      END {print n+0}
+    ' "$file")"
+    (( rows == 0 )) && continue
+    (( rows == 1 )) || return 1
+    status="$(tracker_task_status_in_file "$file" "$task_id")" || return 1
+    [[ "$status" == "$expected" ]] || return 1
+    TRACKER_TASK_MATCHED_FILES+=("$file")
+    count=$((count + 1))
+  done
+  (( count >= minimum && count <= maximum ))
+}
+
+verify_tracker_special_command() {
+  local task="$1" before="$2" command="${1%% *}" root="$(project_path)"
+  local after task_id sprint end sprint_file current reason backlog status count file expected_verifier
+  TRACKER_VERIFICATION_REASON=''
+  expected_verifier="$(tracker_special_expected_verifier s0-tracker "$task" 2>/dev/null || true)"
+  if [[ -z "$expected_verifier" ||
+        "$(command_result_verifier s0-tracker "$task" 2>/dev/null || true)" != "$expected_verifier" ]]; then
+    TRACKER_VERIFICATION_REASON='tracker result verifier does not match capability registry'
+    return 1
+  fi
+  after="$(project_snapshot_sha256)"
+  if [[ -z "$before" || "$after" == "$before" ]]; then
+    TRACKER_VERIFICATION_REASON='Project tracking state did not change'
+    return 1
+  fi
+  case "$command" in
+    /task-add)
+      task_id="$(tracker_prompt_value "$task" expected-task 2>/dev/null || true)"
+      backlog="$root/tracking/backlog.md"
+      [[ "$task_id" =~ ^T-[0-9]+$ && -f "$backlog" && ! -L "$backlog" ]] || {
+        TRACKER_VERIFICATION_REASON='expected task id or regular backlog is missing'; return 1;
+      }
+      status="$(tracker_task_status_in_file "$backlog" "$task_id" 2>/dev/null || true)"
+      [[ "$status" == TODO ]] || {
+        TRACKER_VERIFICATION_REASON="$task_id is not exactly one TODO backlog row"; return 1;
+      }
+      count="$(find "$root/tracking" -type f \
+        \( -name 'backlog.md' -o -name 'current-sprint.md' -o -name 'sprint-*.md' \) \
+        -exec awk -F'|' -v wanted="$task_id" '
+          function trim(v) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); return v}
+          /^\|/ && trim($2) == wanted {n++} END {print n+0}
+        ' {} + 2>/dev/null | awk '{n += $1} END {print n+0}')"
+      [[ "$count" == 1 ]] || {
+        TRACKER_VERIFICATION_REASON="$task_id must exist only in backlog before sprint planning"; return 1;
+      }
+      TRACKER_VERIFICATION_REASON="tracker task-add verified: task=$task_id status=TODO scope=backlog"
+      ;;
+    /task-block)
+      task_id="$(tracker_prompt_value "$task" task 2>/dev/null || true)"
+      reason="${task#*$'\n'Blocker reason: }"
+      reason="${reason%%$'\n'*}"
+      [[ "$task_id" =~ ^T-[0-9]+$ && -n "$reason" && "$reason" != "$task" ]] || {
+        TRACKER_VERIFICATION_REASON='exact task id and blocker reason are required'; return 1;
+      }
+      tracker_task_occurrences_have_status "$task_id" BLOCKED 1 3 || {
+        TRACKER_VERIFICATION_REASON="$task_id is not BLOCKED in every canonical occurrence"; return 1;
+      }
+      status=0
+      for file in "${TRACKER_TASK_MATCHED_FILES[@]}"; do
+        if grep -Fq -- "$reason" "$file"; then
+          status=1
+        fi
+      done
+      [[ "$status" == 1 ]] || {
+        TRACKER_VERIFICATION_REASON="$task_id blocker reason was not persisted"; return 1;
+      }
+      TRACKER_VERIFICATION_REASON="tracker task-block verified: task=$task_id status=BLOCKED"
+      ;;
+    /task-done)
+      task_id="$(tracker_prompt_value "$task" task 2>/dev/null || true)"
+      [[ "$task_id" =~ ^T-[0-9]+$ ]] || {
+        TRACKER_VERIFICATION_REASON='exact task id is required'; return 1;
+      }
+      bash "$AGENTS/cycle1-dev/s0-validate/task-dod-check.sh" "$root" "$task_id" >/dev/null || {
+        TRACKER_VERIFICATION_REASON="$task_id DoD is not VERIFIED"; return 1;
+      }
+      tracker_task_occurrences_have_status "$task_id" DONE 3 3 || {
+        TRACKER_VERIFICATION_REASON="$task_id DONE status is not synchronized"; return 1;
+      }
+      TRACKER_VERIFICATION_REASON="tracker task-done verified: task=$task_id status=DONE files=3"
+      ;;
+    /sprint-init)
+      sprint="$(tracker_prompt_value "$task" sprint 2>/dev/null || true)"
+      end="$(tracker_prompt_value "$task" end 2>/dev/null || true)"
+      [[ "$sprint" =~ ^[1-9][0-9]*$ && "$end" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || {
+        TRACKER_VERIFICATION_REASON='exact sprint number and end date are required'; return 1;
+      }
+      sprint_file="$root/tracking/sprints/sprint-$(printf '%02d' "$sprint").md"
+      current="$root/tracking/current-sprint.md"
+      for file in "$sprint_file" "$current" "$root/tracking/backlog.md" \
+        "$root/tracking/dor-violations.md" "$root/tracking/tech-debt.md" \
+        "$root/tracking/known-issues.md" "$root/tracking/task-dod-v1.tsv"; do
+        [[ -f "$file" && ! -L "$file" ]] || {
+          TRACKER_VERIFICATION_REASON="missing/non-regular tracker artifact: ${file#$root/}"; return 1;
+        }
+      done
+      grep -Eq "^sprint:[[:space:]]*$sprint[[:space:]]*$" "$sprint_file" &&
+        grep -Eq '^status:[[:space:]]*ACTIVE[[:space:]]*$' "$sprint_file" &&
+        grep -Eq "^sprint:[[:space:]]*$sprint[[:space:]]*$" "$current" &&
+        grep -Eq '^status:[[:space:]]*ACTIVE[[:space:]]*$' "$current" || {
+          TRACKER_VERIFICATION_REASON="sprint $sprint is not the exact ACTIVE sprint"; return 1;
+        }
+      bash "$AGENTS/cycle1-dev/s0-validate/tech-debt-check.sh" "$root" sprint-init "$sprint" >/dev/null || {
+        TRACKER_VERIFICATION_REASON="sprint $sprint Tech Debt materialization is not verified"; return 1;
+      }
+      TRACKER_VERIFICATION_REASON="tracker sprint-init verified: sprint=$sprint end=$end status=ACTIVE"
+      ;;
+    /sprint-close)
+      sprint="$(tracker_prompt_value "$task" sprint 2>/dev/null || true)"
+      [[ "$sprint" =~ ^[1-9][0-9]*$ ]] || {
+        TRACKER_VERIFICATION_REASON='exact sprint number is required'; return 1;
+      }
+      sprint_file="$root/tracking/sprints/sprint-$(printf '%02d' "$sprint").md"
+      current="$root/tracking/current-sprint.md"
+      [[ -f "$sprint_file" && ! -L "$sprint_file" && -f "$current" && ! -L "$current" ]] || {
+        TRACKER_VERIFICATION_REASON='sprint/current artifact missing or non-regular'; return 1;
+      }
+      grep -Eq '^status:[[:space:]]*CLOSED[[:space:]]*$' "$sprint_file" || {
+        TRACKER_VERIFICATION_REASON="sprint $sprint is not CLOSED"; return 1;
+      }
+      ! grep -Eq '^status:[[:space:]]*ACTIVE[[:space:]]*$' "$current" || {
+        TRACKER_VERIFICATION_REASON='current-sprint still declares an ACTIVE sprint'; return 1;
+      }
+      bash "$AGENTS/cycle1-dev/s0-validate/tracker-sprint-close-check.sh" "$root" "$sprint" >/dev/null || {
+        TRACKER_VERIFICATION_REASON="sprint $sprint close invariants are not verified"; return 1;
+      }
+      TRACKER_VERIFICATION_REASON="tracker sprint-close verified: sprint=$sprint status=CLOSED"
+      ;;
+    *) TRACKER_VERIFICATION_REASON='unsupported tracker command'; return 1 ;;
+  esac
+}
+
+write_review_findings() {
+  local output="$1" target="$2" run_id="$3" scope="$4" snapshot="$5"
+  local line marker id severity ref contract repair_scope summary extra count=0 clean=0 findings=0
+  local rows tmp digest_file
+  rows="$(mktemp "${target}.rows.XXXXXX")" || return 1
+  while IFS= read -r line; do
+    [[ "$line" == REVIEW_FINDING$'\t'* ]] || continue
+    IFS=$'\t' read -r marker id severity ref contract repair_scope summary extra <<< "$line"
+    [[ "$marker" == REVIEW_FINDING && -z "${extra:-}" && -n "${summary:-}" ]] || { rm -f "$rows"; return 1; }
+    [[ "$id" == CLEAN || "$id" =~ ^FND-[A-Z0-9._-]+$ ]] || { rm -f "$rows"; return 1; }
+    [[ "$severity" =~ ^(INFO|LOW|MEDIUM|HIGH|CRITICAL)$ ]] || { rm -f "$rows"; return 1; }
+    [[ "$ref" == none || "$ref" =~ ^[A-Za-z0-9._/-]+$ ]] || { rm -f "$rows"; return 1; }
+    [[ "$contract" == none || "$contract" =~ ^[A-Za-z0-9._/-]+$ ]] || { rm -f "$rows"; return 1; }
+    [[ "$repair_scope" =~ ^(structure|project|cycle:1|stage:[0-5]|agent:[A-Za-z0-9._-]+)$ ]] || { rm -f "$rows"; return 1; }
+    if grep -Eiq '(AKIA[0-9A-Z]{8,}|gh[pousr]_[A-Za-z0-9]+|(^|[^A-Za-z0-9])sk-[A-Za-z0-9]{8,}|password=|token=|secret=|/home/[^/]+/)' <<< "$line"; then
+      rm -f "$rows"; return 1
+    fi
+    if [[ "$id" == CLEAN ]]; then
+      [[ "$severity:$ref:$contract:$repair_scope" == "INFO:none:none:$scope" ]] || { rm -f "$rows"; return 1; }
+      clean=$((clean + 1))
+    else
+      findings=$((findings + 1))
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$severity" "$ref" "$contract" "$repair_scope" "$summary" >> "$rows"
+    count=$((count + 1))
+  done <<< "$output"
+  (( count > 0 )) || { rm -f "$rows"; return 1; }
+  (( (clean == 1 && findings == 0) || (clean == 0 && findings > 0) )) || { rm -f "$rows"; return 1; }
+  tmp="$(mktemp "${target}.tmp.XXXXXX")" || { rm -f "$rows"; return 1; }
+  {
+    printf 'schema_version: 1\nrun_id: %s\nproject: %s\nscope: %s\nproject_snapshot_sha256: %s\nverdict: %s\nfinding_count: %s\n' \
+      "$run_id" "$PROJECT" "$scope" "$snapshot" "$([[ $findings -gt 0 ]] && printf FINDINGS || printf CLEAN)" "$findings"
+    printf 'finding_id\tseverity\ttarget_ref\tcontract_id\trepair_scope\tsummary\n'
+    cat "$rows"
+  } > "$tmp"
+  rm -f "$rows"
+  mv "$tmp" "$target"
+  chmod 0444 "$target"
+  digest_file="${target%.tsv}.sha256"
+  sha256sum "$target" | awk '{print $1}' > "$digest_file"
+  chmod 0444 "$digest_file"
+}
+
+review_findings_valid() {
+  local file="$1" scope="$2" digest_file expected actual
+  digest_file="${file%.tsv}.sha256"
+  [[ -f "$file" && ! -L "$file" && -f "$digest_file" && ! -L "$digest_file" ]] || return 1
+  expected="$(awk 'NF {print $1; exit}' "$digest_file")"
+  actual="$(sha256sum "$file" | awk '{print $1}')"
+  [[ "$expected" =~ ^[0-9a-f]{64}$ && "$actual" == "$expected" ]] || return 1
+  grep -Fqx 'schema_version: 1' "$file" || return 1
+  grep -Fqx "project: $PROJECT" "$file" || return 1
+  grep -Fqx "scope: $scope" "$file" || return 1
+  grep -Eq '^verdict: (CLEAN|FINDINGS)$' "$file" || return 1
+  grep -Eq '^finding_count: [0-9]+$' "$file" || return 1
+  [[ "$(sed -n '8p' "$file")" == $'finding_id\tseverity\ttarget_ref\tcontract_id\trepair_scope\tsummary' ]]
+}
+
+latest_review_findings() {
+  local scope="$1" root dir file
+  root="$(journal_root "$PROJECT")/runs"
+  while IFS= read -r dir; do
+    file="$dir/review-findings.tsv"
+    if review_findings_valid "$file" "$scope"; then
+      printf '%s\n' "$file"
+      return 0
+    fi
+  done < <(find "$root" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -r)
+  return 1
+}
+
+run_scoped_review() {
+  local previous_access="${ACTIVE_AGENT_ACCESS:-}" rc=0 output before after dir findings
+  journal_create_run REVIEW "$EXECUTION_SCOPE" "$EXECUTION_EXCLUDED" || return 1
+  journal_acquire_lease "$CURRENT_RUN_ID" || return 1
+  journal_write_state "$CURRENT_RUN_ID" RUNNING 1 1 RUNNING "s0-validate /review scope=$SCOPED_ACTION_SCOPE"
+  before="$(project_snapshot_sha256)"
+  ACTIVE_AGENT_ACCESS=read-only
+  ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[0]:-}"
+  if [[ -z "$ACTIVE_EXECUTION_PROFILE" ]]; then rc=1
+  else output="$(run_agent s0-validate "$PROJECT" "/review scope=$SCOPED_ACTION_SCOPE" 2>&1)" || rc=$?
+  fi
+  ACTIVE_EXECUTION_PROFILE=''
   ACTIVE_AGENT_ACCESS="$previous_access"
+  printf '%s\n' "${output:-}"
+  after="$(project_snapshot_sha256)"
+  dir="$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")"
+  findings="$dir/review-findings.tsv"
+  if [[ $rc -eq 0 && "$before" == "$after" ]] &&
+     write_review_findings "$output" "$findings" "$CURRENT_RUN_ID" "$SCOPED_ACTION_SCOPE" "$before"; then
+    local digest verdict count
+    digest="$(awk 'NF {print $1; exit}' "${findings%.tsv}.sha256")"
+    verdict="$(awk -F': ' '$1=="verdict" {print $2; exit}' "$findings")"
+    count="$(awk -F': ' '$1=="finding_count" {print $2; exit}' "$findings")"
+    journal_append_event "$CURRENT_RUN_ID" review_findings_verified COMPLETED 1 READ_ONLY_VERIFIED \
+      s0-validate "/review scope=$SCOPED_ACTION_SCOPE" "verdict=$verdict findings=$count sha256=$digest"
+    journal_write_state "$CURRENT_RUN_ID" COMPLETED 1 1 READ_ONLY_VERIFIED ''
+    LATEST_REVIEW_RUN_ID="$CURRENT_RUN_ID"
+  else
+    rc=1
+    journal_append_event "$CURRENT_RUN_ID" review_findings_unverified BLOCKED 1 UNVERIFIED \
+      s0-validate "/review scope=$SCOPED_ACTION_SCOPE" 'invalid findings envelope or Project changed during read-only review'
+    journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "s0-validate /review scope=$SCOPED_ACTION_SCOPE"
+  fi
+  journal_release_lease "$CURRENT_RUN_ID"
   return "$rc"
+}
+
+run_scoped_repair() {
+  local previous_access="${ACTIVE_AGENT_ACCESS:-}" review_file review_dir review_run review_snapshot
+  local review_digest before after verify_after rc=0 output verify_output repair_run repair_dir verification verdict findings_payload
+  review_file="$(latest_review_findings "$SCOPED_ACTION_SCOPE")" || {
+    echo -e "${R}BLOCKED: сначала нужен verified Review того же exact scope.${N}"; return 1;
+  }
+  review_dir="$(dirname "$review_file")"; review_run="$(basename "$review_dir")"
+  verdict="$(awk -F': ' '$1=="verdict" {print $2; exit}' "$review_file")"
+  [[ "$verdict" == FINDINGS ]] || { echo -e "${Y}Repair не нужен: latest verified Review имеет CLEAN verdict.${N}"; return 1; }
+  review_snapshot="$(awk -F': ' '$1=="project_snapshot_sha256" {print $2; exit}' "$review_file")"
+  [[ "$(project_snapshot_sha256)" == "$review_snapshot" ]] || {
+    echo -e "${R}BLOCKED: Project изменился после Review; сначала повтори Review.${N}"; return 1;
+  }
+  review_digest="$(awk 'NF {print $1; exit}' "${review_file%.tsv}.sha256")"
+  findings_payload="$(sed -n '8,$p' "$review_file")"
+  PARENT_RUN_ID="$review_run"
+  journal_create_run REPAIR "$EXECUTION_SCOPE" "$EXECUTION_EXCLUDED" || { PARENT_RUN_ID=''; return 1; }
+  repair_run="$CURRENT_RUN_ID"; repair_dir="$(journal_run_dir "$PROJECT" "$repair_run")"
+  journal_append_event "$review_run" repair_child_created COMPLETED 1 READ_ONLY_VERIFIED \
+    s0-validate "/repair scope=$SCOPED_ACTION_SCOPE" "child=$repair_run findings_sha256=$review_digest"
+  journal_acquire_lease "$repair_run" || { PARENT_RUN_ID=''; return 1; }
+  journal_write_state "$repair_run" RUNNING 1 1 RUNNING "s0-validate /repair scope=$SCOPED_ACTION_SCOPE"
+  before="$(project_snapshot_sha256)"
+  ACTIVE_AGENT_ACCESS=write
+  ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[0]:-}"
+  if [[ -z "$ACTIVE_EXECUTION_PROFILE" ]]; then rc=1
+  else
+    output="$(run_agent s0-validate "$PROJECT" "/repair scope=$SCOPED_ACTION_SCOPE parent_review=$review_run findings_sha256=$review_digest"$'\n\n'"VERIFIED REVIEW FINDINGS TSV:"$'\n'"$findings_payload" 2>&1)" || rc=$?
+  fi
+  ACTIVE_EXECUTION_PROFILE=''
+  ACTIVE_AGENT_ACCESS="$previous_access"
+  printf '%s\n' "${output:-}"
+  after="$(project_snapshot_sha256)"
+  if [[ $rc -eq 0 && "$after" != "$before" ]]; then
+    ACTIVE_AGENT_ACCESS=read-only
+    ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[0]:-}"
+    verify_output="$(run_agent s0-validate "$PROJECT" "/review scope=$SCOPED_ACTION_SCOPE verification_of=$repair_run" 2>&1)" || rc=$?
+    ACTIVE_EXECUTION_PROFILE=''
+    ACTIVE_AGENT_ACCESS="$previous_access"
+    printf '%s\n' "${verify_output:-}"
+    verify_after="$(project_snapshot_sha256)"
+    [[ "$verify_after" == "$after" ]] || rc=1
+  else
+    rc=1
+  fi
+  verification="$repair_dir/repair-verification-findings.tsv"
+  if [[ $rc -eq 0 ]] && write_review_findings "$verify_output" "$verification" "$repair_run" \
+      "$SCOPED_ACTION_SCOPE" "$after" && grep -Fqx 'verdict: CLEAN' "$verification"; then
+    journal_append_event "$repair_run" repair_verified COMPLETED 1 ARTIFACT_VERIFIED \
+      s0-validate "/repair scope=$SCOPED_ACTION_SCOPE" "parent=$review_run findings_sha256=$review_digest re_review=CLEAN"
+    journal_write_state "$repair_run" COMPLETED 1 1 ARTIFACT_VERIFIED ''
+  else
+    rc=1
+    journal_append_event "$repair_run" repair_unverified BLOCKED 1 UNVERIFIED \
+      s0-validate "/repair scope=$SCOPED_ACTION_SCOPE" 'no changed Project snapshot or re-review is not CLEAN'
+    journal_write_state "$repair_run" BLOCKED 1 1 UNVERIFIED "s0-validate /repair scope=$SCOPED_ACTION_SCOPE"
+  fi
+  journal_release_lease "$repair_run"
+  PARENT_RUN_ID=''
+  return "$rc"
+}
+
+run_scoped_project_action() {
+  case "$SCOPED_ACTION" in
+    review) run_scoped_review ;;
+    repair) run_scoped_repair ;;
+    *) return 1 ;;
+  esac
 }
 
 select_scoped_project_action() {
@@ -3565,11 +4767,11 @@ select_scoped_project_action() {
   case "$choice" in
     1) scope=project ;;
     2)
-      read -rp 'Cycle [1-3]: ' value
+      read -rp 'Cycle [только 1; Cycle 2/3 frozen]: ' value
       scope="cycle:$value"
       ;;
     3)
-      read -rp 'Stage [0-7]: ' value
+      read -rp 'Stage [0-5]: ' value
       scope="stage:$value"
       ;;
     4)
@@ -3600,7 +4802,8 @@ menu_project_overview() {
   local unfinished
   unfinished="$(journal_latest_unfinished "$PROJECT" 2>/dev/null || true)"
   echo -e "  Незавершённый run: ${C}${unfinished:-нет}${N}"
-  echo -e "  Goal profile:      ${C}$(goal_profile_path)${N}"
+  echo -e "  Supported scope:   ${C}Cycle 1 / Stage 0-5${N}"
+  echo -e "  Cycle 2/3:         ${Y}FROZEN / NOT READY${N}"
   echo
   read -rp "$(echo -e "${W}Нажми Enter для возврата...${N} ")" _
 }
@@ -3653,19 +4856,15 @@ menu_project_repair() {
 }
 
 configure_cycle_runtime_matrix() {
-  local cycle entry supervisor_profile
+  local entry supervisor_profile
   supervisor_profile="$(current_profile)"
   SDLC_RUNTIME_ROUTING=per-agent
   export SDLC_RUNTIME_ROUTING
-  for cycle in 1 2 3; do
-    echo
-    echo -e "${W}Primary profile для Cycle $cycle:${N}"
-    select_step_profile || { apply_profile "$supervisor_profile" >/dev/null 2>&1 || true; return 1; }
-    case "$cycle" in
-      1) for entry in "${CYCLE1_AGENTS[@]}"; do write_routing_entry "agent:${entry%%:*}" "$SELECTED_PROFILE"; done ;;
-      2) for entry in "${CYCLE2_AGENTS[@]}"; do write_routing_entry "agent:${entry%%:*}" "$SELECTED_PROFILE"; done ;;
-      3) for entry in "${CYCLE3_AGENTS[@]}"; do write_routing_entry "agent:${entry%%:*}" "$SELECTED_PROFILE"; done ;;
-    esac
+  echo
+  echo -e "${W}Primary profile для поддерживаемого Cycle 1:${N}"
+  select_step_profile || { apply_profile "$supervisor_profile" >/dev/null 2>&1 || true; return 1; }
+  for entry in "${CYCLE1_AGENTS[@]}"; do
+    write_routing_entry "agent:${entry%%:*}" "$SELECTED_PROFILE"
   done
   apply_profile "$supervisor_profile"
 }
@@ -3678,6 +4877,9 @@ configure_agent_runtime_override() {
     echo -e "${R}Неизвестный Agent id: $agent${N}"
     return 1
   }
+  case "$agent" in
+    s4-devops|s6-release|s6-sre) cycle23_frozen_notice; return 1 ;;
+  esac
   select_step_profile || { apply_profile "$supervisor_profile" >/dev/null 2>&1 || true; return 1; }
   write_routing_entry "agent:$agent" "$SELECTED_PROFILE"
   apply_profile "$supervisor_profile"
@@ -3685,7 +4887,7 @@ configure_agent_runtime_override() {
 
 configure_exact_agent_matrix() {
   local choice
-  echo -e "${C}Сначала каждый Agent получает явный профиль своего Cycle; затем можно добавить overrides.${N}"
+  echo -e "${C}Сначала каждый Agent Cycle 1 получает явный профиль; затем можно добавить overrides.${N}"
   configure_cycle_runtime_matrix || return 1
   while true; do
     read -rp 'Добавить override для отдельного Agent? [y/N]: ' choice
@@ -3716,21 +4918,21 @@ complete_pending_first_run_ai_setup() {
 
 menu_ai_assignment() {
   header
-  echo -e "${W}── Кто выполняет основные этапы и кто помогает ────${N}"
+  echo -e "${W}── Primary routing и worker status ────────────────${N}"
   echo "Здесь можно изменить AI-настройку выбранного проекта. Она определяет"
-  echo "исполнителя каждого основного этапа и доступных ему read-only помощников,"
+  echo "исполнителя каждого основного этапа; workers пока отключены fail-closed,"
   echo "но не меняет порядок SDLC и сама ничего не запускает."
   echo "Перед реальным запуском итоговые назначения будут показаны в Preview."
   echo "Для Local обязательны host, provider и точный model id; fallback выключен."
   echo
   echo -e "${W}Основные исполнители:${N}"
   echo -e "  ${Y}1)${N} Одна AI-модель для всего проекта"
-  echo -e "  ${Y}2)${N} Своя AI-модель для каждого цикла"
+  echo -e "  ${Y}2)${N} Своя AI-модель для каждого Agent Cycle 1"
   echo -e "  ${Y}3)${N} Исключения для отдельных ролей"
   echo -e "  ${Y}4)${N} Спрашивать при подготовке каждого запуска"
-  echo -e "${W}AI-помощники и проверка:${N}"
-  echo -e "  ${Y}5)${N} Настроить отдельную AI-модель для read-only задач"
-  echo -e "  ${Y}6)${N} Показать текущие назначения и режим помощников"
+  echo -e "${W}Workers:${N} BLOCKED до capability-enforced bounded read scope"
+  echo -e "  ${Y}5)${N} Показать причину BLOCKED"
+  echo -e "  ${Y}6)${N} Показать текущие primary назначения и worker status"
   echo -e "  ${Y}b)${N} Назад"
   read -rp "$(echo -e "${W}Выбери:${N} ")" choice
   case "$choice" in
@@ -3758,31 +4960,110 @@ menu_ai_assignment() {
   esac
 }
 
+menu_tracker() {
+  local choice task_id reason title type owner points depends description goal start end tasks sprint expected
+  header
+  echo -e "${W}── Tracker выбранного проекта ───────────────────────${N}"
+  printf '%s\n' \
+    '  1) Sprint status (read-only)' \
+    '  2) Backlog (read-only)' \
+    '  3) Add task' \
+    '  4) Block task' \
+    '  5) Complete task (verified DoD required)' \
+    '  6) Initialize sprint' \
+    '  7) Close current sprint' \
+    '  8) Cycle report' \
+    '  b) Назад'
+  read -rp 'Выбери [1-8/b]: ' choice
+  case "$choice" in
+    1) run_agent_with_preview s0-tracker "$PROJECT" /sprint-status ;;
+    2) run_agent_with_preview s0-tracker "$PROJECT" /backlog ;;
+    3)
+      expected="$(tracker_next_task_id)" || return 1
+      read -rp 'Название задачи: ' title
+      read -rp 'Тип (feature|bug|chore|SDLC-artifact|research): ' type
+      read -rp 'Agent/исполнитель (или team): ' owner
+      read -rp 'Story Points (1|2|3|5|8|13): ' points
+      read -rp 'Зависит от (task ID или none): ' depends
+      read -rp 'Описание (одна строка, optional): ' description
+      [[ -n "$title" && "$type" =~ ^(feature|bug|chore|SDLC-artifact|research)$ &&
+         -n "$owner" && "$points" =~ ^(1|2|3|5|8|13)$ &&
+         ( "$depends" == none || "$depends" =~ ^T-[0-9]+$ ) ]] || {
+        echo -e "${R}BLOCKED: task fields are incomplete or invalid.${N}"; return 1;
+      }
+      run_agent_with_preview s0-tracker "$PROJECT" "/task-add expected-task=$expected"$'\n'\
+"Title: $title"$'\n'"Type: $type"$'\n'"Owner: $owner"$'\n'"SP: $points"$'\n'\
+"Depends on: $depends"$'\n'"Description: ${description:-none}"
+      ;;
+    4)
+      read -rp 'Exact task ID (T-NNN): ' task_id
+      read -rp 'Конкретная причина blocker: ' reason
+      [[ "$task_id" =~ ^T-[0-9]+$ && -n "$reason" ]] || {
+        echo -e "${R}BLOCKED: exact task ID and blocker reason are required.${N}"; return 1;
+      }
+      run_agent_with_preview s0-tracker "$PROJECT" "/task-block task=$task_id"$'\n'"Blocker reason: $reason"
+      ;;
+    5)
+      read -rp 'Exact task ID (T-NNN): ' task_id
+      [[ "$task_id" =~ ^T-[0-9]+$ ]] || {
+        echo -e "${R}BLOCKED: invalid task ID.${N}"; return 1;
+      }
+      run_agent_with_preview s0-tracker "$PROJECT" "/task-done task=$task_id"
+      ;;
+    6)
+      sprint="$(find "$(project_path)/tracking/sprints" -maxdepth 1 -type f -name 'sprint-*.md' 2>/dev/null |
+        sed -n 's#^.*/sprint-\([0-9][0-9]*\)\.md$#\1#p' | sort -n | tail -n 1)"
+      sprint=$((10#${sprint:-0} + 1))
+      read -rp 'Цель спринта (одна строка): ' goal
+      read -rp 'Дата начала (YYYY-MM-DD): ' start
+      read -rp 'Дата окончания (YYYY-MM-DD): ' end
+      read -rp 'Task IDs через запятую: ' tasks
+      [[ -n "$goal" && "$start" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ &&
+         "$end" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && -n "$tasks" ]] || {
+        echo -e "${R}BLOCKED: sprint goal, exact dates and task IDs are required.${N}"; return 1;
+      }
+      run_agent_with_preview s0-tracker "$PROJECT" "/sprint-init sprint=$sprint start=$start end=$end"$'\n'\
+"Sprint goal: $goal"$'\n'"Selected tasks: $tasks"$'\n'"Required sprint status: ACTIVE"
+      ;;
+    7)
+      sprint="$(tracker_current_sprint_number)" || {
+        echo -e "${R}BLOCKED: active sprint number is unavailable.${N}"; return 1;
+      }
+      run_agent_with_preview s0-tracker "$PROJECT" "/sprint-close sprint=$sprint"
+      ;;
+    8) run_agent_with_preview s0-tracker "$PROJECT" /report ;;
+    b|B|'') return ;;
+    *) return 1 ;;
+  esac
+}
+
 menu_utilities() {
   header
   echo -e "${W}── Утилиты выбранного проекта ───────────────────────${N}"
-  echo -e "  ${Y}1)${N} Secrets scan     ${C}(s0-secrets)${N}"
+  echo -e "  ${Y}1)${N} Secret mappings  ${C}(s0-secrets /env)${N}"
   echo -e "  ${Y}2)${N} Tracker          ${C}(s0-tracker)${N}"
   echo -e "  ${Y}3)${N} Quality gates    ${C}(s0-quality-gates)${N}"
-  echo -e "  ${Y}4)${N} GitHub helper    ${C}(s0-github)${N}"
-  echo -e "  ${Y}5)${N} Structure check ${C}(s0-validate)${N}"
+  echo -e "  ${Y}4)${N} Structure check ${C}(s0-validate)${N}"
+  echo -e "  ${Y}5)${N} Release notes   ${C}(s0-tracker /release-notes vX.Y.Z)${N}"
   echo -e "  ${Y}b)${N} Назад"
   read -rp "$(echo -e "${W}Выбери:${N} ")" choice
   local agent task
   case "$choice" in
     1) agent=s0-secrets; task=/env ;;
-    2) agent=s0-tracker; task=/sprint-status ;;
+    2) menu_tracker; return ;;
     3) agent=s0-quality-gates; task=/validate-gates ;;
-    4) agent=s0-github; task=/status ;;
-    5) agent=s0-validate; task=/validate ;;
-    b|B|'') return ;;
+    4) agent=s0-validate; task=/validate ;;
+    5)
+      local version
+      read -rp "Версия vMAJOR.MINOR.PATCH: " version
+      [[ -n "$version" ]] || return 1
+      run_agent_with_preview s0-tracker "$PROJECT" "/release-notes $version"
+      return
+      ;;
+    b|B|"") return ;;
     *) return 1 ;;
   esac
-  local -a RUN_CYCLE=("$agent:$task")
-  local -a RUN_OPTIONAL=(0)
-  render_execution_preview UTILITY "$agent $task" 'остальные utilities'
-  read -rp 'r — запустить, b — назад: ' choice
-  [[ "$choice" =~ ^[rR]$ ]] && run_agent "$agent" "$PROJECT" "$task"
+  run_agent_with_preview "$agent" "$PROJECT" "$task"
 }
 
 menu_unfinished_run() {
@@ -3844,7 +5125,7 @@ retry_journal_run() {
   EXECUTION_SCOPE="child retry of $parent_run from original step $next/$total"
   EXECUTION_EXCLUDED="proven steps 1-$((next - 1)); all scopes outside parent plan"
   EXECUTION_TITLE="Retry $parent_run"
-  EXECUTION_CYCLE_ID=0
+  EXECUTION_CYCLE_ID=1
   PARENT_RUN_ID="$parent_run"
   USE_EXISTING_FROZEN_ROUTES=1
   render_execution_preview "$EXECUTION_TYPE" "$EXECUTION_SCOPE" "$EXECUTION_EXCLUDED"
@@ -3961,7 +5242,7 @@ menu_settings() {
     [[ "$AGENT_RUNTIME" == "local" ]] &&
       echo -e "  Local:    ${C}$LOCAL_AGENT_HOST / $LOCAL_MODEL_PROVIDER / $LOCAL_MODEL${N}"
     echo -e "  Routing:  ${C}$SDLC_RUNTIME_ROUTING${N}"
-    echo -e "  Subagents:${C} $SDLC_SUBAGENTS (max $SDLC_SUBAGENT_MAX)${N}"
+    echo -e "  Workers:  ${C}off — BLOCKED до bounded read enforcement${N}"
     if [[ "$SDLC_SUBAGENTS" == "cross-runtime" ]]; then
       echo -e "  Worker:   ${C}$(subagent_profile_label)${N}"
       echo -e "  Tasks:    ${C}$SDLC_SUBAGENT_TASKS${N}"
@@ -3976,7 +5257,7 @@ menu_settings() {
     echo -e "  ${Y}2)${N} Настроить local profile (host/provider/exact model)"
     echo -e "  ${Y}3)${N} Выбрать routing policy"
     echo -e "  ${Y}4)${N} Добавить/изменить per-stage или per-agent route"
-    echo -e "  ${Y}5)${N} Настроить subagents"
+    echo -e "  ${Y}5)${N} Показать статус workers"
     echo -e "  ${Y}6)${N} Изменить каталог SDLC-проектов"
     echo -e "  ${Y}7)${N} Проверить основной runtime/profile"
     echo -e "  ${Y}8)${N} Переключить подробный/краткий вид"

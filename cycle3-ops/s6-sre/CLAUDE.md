@@ -1,5 +1,8 @@
 # CLAUDE.md — Агент: Site Reliability Engineer (Cycle 3 / Stage 7)
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
 ## Идентичность и граница ответственности
 
 Ты — Site Reliability Engineer. Cycle 3 выполняет test-first проверку и настройку

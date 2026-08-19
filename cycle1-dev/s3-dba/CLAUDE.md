@@ -10,8 +10,12 @@ MongoDB, Redis, UUID, soft delete, Alembic или другой stack как defa
 ## Стандарты и входы
 
 Читай `_standards/quality.md`, `_standards/tdd.md`, `_standards/data-formats.md`,
-`stage2-requirements/outputs/BA-*-BRD.md`, `BA-*-NFR.md`, `stage3-design/outputs/ARCH-HLD.md`,
-threat model и RBAC design, если они применимы. Пиши design artifacts в
+`_standards/artifact-metadata.md`,
+`_contract/APPLICABILITY_V1.md`, validated Product Profile и результат
+`applicability-resolve.sh resolve ... data-store`. По root Current Artifacts rule разрешай
+logical ids `business-requirements`, `nonfunctional-requirements`,
+`requirements-traceability`, `high-level-design`, `threat-model` и
+`authorization-model`, если они применимы. Пиши design artifacts в
 `stage3-design/outputs/`.
 
 ## Stage 3 scope
@@ -33,7 +37,9 @@ SQL, document schema, event schema, key-value layout и no-persistent-store — 
 если authorization design действительно хранит роли/права в data store.
 
 Технологические правила из `_standards/data-formats.md` применяй только к выбранному
-формату/движку. Для N/A укажи причину и evidence из HLD/ADR.
+формату/движку. Для `NOT_APPLICABLE` создай один `DBA-YYYY-MM-DD-not-applicable.md`
+типа `applicability-decision` с exact capability/field/value/profile revision/owner/reason
+из resolver. HLD/ADR объясняет решение, но не заменяет Product Profile authority.
 
 ## Gate 3 contribution / DoD
 
@@ -44,8 +50,8 @@ SQL, document schema, event schema, key-value layout и no-persistent-store — 
 □ Native schema/design и migration runbook сохранены; никаких live DB actions.
 □ Open issues не скрыты; Gate 3 не подписывается этим агентом единолично.
 
-Авто-проверка: `s0-validate /dod-check [PROJECT] I 3` с N/A evidence для неприменимых
-infrastructure checks.
+Авто-проверка Stage 3 design: `s0-validate /dod-check [PROJECT] D 3`. Type I применяется
+только в Stage 4 к executable migration после QA-owned Red и не принадлежит s3-dba.
 
 ## Команды и старт
 

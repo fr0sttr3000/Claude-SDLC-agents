@@ -6,6 +6,16 @@
 Агенты изолированы; данные передаются только через файлы в каталоге `SDLC_PROJECTS_DIR`.
 Governance/handoff ведутся Markdown-first, но executable tests/code, API schemas, SQL/IaC и
 другие native artifacts сохраняют свой формат и трассируются к Markdown evidence.
+Каждый новый или существенно изменённый governance/handoff/report/gate Markdown artifact
+Cycle 1 использует единый `_standards/artifact-metadata.md`; legacy-файлы не переписываются
+массово и до касания считаются `LEGACY / UNVERIFIED`.
+Producer outputs и consumer handoff используют `_contract/current-artifact-groups-v1.tsv` и
+`tracking/current-artifacts-v1.tsv` по `_contract/CURRENT_ARTIFACTS_V1.md`: date-versioned
+файлы сохраняются как история, а current logical id всегда связан с exact digest/run/plan.
+
+**Поддерживаемый scope:** общая платформа и Cycle 1. Cycle 2/3 — `FROZEN / NOT READY`:
+их код и historical artifacts сохранены, но launcher не предоставляет маршрут выполнения,
+а Gate 6/7 и SG5 не блокируют Cycle 1.
 
 ## Структура vault
 ```
@@ -16,24 +26,25 @@ _agents/
   AGENTS.md         ← Codex adapter к каноническим CLAUDE.md
   GEMINI.md         ← Gemini adapter к каноническим CLAUDE.md
   .codex/           ← Codex project config
-  _tools/           ← Утилиты для всех циклов (s0-github, s0-secrets)
+  _tools/           ← Общие product utilities вне stage ordering (s0-secrets)
   cycle1-dev/       ← 27 каталогов: 23 SDLC-агента + 4 Local Run (l1-l4)
-  cycle2-deploy/    ← Цикл 2: Деплой (s4-devops, s6-release)
-  cycle3-ops/       ← Цикл 3: Эксплуатация (s6-sre)
-  plans/            ← Принципы, roadmap и карта связей документации
-  sdlc.sh           ← Главный лаунчер (циклы 1 → 2 → 3)
+  cycle2-deploy/    ← Historical Cycle 2 code (FROZEN / NOT READY)
+  cycle3-ops/       ← Historical Cycle 3 code (FROZEN / NOT READY)
+  plans/            ← Только устойчивые принципы и единый актуальный roadmap
+  sdlc.sh           ← Главный launcher поддерживаемого Cycle 1
+  sdlc.ps1          ← Windows adapter к каноническому sdlc.sh
   localrun.sh       ← Раздел «Локальные репозитории»
+  localrun.ps1      ← Windows adapter к каноническому localrun.sh
+  OVERVIEW.md       ← Архитектурный обзор системы
 _secrets/           ← Документация по управлению секретами (pass)
 $SDLC_PROJECTS_DIR/ ← Артефакты проектов (inputs/outputs по этапам + tracking/), настраивается launcher-ом
-Local_Run/          ← Заметки по локальным проектам с GitHub
-OVERVIEW.md         ← Полный обзор системы
+Local_Run/          ← Заметки по локальным repositories независимо от forge/provider
 ```
 
 ## Навигация по документации проекта
 
 - `plans/principles.md` — отдельный канонический источник устойчивых принципов проекта;
 - `plans/roadmap.md` — единственный источник активных и долгосрочных планов развития;
-- `plans/document-map.md` — связь документов, их назначение и правила синхронизации;
 - `CHANGELOG.md` и `RELEASE_NOTES_v*.md` — релизная история, обновляемая при подготовке релиза.
 
 Исполняемые `sdlc.sh`, `localrun.sh` и `_runtimes/agent-run.sh` являются реализацией, а не
@@ -46,14 +57,18 @@ $SDLC_PROJECTS_DIR/{PROJECT}/
   stage1-planning/inputs/       ← входные данные (idea.md и др.)
   stage1-planning/outputs/      ← артефакты агентов (PM-*.md, PMO-*.md)
   stage2-requirements/.../
-  ...
-  stage7-ops/.../
+  stage3-design/.../
+  stage4-dev/.../
+  stage5-testing/.../
   tracking/                     ← управление задачами (s0-tracker)
     backlog.md
     current-sprint.md
     cycle-summary.md
     sprints/sprint-NN.md
 ```
+
+В старых Projects могут существовать `stage6-deploy/` и `stage7-ops/`. Это historical
+Cycle 2/3 paths (`FROZEN / NOT READY`); новая active структура их не требует и не создаёт.
 
 ## Universal Runtime Contract
 
@@ -76,53 +91,70 @@ AGENT_RUNTIME=local LOCAL_AGENT_HOST=codex-oss \
   bash "$SDLC_VAULT/_agents/sdlc.sh"
 ```
 
+Windows wrappers `./sdlc.ps1` и `./localrun.ps1` имеют статус
+`EXPERIMENTAL / NOT TESTED ON WINDOWS`: тонкий adapter находит Git for Windows Bash (либо
+явный `SDLC_BASH`) и запускает те же канонические `.sh`; отдельной Windows-версии SDLC-логики
+нет. Real Windows matrix обязан проверить parser/mutation, auto/explicit Bash, пробелы и
+не-ASCII, UNC rejection, argv и exit code на exact revision. Само наличие workflow не является
+evidence его успешного запуска: Windows не входит в supported scope до отдельного решения.
+
 Локальный профиль всегда содержит точные `LOCAL_AGENT_HOST`, `LOCAL_MODEL_PROVIDER` и
 `LOCAL_MODEL`. Встроенный host `codex-oss` поддерживает Ollama/LM Studio; vLLM, llama.cpp и
 OpenAI-compatible endpoints подключаются зарегистрированными исполняемыми agent-host adapters.
 Политика `SDLC_RUNTIME_ROUTING=single|per-stage|per-agent|ask` разрешает единый или гибридный
 маршрут. Отсутствующая привязка — ошибка: default model и silent fallback запрещены.
 
-Для каждого шага `SDLC_SUBAGENTS=off|auto|cross-runtime` явно выключает или разрешает bounded read-only
-subagents; `SDLC_SUBAGENT_MAX` задаёт лимит. Основной агент остаётся единственным writer и
-подписантом gate согласно `_contract/SUBAGENTS.md`.
+Codex task processes must ignore ambient user configuration. Primary Codex и встроенный
+`codex-oss` запускаются только как новый `codex exec --ignore-user-config --ephemeral` task;
+вложенные `interactive|session-start` для них завершаются fail-closed до старта runtime.
 
-Режим `SDLC_SUBAGENTS=cross-runtime` включает vendor-neutral схему **Supervisor + Worker**:
-основной профиль шага является supervisor и единственным writer/gate signer, а отдельный
-`SDLC_SUBAGENT_PROFILE` задаёт точный runtime/model для bounded read-only workers.
-`SDLC_SUBAGENT_TASKS` явно ограничивает допустимые типы задач. Supervisor обязан проверить
-каждый результат по каноническим файлам; worker failure блокирует или повторяет делегирование,
-но не включает silent fallback и не передаёт worker-у право записи.
-Capability-enforced workers: Claude, Codex и Local `codex-oss`. Gemini и произвольный
-local host остаются допустимыми primary profiles, но не выбираются workers до появления
-enforceable read-only adapter.
+Primary agent runtimes do not mutate repository history or remotes and do not create commits,
+pushes, pull requests или tags. Runtime write scope ограничен exact Project/notes paths;
+VCS control-plane остаётся вне agent dispatch. PR/source identifiers в контрактах — входные
+evidence, а не разрешение агенту создавать или публиковать их.
+
+Перед запуском primary cycle/tool agent общий dispatcher устанавливает на Linux обязательную
+Landlock-границу. Метаданные VCS исходного checkout и заданные локально runtime-denied roots
+недоступны агентскому процессу для open/read/list/write; публичный канон остаётся читаемым,
+а точные Project/notes scopes получают только права, определённые runtime-контрактом. Если
+Landlock, helper source, compiler, cache validation или enforcement недоступны, dispatch
+завершается fail-closed. Эта граница primary runtime не включает worker capability.
+
+Текущий исполняемый режим — только `SDLC_SUBAGENTS=off`. Значения `auto|cross-runtime` и прямой
+`subagent-run.sh` завершаются fail-closed с `BLOCKED`: существующие adapters не доказывают
+bounded read scope на уровне runtime/OS. Prompt-only ограничение не считается изоляцией.
+Принцип **Supervisor + Worker** сохранён как будущая опциональная схема: primary остаётся
+единственным writer/gate signer, но workers нельзя включать до появления проверяемого read
+boundary и соответствующих negative tests. См. `_contract/SUBAGENTS.md`.
 
 ## Как работать с агентами
-```bash
-# Через лаунчер (рекомендуется): runtime выбирается в меню или env-переменной.
-bash "$SDLC_VAULT/_agents/sdlc.sh"
-AGENT_RUNTIME=codex bash "$SDLC_VAULT/_agents/sdlc.sh"
-AGENT_RUNTIME=gemini bash "$SDLC_VAULT/_agents/sdlc.sh"
 
-# Напрямую через universal dispatcher.
-AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" \
-  --agent-dir "$SDLC_VAULT/_agents/cycle1-dev/s1-pm" \
-  --mode task \
-  --prompt "Создай Feasibility Study для проекта my-project"
-```
+Единственный пользовательский маршрут описан в `README.md` и начинается с `sdlc.sh` либо
+`localrun.sh`. `_runtimes/agent-run.sh` — внутренний dispatcher launcher-а, а не
+пользовательский entrypoint: прямой вызов обходит launcher-owned Preview, Execution Journal,
+capability registry и orchestration gates.
 
 ## Агенты — инфраструктура (этап 0)
 | Агент | Роль | Ключевые команды |
 |-------|------|-----------------|
-| `s0-kickoff` | Project Kickoff — онбординг / обновление беклога | `/start`, `/new`, `/refresh` |
+| `s0-kickoff` | Project Kickoff — онбординг / Product & CI facts / обновление беклога | `/start`, `/new`, `/refresh`, `/product-ci-profile` |
 | `s0-secrets` | Secrets Manager | `/add`, `/rotate`, `/env` |
-| `s0-github` | GitHub Sync | `/init`, `/sync`, `/push`, `/status`, `/branch`, `/pr` |
-| `s0-validate` | Validator / scoped Review & Repair | `/validate`, `/fix`, `/dor-check`, `/dod-check`, `/review`, `/repair` |
-| `s0-tracker` | Sprint & Task Tracker | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/task-add`, `/task-done`, `/task-block`, `/backlog` |
-| `s0-quality-gates` | Quality Gates Configurator — проектные пороги из risk-профиля (после S1, до S2) | `/configure`, `/validate-gates` |
+| `s0-validate` | Validator / scoped Review & Repair | `/validate`, `/fix`, `/profile-check`, `/evidence-check`, `/evidence-summary`, `/migration-report`, `/dor-check`, `/dod-check`, `/review`, `/repair` |
+| `s0-tracker` | Sprint & Task Tracker | `/sprint-init`, `/sprint-close`, `/sprint-status`, `/report`, `/release-notes vX.Y.Z`, `/task-add`, `/task-done`, `/task-block`, `/backlog` |
+| `s0-quality-gates` | Quality Gates Configurator — only-up пороги + profile-bound quality coverage (после S1, до S2) | `/configure`, `/validate-gates` |
 
 ## Цикл 1 — Разработка (28 обязательных шагов)
-Запуск: Project Console → `6 Один Cycle` → `Cycle 1`. Деплой (Cycle 2) и эксплуатация
-(Cycle 3) — отдельные активные test-first циклы в выбранной среде.
+Запуск: Project Console → `5 Cycle 1`. Это единственный поддерживаемый SDLC route.
+Cycle 2/3 отображаются только как `FROZEN / NOT READY`.
+
+До первого шага launcher детерминированно проверяет versioned
+`tracking/product-ci-profile.yaml` по `_contract/PRODUCT_CI_PROFILE.md`. Missing, unknown,
+inferred или stale revision блокирует Stage 1 и возвращает к `s0-kickoff /product-ci-profile`.
+Новая/обновлённая schema v5 выбирает существующий evidence executor, фиксирует UX,
+представительную S5 environment/PERF/SG4 и quality-characteristic applicability. После S1
+`s0-quality-gates` создаёт `quality-characteristics-v1.tsv` и Obsidian view с existing
+owners/contracts/Gates. Core не генерирует vendor pipeline/test platform, не выводит scope по
+product type и не разрешает профилю снижать global minimum.
 
 | Этап | Агент | Ключевые команды |
 |------|-------|-----------------|
@@ -136,111 +168,121 @@ AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" \
 | 2 — Требования | `s2-security` | `/security-requirements` (SG1: abuse cases, классификация данных, ASVS) |
 | 3 — Дизайн | `s3-arch` | `/hld`, `/adr` |
 | 3 — Дизайн | `s3-security` | Threat Model |
-| 3 — Дизайн | `s3-rbac` | `/rbac-model`, `/rbac-matrix` |
-| 3 — Дизайн | `s3-dba` | DB Schema |
+| 3 — Дизайн | `s3-rbac` | `/rbac-model`; `/rbac-matrix` — optional refinement через One Agent |
+| 3 — Дизайн | `s3-dba` | `/schema`, `/migration` (design/N-A, без live DB action) |
 | 4 — Разработка | `s4-qa-auto` | `/write-tests`, `/run-tests` — Red до кода, независимый verdict после кода |
 | 4 — Разработка | `s4-dev` | Green/Repair, Dev Report, Update Notes (обязательно после каждого PR) |
 | 4 — Разработка | `s4-techlead` | Code Review (блокирует PR без обновлённой документации) |
 | 5 — Тестирование | `s5-qa` | Test Plan, Go/No-Go |
 | 5 — Тестирование | `s5-qa-auto` | E2E/API тесты |
 | 5 — Тестирование | `s5-perf` | Load Tests |
+| 5 — Тестирование | `s5-security` | `/security-test` — SG4 DAST/pentest по применимому tier |
 | Финал | `s0-tracker` | `/report` (план vs факт) |
-| Финал | `s0-github` | `/push` (push в ветку) |
 
-## Циклы 2 и 3 — активные test-first workflow
+После verified completion Utilities → Release notes вызывает только
+`s0-tracker /release-notes vX.Y.Z`: создаёт versioned Project Markdown, не меняет completion
+manifest и не выполняет external publication/build/deploy/Cycle 2/3.
 
-Единый per-project контракт цели хранится в
-`$SDLC_PROJECTS_DIR/{PROJECT}/tracking/SDLC-goals.md`. Он настраивается при
-входе в Cycle 1 или позднее частично из пункта launcher «Цели Cycle 2/3».
-Silent infrastructure defaults запрещены: создаются только выбранные
-deliverables. Cycle 2 требует DEPLOY-TDD-status RED→PASS; Cycle 3 —
-OPS-TDD-status RED→PASS.
+## Циклы 2 и 3 — FROZEN / NOT READY
 
-Launcher показывает четыре явных маршрута:
-`Только Cycle 1`, `Cycle 1 → 2`, `Cycle 1 → 2 → 3` и свою комбинацию.
-Deliverables выбираются из нумерованного списка, а не вводом внутренних id.
+Каталоги `cycle2-deploy/`, `cycle3-ops/`, старые goal profiles и Stage 6/7 artifacts
+сохранены как historical implementation baseline. Они не являются supported capability,
+не запускаются напрямую или через agent menu и не используются как readiness evidence.
+Migration boundary и условия будущего redesign зафиксированы в `plans/roadmap.md`; redesign начинается только
+после отдельного решения о разморозке.
 
 ## Project Console и Execution Journal
 
+Runtime exit `0` фиксирует только `PROCESS_OK`. `_contract/command-capabilities-v1.tsv`
+классифицирует все active commands. Mutating-шаг завершается только после изменения каждого
+declared output group (`ARTIFACT_VERIFIED`); capability-enforced read-only команда без outputs
+получает отдельный `READ_ONLY_VERIFIED`. Special commands выполняются только своим launcher
+workflow. Автоматизируемая часть Software DoD имеет verdict `DOD_AUTO_PASS`; полный
+`DOD_PASS` launcher записывает только после независимой проверки Human Approval v1, всех
+`DOD-1`–`DOD-11` и digest-bound current Tech Lead reviews. Quality/Security Gate использует
+`GATE_PASS`. Свободный Markdown `status: PASS` не является verified machine result и блокирует
+обязательный gate как `UNVERIFIED/BLOCKED`.
+
 `sdlc.sh` сначала выбирает SDLC Project, затем держит его имя и absolute path
 в Project Console. Подробный и краткий виды используют одну карту действий.
-Kickoff, Goal, One Cycle, One Agent, Review, Repair, AI и Utilities — разные
+Kickoff, Cycle 1, frozen-status, One Agent, Review, Repair, AI и Utilities — разные
 user flows. Успешный Kickoff не запускает разработку автоматически.
+Изменяющие Tracker commands запускаются только через Utilities → Tracker с exact arguments,
+Preview/Journal и registry-named postcondition verifier; process exit без него остаётся
+`UNVERIFIED`.
 
 Перед Cycle/Repair/utility execution обязателен Preview с TYPE/SCOPE/EXCLUDED,
 ordered routes, точным Local model и `Fallback OFF`; dispatch разрешён только
 после явного подтверждения. Cycle-run хранит frozen plan, atomic state и
-append-only evidence в `{PROJECT}/tracking/execution-journal/runs/{run-id}/`
+launcher-owned evidence вне Project write scope в `/sdlc-agents/execution-journal/projects/{PROJECT}-{path-digest}/runs/{run-id}/`
 по контракту `_contract/EXECUTION_JOURNAL.md`.
 
 AI policy/base profile/routes хранятся project-locally. Frozen plan фиксирует
 effective profile и route source каждого step. INTERRUPTED run сначала открывает
-evidence; retry создаёт linked child run из оставшихся шагов и не вызывает
-vendor session resume.
+evidence; retry создаёт linked child run с exact remaining frozen suffix и не вызывает
+vendor session resume. Resume не пропускает шаг без его Gate/DoD/completion hooks. Verified
+completion связывает root CYCLE и все RESUME children в launcher-owned digest chain; current
+artifacts из постороннего run блокируются.
 
 `localrun.sh` показывается пользователю как «Локальные репозитории», имеет
 собственный AI/routing-профиль и не наследует effective route последнего SDLC Agent.
 Full pipeline и batch update технических заметок показывают exact Preview; первый
 skip/failure завершает последовательность как incomplete, а не success.
 
-| Цикл | Агент | Назначение |
-|------|-------|-----------|
-| 2 — Деплой | `s4-devops` | Intake → tests/RED → delivery → tests/PASS |
-| 2 — Деплой | `s6-release` | `/release-notes` → `/release-checklist` (Gate 6) |
-| 3 — Эксплуатация | `s6-sre` | Intake → ops tests/RED → config → PASS → Post-Deploy/Gate 7 |
-
 ## Система качества и надёжности
 
 **Канонические стандарты (читать перед каждой задачей):**
 - `$SDLC_VAULT/_agents/_standards/tdd.md` — Specify → Red → Green → Run → Repair → Refactor, test-first применимость и BLOCKED repair loop
 - `$SDLC_VAULT/_agents/_standards/quality.md` — DoD, DoR, Gates, NFR, test pyramid (§3.1), ISO 25010 (§4.1), Auto-Heal, Known Issues (§6.1), метрики (§7)
-- `$SDLC_VAULT/_agents/_standards/security.md` — параллельный Security-трек SG1–SG5 (CVSS, threat model, RBAC, SAST/SCA, pentest)
+- `$SDLC_VAULT/_agents/_standards/security.md` — active Security-трек SG1–SG4; SG5 historical/frozen
 - `$SDLC_VAULT/_agents/_standards/data-formats.md` — форматы DB/ENV/API, обязательные тесты форматов
 
 ### Quality Gates — принудительные переходы между этапами
 Переход заблокирован, пока Gate не закрыт. Агент следующего этапа проверяет Gate ПЕРВЫМ делом.
-Параллельно действует **Security-трек SG1–SG5** (security.md §3): этап пройден только когда
+Параллельно действует **active Security-трек SG1–SG4** (security.md §3): этап пройден только когда
 зелёный И Quality Gate, И соответствующий Security Gate.
 
 | Переход | Gate (+ Security Gate) | Кто проверяет |
 |---------|------|--------------|
 | S1 → S2 | Feasibility + Charter + Риски | **s2-ba** |
-| S2 → S3 | BRD + NFR с числами + QA-REQ review (0 BLOCKER) + test strategy + **SG1** | **s3-arch** |
-| S3 → S4 | HLD + применимые API/Auth/Data artifacts или N/A evidence + test strategy + **SG2** | **s4-dev** |
-| S4 → S5 | Все PR + DoD + QA-TDD-status=PASS + branch≥80%+mutation + integration/contract + **SG3** (SAST/SCA) | **s5-qa** |
-| S5 → S6 | Go/No-Go + Functional Suitability (Must-FR↔RTM) + UAT + PERF PASS + Known Issues + **SG4** | **s6-release** |
-| S6 → PROD | DEPLOY-TDD=PASS + checklist + release notes + rollback проверен | **s6-release** |
-| PROD → S7 | OPS-TDD=PASS + Monitoring + Auto-Heal + SLO Review + **SG5** | **s6-sre** |
+| S2 → S3 | BRD/NFR + QA/test strategy + Must-FR UAT + UX/A11Y applicability + Quality Characteristics v1 + **SG1** | **s3-arch** |
+| S3 → S4 | HLD quality scope + применимые API/Auth/Data artifacts или N/A evidence + **SG2** | **s4-dev** |
+| S4 → S5 | Exact-source Evidence v1 + compatibility + only-up + executor controls + five-dimension maintainability + **SG3** | **s5-qa** |
+| S5 → Cycle 1 validated | Exact-source S5 Validation v1: full affected regression + UAT approval + PERF + **SG4** + single defects + Go/No-Go | **s5-qa** |
+
+Gate 6/7 и SG5 — `FROZEN / NOT SUPPORTED`; они не входят в active переходы.
 
 ### Неотменяемые правила (нарушение = BLOCKER)
 - Definition of Done (DoD) обязателен для каждой задачи — все 11 пунктов (включая DoD-11: тесты форматов)
-- Definition of Ready (DoR) обязателен перед стартом каждого этапа — все 8 пунктов
+- Definition of Ready (DoR) обязателен перед стартом каждого active этапа — все применимые пункты
 - Secrets никогда не в коде, логах, .md-файлах
 - Critical/High уязвимости (CVSS ≥ 7.0) блокируют релиз (severity по CVSS — security.md §1)
-- Некритичный дефект (S3/S4) с user-facing impact в проде — только через known-issues.md (workaround + detection signal + runbook), иначе это «проигнорированный» дефект (quality.md §6.1)
+- Некритичный дефект S3/S4 или security Low/Medium с user-facing impact — только через полный
+  Known Issue + Tech Debt/Patch SLA + отдельный Human Approval v1; security Medium также требует
+  Risk Exception v3; operational runbook deferred
 - UAT только в реальной системе, не в эмуляторе
-- Rollback-план до деплоя, не после
-- Выбранные operational/auto-heal capabilities должны иметь tests/evidence; неприменимость обоснована
-- Выбранные SLO/alert capabilities должны иметь точные NFR thresholds и stack-native evidence
-- Следующий релиз заблокирован, если Gate 7 предыдущего не закрыт
+- Reliability/security/observability решения Cycle 1 выводятся из точных NFR и topology;
+  deployment/operations execution не подставляется и не обещается
 
 ## Правила именования файлов
-```
-Входные:   [ROLE]-input-[описание].md              → BA-input-interview.md
-Выходные:  [ROLE]-YYYY-MM-DD-[артефакт].md         → BA-2026-05-10-BRD.md
-Трекер:    tracking/sprints/sprint-NN.md
-Docs:      DEV-YYYY-MM-DD-update-notes-PR[N].md    → stage4-dev/outputs/
-           REL-YYYY-MM-DD-release-notes-v[X.Y.Z].md → stage6-deploy/outputs/
-           CHANGELOG.md                             → корень проекта
-```
+Точные producer patterns, cardinality и stable logical ids определены только в
+`_contract/current-artifact-groups-v1.tsv`; роли и commands не вводят параллельные имена.
+Date-versioned файлы не перезаписываются и не удаляются. Launcher после проверки output groups
+атомарно обновляет `tracking/current-artifacts-v1.tsv`; при смене Product Profile revision
+current rows пересобираются, а история остаётся на месте. Historical Stage 6/7 naming не
+является разрешённым Cycle 1 output.
 
 ## Передача данных между агентами
-Агент читает артефакты предыдущего этапа через абсолютный путь.
+Агент получает exact Project root через окружение, а Project artifacts предыдущего этапа
+разрешает по logical id через `current-artifact.sh resolve-compatible[-one]`. Если manifest
+существует, missing/stale/tampered row блокирует чтение без glob fallback. Legacy lookup
+допустим только при полном отсутствии manifest и всегда помечается `LEGACY / UNVERIFIED`.
 НЕ ПЕРЕДАВАЙ историю диалога. Только финальные файлы из outputs/.
 
 ```bash
-# Пример: s2-ba читает результат s1-pm
-AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" --agent-dir "$SDLC_VAULT/_agents/cycle1-dev/s2-ba" --mode task --prompt "Прочитай $SDLC_PROJECTS_DIR/my-project/stage1-planning/outputs/PM-2026-05-10-feasibility.md и создай BRD"
+# Пример: получить current feasibility-study без угадывания даты в имени
+bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/current-artifact.sh" \
+  resolve-compatible-one "$SDLC_PROJECTS_DIR/my-project" feasibility-study
 ```
 
 ## Пути проекта (env-переменные, КРИТИЧНО)
@@ -253,8 +295,8 @@ AGENT_RUNTIME=codex "$SDLC_VAULT/_agents/_runtimes/agent-run.sh" --agent-dir "$S
 | `SDLC_VAULT` | корень установки/vault со стандартами и `_agents` | `$SDLC_VAULT/_agents/_standards/quality.md` |
 | `SDLC_PROJECTS_DIR` | каталог-родитель SDLC-проектов | `$SDLC_PROJECTS_DIR/{PROJECT}/...` |
 | `SDLC_PROJECTS_MODE` | режим выбора проектов: `collection` или `single` | `single` |
-| `SDLC_SINGLE_PROJECT` | имя активного проекта в режиме `single` | `FamilyPlannerBot` |
-| `LOCALRUN_PROJECTS` | локальные GitHub-проекты (L-агенты) | `$LOCALRUN_PROJECTS/{PROJECT}/` |
+| `SDLC_SINGLE_PROJECT` | имя активного проекта в режиме `single` | `ExampleProject` |
+| `LOCALRUN_PROJECTS` | локальные repositories (L-агенты) | `$LOCALRUN_PROJECTS/{PROJECT}/` |
 
 В режиме одного проекта launcher показывает путь к конкретному проекту, но `SDLC_PROJECTS_DIR` остаётся родительским каталогом для совместимости с контрактом `$SDLC_PROJECTS_DIR/{PROJECT}`.
 
@@ -276,29 +318,34 @@ cd /some/project && git log
 
 **Для всех файловых операций** используй только абсолютные пути (через env-переменные выше). Никогда не полагайся на текущую директорию для записи или чтения файлов.
 
-**Верификация директории перед записью (КРИТИЧНО):** перед первой записью в директорию проекта — прочитай хотя бы один существующий файл оттуда, чтобы убедиться, что путь правильный. НЕ полагайся на память о расположении проекта из прошлых сессий — директория могла измениться. Если целевая папка пуста или не читается — уточни путь у пользователя, не угадывай. (INC-01)
+**Верификация директории перед записью (КРИТИЧНО):** перед первой записью в директорию проекта — прочитай хотя бы один существующий файл оттуда, чтобы убедиться, что путь правильный. НЕ полагайся на память о расположении проекта из прошлых сессий — директория могла измениться. Если целевая папка пуста или не читается — уточни путь у пользователя, не угадывай.
 
-## Поведенческие правила агентов (из prod-инцидентов FamilyPlannerBot)
-Обязательны для всех агентов Цикла 1. Источник — пост-мортемы FamilyPlannerBot Sprint 4.
+## Поведенческие правила агентов
+Обязательны для всех агентов Цикла 1.
 
-- **Git — не для отката.** Никогда не использовать `git checkout/reset/restore` для отмены ошибочных правок — откатывать вручную через Edit, восстанавливая содержимое файла. Любые git-операции выполняются ТОЛЬКО через агента `s0-github` или по явному запросу пользователя. (INC-02)
-- **Запись файлов — самостоятельно.** Реализацию и правку кода/артефактов делать напрямую через Read/Edit/Write. НЕ делегировать запись сабагентам (Agent) или runtime CLI в отдельном процессе — у них может не быть прав, изменения молча не применятся (exit 0, файл не тронут). Сабагенты — только для read-only задач (поиск, анализ). (INC-03)
-- **«Все» = полный вывод.** Если пользователь просит «все» (задачи, список и т.п.) — выводить целиком, без сокращений «ради краткости». Явное «все/полный» перевешивает дефолт на лаконичность. (INC-05)
-- **Deployment constraint — учитывать.** Не предлагать действий, противоречащих модели деплоя проекта (напр. «выкатить в тест», когда тестовой среды нет — деплоятся только стабильные версии в prod). Читать `Deployment Constraint` из idea.md. (INC-07)
+- **Интерактивный старт — общий.** На явное сообщение `начни сессию` представь роль и этап,
+  кратко перечисли зарегистрированные для этой роли задачи/команды и предложи следующее
+  допустимое действие. Используй Project, уже выбранный launcher-ом; не спрашивай его повторно.
+  Если агент запущен без exact Project, запроси его у пользователя и не угадывай. Ролевые
+  `CLAUDE.md` описывают только отличия роли и не копируют этот общий сценарий.
+- **Primary выполняет задачу без workers.** В текущем режиме не вызывай subagents/workers
+  ни для записи, ни для read-only анализа и не запускай отдельный runtime CLI как скрытого
+  worker. Реализацию, поиск и анализ выполняет текущий primary agent; он остаётся единственным
+  writer и gate signer. Bounded read-only workers относятся только к будущей модели из
+  `_contract/SUBAGENTS.md` и недоступны, пока `SDLC_SUBAGENTS=off`.
+- **«Все» = полный вывод.** Если пользователь просит «все» (задачи, список и т.п.) — выводить целиком, без сокращений «ради краткости». Явное «все/полный» перевешивает дефолт на лаконичность.
+- **Runtime Constraints — учитывать.** Не предлагать действий, противоречащих
+  подтверждённым ограничениям запуска и проверки продукта. Читать `Runtime Constraints`
+  из `idea.md` и сохранять trace по `_contract/RUNTIME_CONSTRAINTS_V1.md`. Legacy-поле
+  `Deployment Constraint` допустимо только как вход kickoff-миграции и должно быть
+  нормализовано в `Runtime Constraints` до Stage 2. Если присутствуют оба поля, ни одно
+  не имеет молчаливого приоритета: конфликт явно разрешает пользователь, legacy удаляется.
+  Runtime Constraint не даёт разрешения на deploy/operations или frozen Cycle 2/3.
 
 ## Отвечай на русском
 
 ## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
 
-```bash
-pass sdlc/ключ
-pass sdlc/projects/{PROJECT}/ключ
-export VAR=$(pass sdlc/ключ)
-```
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами
+Каноническая product policy находится в
+`$SDLC_VAULT/_agents/_standards/security.md#Хранение-секретов`. Роли и команды не копируют и
+не переопределяют её.

@@ -2,10 +2,15 @@
 description: Сгенерировать или обновить матрицу прав (роли × ресурсы × действия)
 ---
 
+Перед записью Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md`
+и `_contract/APPLICABILITY_V1.md`; выполняй matrix только при resolver verdict
+`authorization: REQUIRED`. При `NOT_APPLICABLE` используй один decision из `/rbac-model`,
+не создавай вторую N/A запись.
+
 Сгенерируй матрицу прав RBAC для проекта $ARGUMENTS.
 
 Прочитай:
-1. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/RBAC-*-model.md — текущая модель ролей и ресурсов
+1. Current logical id `authorization-model` по root Current Artifacts rule
 
 Если RBAC-model.md не существует — сначала выполни /rbac-model.
 
