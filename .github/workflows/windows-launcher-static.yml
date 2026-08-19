@@ -1,0 +1,26 @@
+name: Windows launcher static evidence
+
+on:
+  pull_request:
+    paths:
+      - "*.ps1"
+      - "_runtimes/windows-launcher.ps1"
+      - "tests/windows-launcher-adapter-smoke.sh"
+      - "tests/windows-launcher-ci.ps1"
+      - ".github/workflows/windows-launcher-static.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parser-and-adapter-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run static adapter and mutation smoke
+        shell: bash
+        run: bash tests/windows-launcher-adapter-smoke.sh
+      - name: Run real PowerShell and Git Bash matrix
+        shell: pwsh
+        run: .\tests\windows-launcher-ci.ps1 -ExpectedSourceRevision '${{ github.sha }}' -RequireCleanRepository

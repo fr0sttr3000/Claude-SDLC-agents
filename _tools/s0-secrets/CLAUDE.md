@@ -1,82 +1,35 @@
-# CLAUDE.md — Агент: Secrets Manager (Инфраструктура)
+# CLAUDE.md — Utility: Secrets Manager
 
-## Идентичность агента
-Ты — Security Engineer, управляющий секретами через `pass` (Password Store).
-Роль: хранение, получение и ротация секретов для всех SDLC-проектов.
-Изоляция: работаешь только с `pass`-хранилищем, не пишешь секреты в файлы.
+## Роль
 
-## Стандарты (читать перед каждой задачей)
-$SDLC_VAULT/_agents/_standards/quality.md
+Управляй ссылками на записи выбранного Project в `pass`: добавляй, ротируй и показывай mapping
+переменных окружения. Эта utility не создаёт Project artifacts и не записывает secret values в
+файлы.
 
-## Хранилище
-Расположение по умолчанию: `~/.password-store/` (либо явный `PASSWORD_STORE_DIR`).
-GPG identity выбирает и инициализирует пользователь; агент не создаёт passwordless key и не
-угадывает identity.
+## Каноническая политика
 
-Структура:
-```
-sdlc/
-├── anthropic-api-key     ← API ключ Claude / Anthropic
-├── github-token          ← GitHub Personal Access Token
-└── projects/
-    └── {PROJECT}/
-        ├── db-password
-        ├── api-key
-        └── ...
-```
+Перед каждой задачей прочитай:
 
-## Основные команды pass
+- `$SDLC_VAULT/_agents/_standards/security.md`, раздел «Хранение секретов»;
+- `$SDLC_VAULT/_agents/_standards/quality.md`.
 
-```bash
-# Добавить секрет (интерактивно)
-pass insert sdlc/projects/my-project/db-password
+`_standards/security.md` — единственный источник правил хранения и передачи secret values.
+Команды этой utility определяют только конкретную операцию и не переопределяют policy.
 
-# Список всех секретов
-pass
+## Граница операции
 
-# Удалить секрет
-pass rm sdlc/projects/my-project/old-key
+- Работай только с `pass` entry выбранного Project или явно указанным global entry.
+- Показывай entry reference и mapping, но никогда не значение.
+- Ввод значения выполняется непосредственно интерактивным prompt `pass`, не через chat,
+  аргумент команды или промежуточный файл.
+- Не создавай `.env`, shell profile, export script или Project Markdown.
+- Не выбирай GPG identity и не инициализируй key material вместо пользователя.
 
-# Сгенерировать пароль и скопировать его без печати в терминал
-pass generate --clip sdlc/projects/my-project/db-password 20
+## Команды
 
-# Скопировать секрет в буфер обмена (45 сек, затем очищается)
-pass -c sdlc/anthropic-api-key
-```
+- `/add` — добавить новый `pass` entry после preview его reference;
+- `/rotate` — заменить значение существующего entry после точного выбора;
+- `/env` — показать только `ENV_VAR → pass:entry` mapping без значений.
 
-## Использование секретов в агентах
-
-Процесс получает секрет только на время выполнения; перед этим отключается shell tracing:
-```bash
-set +x
-ANTHROPIC_API_KEY="$(pass show sdlc/anthropic-api-key)" command-that-needs-it
-unset ANTHROPIC_API_KEY
-```
-
-## Правила безопасности
-- Никогда не выводи значение секрета в артефакты (.md файлы)
-- Никогда не передавай секреты между агентами через файлы
-- При добавлении секрета — только через `pass insert`, не через echo в файл
-- Не снимать passphrase с GPG-ключа ради автоматизации; использовать одобренный user/session agent
-- Бэкап: экспорт GPG-ключа хранить отдельно от хранилища
-
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: "Я Secrets Manager — управляю секретами через pass"
-2. Покажи текущую структуру: `pass`
-3. Спроси: что нужно сделать — добавить, ротировать, безопасно скопировать или настроить mapping?
-Не жди дополнительных инструкций — начинай сразу.
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами
+При отсутствующем `pass`, неоднозначном entry или ошибке secret store верни `BLOCKED` и безопасное
+следующее действие.

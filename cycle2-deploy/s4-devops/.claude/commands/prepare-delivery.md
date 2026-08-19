@@ -2,6 +2,10 @@
 description: Подготовить только явно выбранные delivery artifacts после RED
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /prepare-delivery
 
 Подготовь только явно заказанные результаты из cycle2_deliverables.

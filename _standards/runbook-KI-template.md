@@ -1,5 +1,8 @@
 # Runbook KI-[id] — [название] — {PROJECT}
 
+> **Historical Cycle 3 template — FROZEN / NOT READY.** Не инстанцируется и не
+> проверяется active Cycle 1. Сохранён только для инвентаризации перед redesign.
+>
 > Плейбук реакции на проявление известного дефекта KI-[id] в проде.
 > Шаблон: s6-sre инстанцирует как `SRE-runbook-KI-[id].md` в `stage7-ops/outputs/` —
 > по одному файлу на каждую запись `OPEN` из `known-issues.md` с user-facing impact.
@@ -20,7 +23,7 @@
 ## Auto-remediation — что система делает сама
 - действие (restart / retry / fallback / clear-cache / feature-flag-off), порог срабатывания, кулдаун
 - как проверить, что автодействие отработало
-- если не отработало за N мин → перейти к Workaround
+- если не отработало за threshold из будущего NFR/escalation contract → перейти к Workaround
 - (если авто-ремедиации нет — указать «нет, только ручной обход» и сразу к Workaround)
 
 ## Workaround — ручной обход

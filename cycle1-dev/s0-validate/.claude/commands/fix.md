@@ -18,8 +18,8 @@ $SDLC_PROJECTS_DIR/
    mkdir -p stage3-design/inputs stage3-design/outputs
    mkdir -p stage4-dev/inputs stage4-dev/outputs
    mkdir -p stage5-testing/inputs stage5-testing/outputs
-   mkdir -p stage6-deploy/inputs stage6-deploy/outputs
-   mkdir -p stage7-ops/inputs stage7-ops/outputs
+
+   Не создавай stage6-deploy/stage7-ops: Cycle 2/3 FROZEN / NOT READY.
 
 3. Если stage1-planning/inputs/idea.md НЕ существует — создай заглушку по каноническому шаблону проекта.
 

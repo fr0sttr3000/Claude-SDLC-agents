@@ -2,6 +2,10 @@
 description: Проверить post-deploy только после PASS ops tests
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /post-deploy
 
 Выполни разрешённую post-deploy проверку проекта $ARGUMENTS.

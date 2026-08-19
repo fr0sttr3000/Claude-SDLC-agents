@@ -69,7 +69,7 @@
 | `dict[K,V]` | JSON-объект | `MAP={"a":1}` | `MAP=a:1` ← BLOCKER |
 | `Enum` | строка-значение | `MODE=production` | `MODE=PRODUCTION` (case-sensitive) |
 | `AnyUrl` / `DSN` | полный URL | `DB_URL=postgresql+asyncpg://...` | без схемы |
-| `SecretStr` | строка (из pass) | `TOKEN=xxx` | не хардкодить |
+| `SecretStr` | не хранится в `.env`; значение только process-local из `pass` | reference: `pass:sdlc/project/token` | plaintext запрещён |
 
 ### 2.3 Правила validator-методов (pydantic-settings v2)
 
@@ -84,7 +84,10 @@ def parse_list(cls, v):
     return list(v)
 ```
 
-- `extra="ignore"` — добавлять в Settings, чтобы неизвестные env не вызывали ValidationError
+- Неизвестные project env-переменные должны давать явную ошибку (`extra="forbid"` или
+  stack-native эквивалент). `extra="ignore"` допустим только когда HLD явно определяет общий
+  ambient environment namespace, а test доказывает, что опечатка в имени project variable
+  всё равно блокирует запуск.
 - Validator должен обрабатывать: `str`, `list`, `set`, `frozenset` — не только строку
 
 ---
@@ -95,12 +98,15 @@ def parse_list(cls, v):
 |-----------|--------------|--------|
 | Дата/время | ISO 8601 UTC | `"2026-05-10T12:00:00Z"` |
 | Identifier | формат из API contract; например UUID v4 | `"550e8400-e29b-41d4-a716-446655440000"` |
-| Деньги | строка с 2 знаками | `"12.50"` (не `12.5`, не `float`) |
+| Деньги | decimal representation, currency и scale из domain/API contract | `"12.50"` при contract scale=2 | не `float`; scale не угадывать |
 | Булево | `true` / `false` | не `1`/`0`, не `"yes"`/`"no"` |
 | Enum | строка-значение | документировать в OpenAPI `enum: [...]` |
 | Nullable | поле может быть `null` | явно `nullable: true` в OpenAPI |
 
-### Стандартный формат ошибки API (обязательный)
+### Формат ошибки API — только по project contract
+
+Project API contract обязан определить machine-readable error shape, обязательность полей и
+status mapping. Ниже приведён допустимый пример, а не универсальная schema:
 ```json
 {
   "error": "VALIDATION_ERROR",
@@ -109,6 +115,12 @@ def parse_list(cls, v):
   "code": "INVALID_FORMAT"
 }
 ```
+
+Если project contract выбирает этот shape, обязательность `error`, `detail`, `field`, `code` и
+семантика `field=null` фиксируются в OpenAPI/schema и проверяются contract tests. HTTP 400/422
+или другой non-2xx выбирается только API contract; стандарт не подставляет status по умолчанию.
+Неожиданный 5xx никогда не считается допустимым результатом format-test. Успешный
+create/update требует разрешённый contract-ом 2xx и проверку семантики значения.
 
 ---
 
@@ -201,13 +213,19 @@ class TestDBFormat:
         assert record.created_at.tzinfo is not None
 
     async def test_datetime_naive_rejected_or_converted(self, db_session):
-        """timezone-naive datetime НЕ проходит молча (теряет TZ-информацию)"""
-        # Поведение должно быть явным: либо ошибка, либо конвертация с логированием
+        """Наивный datetime следует выбранной и задокументированной project policy."""
         naive_dt = datetime.now()  # без timezone
-        with pytest.raises(Exception):
-            record = MyModel(created_at=naive_dt)
-            db_session.add(record)
-            await db_session.commit()
+        policy = TIMEZONE_NAIVE_POLICY  # "reject" или "normalize-utc-with-audit"
+        if policy == "reject":
+            with pytest.raises((ValueError, TypeError)):
+                await persist_datetime(db_session, naive_dt)
+        elif policy == "normalize-utc-with-audit":
+            record, audit_event = await persist_datetime(db_session, naive_dt)
+            assert record.created_at.tzinfo is not None
+            assert record.created_at.utcoffset().total_seconds() == 0
+            assert audit_event.action == "timezone-naive-normalized-to-utc"
+        else:
+            pytest.fail("TIMEZONE_NAIVE_POLICY must be documented explicitly")
 
     async def test_pk_uuid_v4_format(self, db_session):
         """PK соответствует явно выбранному UUID-v4 contract"""
@@ -288,37 +306,41 @@ class TestAPIFormat:
         parsed = uuid.UUID(item_id)
         assert parsed.version == 4
 
-    async def test_error_response_standard_format(self, client):
-        """Ошибки API: стандартный формат {error, detail, field, code}"""
-        response = await client.get("/items/invalid-uuid")
-        assert response.status_code in (400, 404, 422)
+    async def test_error_response_matches_contract(self, client, api_contract):
+        """Error status/shape exactly match the selected project API contract."""
+        expected = api_contract.error_case("invalid_identifier")
+        response = await client.get("/items/invalid-identifier")
+        assert response.status_code == expected.status_code
         body = response.json()
-        assert "error" in body or "detail" in body  # хотя бы одно обязательно
+        assert set(body) == set(expected.required_keys)
+        expected.validate(body)
 
-    async def test_validation_error_includes_field_name(self, client):
-        """Ошибки валидации: указывают конкретное поле"""
+    async def test_validation_error_matches_contract(self, client, api_contract):
+        """Validation errors use the project-defined status and field mapping."""
+        expected = api_contract.error_case("unknown_input_field")
         response = await client.post("/items", json={"invalid_field": "x"})
-        assert response.status_code == 422
-        body = response.json()
-        # Ответ содержит информацию о поле
-        assert any(
-            "field" in str(body).lower() or
-            "loc" in str(body).lower()  # pydantic default
-        )
+        assert response.status_code == expected.status_code
+        expected.validate(response.json())
 
     async def test_request_accepts_iso8601_datetime(self, client):
         """Запросы API принимают ISO 8601 datetime"""
         response = await client.post("/items", json={
             "scheduled_at": "2026-05-10T12:00:00Z"
         })
-        assert response.status_code != 400
+        assert 200 <= response.status_code < 300
+        scheduled_at = response.json()["scheduled_at"]
+        parsed = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+        assert parsed.tzinfo is not None
+        assert parsed.utcoffset().total_seconds() == 0
 
-    async def test_request_rejects_non_iso_datetime(self, client):
+    async def test_request_rejects_non_iso_datetime(self, client, api_contract):
         """Запросы API отвергают нестандартный формат даты"""
         response = await client.post("/items", json={
             "scheduled_at": "10.05.2026 12:00"  # не ISO 8601
         })
-        assert response.status_code == 422
+        assert response.status_code == api_contract.error_case(
+            "invalid_datetime"
+        ).status_code
 ```
 
 ---

@@ -1,34 +1,17 @@
 ---
-description: Проверить, что проектные пороги не ослаблены ниже глобальных
+description: Проверить only-up policy и profile-bound quality characteristics
 ---
 
-Проверь проектные пороги quality gates для проекта $ARGUMENTS.
+Не изменяй Project. Запусти:
 
-## Шаги
-
-1. Прочитай `$SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/quality-gates.md`.
-   Если файла нет — сообщи, что нужно сначала запустить `/configure $ARGUMENTS`, остановись.
-
-2. Прочитай глобальные минимумы из `_agents/_standards/quality.md` §3 (NFR-дефолты) и §4 (Gates).
-
-3. Для каждого порога сравни проектное значение с глобальным **с учётом направления**:
-   - ↑-метрики (coverage, pass rate, availability, E2E-автоматизация): проект должен быть **≥** глобал
-   - ↓-метрики (latency p95/p99, error rate, RTO, RPO, complexity, vulns): проект должен быть **≤** глобал
-
-4. Выведи отчёт-таблицу:
-
-```
-╔═ Quality Gates: {PROJECT} ══════════════════════════╗
-  Метрика              Глобал    Проект    Статус
-  ─────────────────────────────────────────────────
-  Test coverage        ≥80%      ≥90%      ✅ ужесточён
-  Error rate           <0.1%     <0.5%     ❌ ОСЛАБЛЕН — BLOCKER
-  ...
-╠═════════════════════════════════════════════════════╣
-  Итог: N норма / M ужесточено / K ОСЛАБЛЕНО
-╚═════════════════════════════════════════════════════╝
+```bash
+bash "$SDLC_VAULT/_agents/cycle1-dev/s0-quality-gates/quality-gates-check.sh" \
+  "$SDLC_PROJECTS_DIR/$ARGUMENTS"
+bash "$SDLC_VAULT/_agents/cycle1-dev/s0-quality-gates/quality-characteristics-check.sh" \
+  "$SDLC_PROJECTS_DIR/$ARGUMENTS"
 ```
 
-5. Любой ослабленный порог = **BLOCKER**. Перечисли их явно и укажи,
-   что снижение глобального порога запрещено — это изменение стандарта компании,
-   а не настройка проекта. НЕ изменяй файл сам — только отчёт; исправление через `/configure`.
+`QUALITY POLICY VERIFIED` возвращает exact `policy_revision`; `QUALITY CHARACTERISTICS
+VERIFIED` — exact profile revision и 11 characteristics. Любой сниженный threshold,
+неподтверждённый N/A, missing owner/evidence/gate/rationale, stale Product Profile binding,
+нарушенная revision chain или snapshot mismatch — `BLOCKED`.

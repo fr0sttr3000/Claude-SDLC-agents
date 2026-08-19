@@ -2,12 +2,16 @@
 description: Проверить требования на тестируемость и подготовить QA contribution для Gate 2
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Проведи Testability Review требований для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. Все BA-*.md в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
-3. Все PO-*.md в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
+2. Current `business-requirements`, `nonfunctional-requirements`, `requirements-traceability`
+3. Current `product-backlog`, `ux-requirements`, `uat-criteria`, `product-acceptance-index`
+Project artifacts разрешай по root Current Artifacts rule; исторические glob matches не входят
+в текущий review.
 
 Создай файл QA-REQ-[дата]-review.md в:
 $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
@@ -44,6 +48,11 @@ $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/
 ## ВЕРДИКТ QA
 `QA contribution: PASS` — testability checks пройдены.
 `QA contribution: FAIL` — [список блокеров].
+
+После Markdown создай `QA-REQ-review-v1.yaml` с полями `schema_version: 1`, `review_id`,
+`status: PASS|FAIL`, `project`, `owner: s2-qa-req`, `product_profile_revision`, `reviewed_at`,
+`review_ref`, `review_sha256`, `blocker_count`. Для PASS `blocker_count` обязан быть `0`; SHA-256
+считай от точного Markdown review. Проверь результат через `qa-requirements-review-check.sh`.
 
 Не подписывай весь Gate 2: финальный Gate 2 требует также BA-BRD/NFR/RTM,
 backlog, test strategy и SG1 evidence; его полноту проверяет s0-validate перед S3.

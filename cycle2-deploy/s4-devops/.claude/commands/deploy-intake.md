@@ -2,6 +2,10 @@
 description: Сверить цель, инфраструктуру, authorization и точный scope Cycle 2
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /deploy-intake
 
 Подготовь проверяемый intake Cycle 2 до тестов и реализации.

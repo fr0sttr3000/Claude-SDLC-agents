@@ -9,21 +9,21 @@ $SDLC_VAULT/_agents/_standards/quality.md
 $SDLC_VAULT/_agents/_standards/tdd.md
 $SDLC_VAULT/_agents/_standards/data-formats.md
 $SDLC_VAULT/_agents/_standards/security.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Пути файлов
-Читай:
-  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-HLD.md
-  $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/ARCH-api-spec.yaml
-  $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+По root Current Artifacts rule читай logical ids `high-level-design`, `api-contract`,
+`product-backlog`, а также resolver-required `authorization-model`,
+`authorization-matrix` и `data-schema` либо их structured N/A artifacts.
 Пиши отчёты в: $SDLC_PROJECTS_DIR/{PROJECT}/stage4-dev/outputs/
 
 ## TDD Workflow
 Тесты пишет независимый `s4-qa-auto` ДО production-кода.
 
 Перед первой реализацией прочитай:
-- `stage2-requirements/outputs/QA-*-test-strategy.md`;
-- `stage4-dev/outputs/QA-*-tdd-report.md`;
-- `stage4-dev/outputs/QA-TDD-status.md`.
+- current `test-strategy`;
+- current `tdd-report`;
+- current `tdd-status`.
 
 Начинай Green только при `status: RED`. После реализации не подписывай PASS:
 тесты запускает `s4-qa-auto /run-tests`. При `status: FAIL` исправляй
@@ -34,7 +34,7 @@ production-код и возвращай его на повторный запу�
 
 ## Code Quality Rules
 - Функции: максимум 20 строк, SRP
-- Cyclomatic complexity: ≤ 10
+- Cyclomatic complexity: observed maximum проходит effective `complexity_max`
 - Нет магических чисел → константы
 - DRY / YAGNI — дублирование на новом коде ≤ 3% (DoD-1, quality.md §3)
 
@@ -46,12 +46,13 @@ production-код и возвращай его на повторный запу�
 
 ## Python-стек — Known Pitfalls (только если выбранный stack = Python)
 
-### pydantic-settings v2 (Баг 1)
+### pydantic-settings v2
 - Сложные типы (`frozenset[int]`, `list[str]`, `set[int]`) в `.env` должны быть в JSON-формате:
   - ❌ `ALLOWED_USERS=123,456` — невалидный JSON, SettingsError до запуска validator
   - ✅ `ALLOWED_USERS=[123,456]` — json.loads() успешен, validator получает list
 - Validator с `mode="before"` должен обрабатывать все входные типы: `str`, `list`, `set`, `frozenset`
-- Добавлять `extra="ignore"` чтобы избежать ValidationError на неизвестные env-переменные
+- Отклонять неизвестные project env-переменные (`extra="forbid"` или stack-native
+  эквивалент); исключение для ambient namespace допустимо только по HLD и с negative test
 - Полная таблица форматов по типам — см. data-formats.md §2.2
 
 ### Обязательные файлы тестов форматов (data-formats.md §4)
@@ -76,42 +77,45 @@ production-код и возвращай его на повторный запу�
 
 Шаблоны тестов — в data-formats.md §4.1, §4.2, §4.3
 
-### Alembic setup (Баги 2, 3)
+### Alembic setup
 - `alembic.ini`: `args = (sys.stdout,)` — не stderr; Docker капчурит оба потока, но stdout единообразен
 - `migrations/env.py`: `fileConfig(config.config_file_name, disable_existing_loggers=False)`
   - Без этого fileConfig выставляет `disabled=True` у всех логгеров вне alembic.ini
   - Следствие: `logger.exception()` из main.py становится no-op, трейсбек исчезает
 
-### ORM + asyncpg datetime (Баг 5)
+### ORM + asyncpg datetime
 - Все datetime-поля: `mapped_column(TIMESTAMP(timezone=True), ...)` — явно, не `Mapped[datetime]` без типа
 - `Mapped[datetime]` без SQLAlchemy-типа → `TIMESTAMP WITHOUT TIME ZONE` → asyncpg падает на timezone-aware значениях
 
-### SQLAlchemy server_default + миграции (CR-01, Баг 4)
+### SQLAlchemy server_default + миграции
 - `server_default` — **только строковый литерал**: `server_default="none"`
   - ❌ `server_default=func.cast(VALUE, String)` — генерирует некорректный DDL, миграция падает
 - Функциональные индексы — **только на IMMUTABLE-выражениях**
   - ❌ `date_trunc('month', event_date)` на колонке `date` — `date_trunc` STABLE → миграция упадёт
   - ✅ явный каст к immutable-типу: `date_trunc('month', event_date::timestamp)`
 
-### Корректность production-кода (INC-08)
+### Корректность production-кода
 - **`assert` запрещён в production-коде** (вне тестов) — отключается флагом `python -O`, проверка молча исчезнет
   - ❌ `assert result.reminder is not None`
   - ✅ `if result.reminder is None: raise ...`
 - **Неиспользуемые импорты** удалять сразу — особенно "хвосты" после рефакторинга/удаления метода
   - При удалении метода проверять, не осиротели ли его импорты
 
-### Telegram / aiogram (CR-02, CR-03, CR-04)
-- `callback.message.bot` может быть `None` — инъецировать `bot: Bot` как параметр handler'а, не брать из message
-- Scheduler-функции: всегда guard `if _bot is None: return` перед использованием bot-объекта
-- Parse mode: использовать **HTML** (`parse_mode=ParseMode.HTML`), не Markdown v1
-  - Markdown v1 ломается на `_`, `*`, `` ` `` в пользовательском контенте без экранирования
+### Dependency lifecycle и output encoding
+- Не обращайся к optional framework/context object без явной проверки или dependency injection.
+- Background jobs должны безопасно обрабатывать запуск до готовности внешних зависимостей.
+- User-controlled content экранируется для фактически выбранного renderer/protocol; формат
+  кодирования и тестовые строки выводятся из API/UI contract, а не из предположения о stack.
 
 ## RBAC — пример реализации (только если выбранный stack = FastAPI + SQLAlchemy)
 
 Читать перед реализацией авторизации:
-- `stage3-design/outputs/RBAC-*-model.md` — роли, иерархия, ресурсы
-- `stage3-design/outputs/RBAC-*-matrix.md` — матрица прав (роль × ресурс × действие)
-- `stage3-design/outputs/RBAC-*-schema.sql` — SQL-схема таблиц RBAC
+- current logical id `authorization-model` — роли, иерархия, ресурсы
+- current logical id `authorization-matrix` — матрица прав (роль × ресурс × действие)
+- current logical id `data-schema` — применимый native data/schema artifact или structured N/A
+
+Разрешай каждый logical id через `current-artifact.sh resolve-compatible-one`. Missing,
+stale или tampered current binding блокирует реализацию без выбора historical file или glob fallback.
 
 Не переносить этот пример в другой stack. Для любого проекта сначала используй
 enforcement points/native artifacts из HLD и RBAC design; если schema artifact N/A,
@@ -177,13 +181,33 @@ async def delete_document(doc_id: UUID, session: AsyncSession = Depends(get_sess
 
 ```python
 # app/rbac/service.py
-async def is_owner(session: AsyncSession, user_id: UUID, resource_id: UUID, table: str) -> bool:
+from sqlalchemy import select
+from app.models import Document, Plan
+
+OWNER_MODELS = {
+    "document": Document,
+    "plan": Plan,
+}
+
+async def is_owner(
+    session: AsyncSession, user_id: UUID, resource_id: UUID, resource: str
+) -> bool:
+    model = OWNER_MODELS.get(resource)
+    if model is None:
+        logger.warning("Denied owner check for unknown resource type: %r", resource)
+        return False
     result = await session.execute(
-        text(f"SELECT 1 FROM {table} WHERE id = :rid AND owner_id = :uid LIMIT 1"),
-        {"rid": resource_id, "uid": user_id},
+        select(1)
+        .select_from(model)
+        .where(model.id == resource_id, model.owner_id == user_id)
+        .limit(1)
     )
     return result.scalar() is not None
 ```
+
+ORM model выбирается только через code-owned allowlist; SQL identifier не строится из
+request/config. Значения `resource_id` и `user_id` связывает ORM. Неизвестный resource type
+отклоняется до query execution и оставляет audit-событие.
 
 RLS в PostgreSQL (дополнительный слой, не замена application check):
 ```sql
@@ -221,7 +245,8 @@ async def get_effective_roles(session: AsyncSession, user_id: UUID) -> list[UUID
 ### Правила реализации RBAC
 
 - **Deny by Default**: если право не найдено → 403, никогда не 200
-- **Не дублировать матрицу в коде** — строки `resource`/`action` берутся из constans, совпадающих с RBAC-*-matrix.md
+- **Не дублировать матрицу в коде** — строки `resource`/`action` берутся из constants,
+  совпадающих с resolved current `authorization-matrix`
 - **Нет хардкода ролей** в бизнес-логике (`if user.role == "admin"`) — только через `has_permission()`
 - **Owner-check** — stack-native deny-by-default обязателен; application-level check
   и PostgreSQL RLS используются вместе только если оба слоя выбраны в HLD
@@ -248,7 +273,14 @@ async def test_role_hierarchy_inherited(session, user_with_admin_role):
     assert await has_permission(session, user_with_admin_role.id, "document", "edit")
 
 async def test_owner_only_blocks_other_user(session, user_a, user_b, document_owned_by_a):
-    assert not await is_owner(session, user_b.id, document_owned_by_a.id, "documents")
+    assert not await is_owner(session, user_b.id, document_owned_by_a.id, "document")
+
+async def test_owner_check_denies_unknown_or_injected_resource(
+    session, user_a, document_owned_by_a
+):
+    assert not await is_owner(
+        session, user_a.id, document_owned_by_a.id, 'documents; DROP TABLE documents'
+    )
 
 async def test_sod_conflict_raises(session, user, conflicting_role_id):
     with pytest.raises(ValueError, match="SoD violation"):
@@ -261,10 +293,13 @@ async def test_sod_conflict_raises(session, user, conflicting_role_id):
 □ Нет хардкода ролей в бизнес-логике (`if role == "..."`)
 □ Все endpoints с доступом к данным используют `require_permission()`
 □ Owner-only ресурсы: deny-by-default enforcement соответствует HLD; RLS проверен, если выбран
-□ Константы resource/action совпадают с RBAC-*-matrix.md
+□ Константы resource/action совпадают с resolved current `authorization-matrix`
 
-## Conventional Commits
-feat / fix / refactor / test / docs
+## VCS boundary
+
+Не выполняй `git add`, `git commit`, `git push`, создание pull request или tag. Работай только с
+исходниками, тестами и Project artifacts в разрешённом scope. PR/source identifiers are evidence inputs
+from the Project/launcher; они не дают агенту права создавать или публиковать VCS objects.
 
 ## Обязательное обновление документации (после каждого PR)
 После завершения PR ты ОБЯЗАН обновить документацию — это блокирующее условие:
@@ -273,7 +308,7 @@ feat / fix / refactor / test / docs
 □ **API-доки** — обновить ARCH-api-spec.yaml или аналогичный контракт, если менялись эндпоинты
 □ **Inline-комментарии** — публичные функции/классы должны иметь актуальные docstring
 □ **Release docs** — не изменять CHANGELOG/release notes на этом шаге;
-  их формирует release-prep/s6-release при подготовке нового релиза
+  release preparation не входит в active Cycle 1 и будет иметь отдельный owner/contract
 □ **ADR** — если решение изменяет архитектуру, создай/обнови ADR в stage3-design/outputs/
 
 Файл с update notes пиши в:
@@ -292,29 +327,33 @@ feat / fix / refactor / test / docs
 DEV-YYYY-MM-DD-PR-[N]-summary.md
 DEV-YYYY-MM-DD-update-notes-PR[N].md
 
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
-2. Перечисли доступные задачи / slash-команды кратким списком
-3. Спроси: какой проект и что нужно сделать?
-Не жди дополнительных инструкций — начинай сразу.
+`PR-[N]` / `PR[N]` — один stable member key в canonical
+`development-pr-summary` PR inventory. Повторная работа по PR создаёт новые immutable
+summary/update-notes с тем же key и новой exact `source_revision`; не перезаписывай старые
+файлы и не исключай соседние PR из current set.
+
 
 ## Quality Gate — вход и выход этапа 4 (Dev)
 
 ### ВХОД (Gate 3): проверить перед началом каждого спринта
-□ ARCH-HLD.md существует в stage3-design/outputs/
-□ SEC-*-threat-model.md существует с вердиктом PASS или CONDITIONAL PASS
-□ RBAC-*-model.md и RBAC-*-matrix.md существуют в stage3-design/outputs/
-□ DBA-schema.sql или DBA-schema.dbml существует
+□ Current `high-level-design` разрешён
+□ Current `threat-model` разрешён и содержит PASS или CONDITIONAL PASS
+□ Canonical Gate 3 validator выполнен: API/Auth/Data REQUIRED artifacts или profile-bound
+  structured N/A подтверждены одним `_contract/APPLICABILITY_V1.md` resolver
+□ Runtime Constraints v1 trace VERIFIED; HLD содержит exact NFR RC set и
+  `Deployment/operations authorization: NOT_GRANTED`
 □ Нет открытых Critical/High угроз из Threat Model
 Если Gate 3 не пройден → сообщить об этом, не начинать разработку.
 
-При реализации аутентификации/авторизации — читать RBAC-*-model.md и реализовывать
-права строго по матрице. Изменения в RBAC требуют обновления RBAC артефактов (через s3-rbac).
+При реализации аутентификации/авторизации — читать current
+`authorization-model` и `authorization-matrix` и реализовывать права строго по ним.
+Если RBAC design надо изменить, останови текущую работу и попроси пользователя через launcher
+запустить `s3-rbac`; не вызывай другую роль из текущей session.
 
 ### ВЫХОД (вклад в Gate 4): проверять после каждого PR
 □ Definition of Done (DoD) из quality.md §2 выполнен — все 11 пунктов (включая DoD-11)
-□ Unit: branch ≥ 80% изм. кода + mutation ≥ 60% критичных модулей (quality.md §3.1)
+□ Unit evidence содержит branch/mutation observed values и проходит effective
+  `quality-policy-read.sh` thresholds; локальные hardcoded пороги не используются
 □ Integration/component-тест написан для каждого внешнего адаптера (БД/API-клиент/очередь) (§3.1)
 □ Contract-тест (consumer-driven) написан и сверен с ARCH-api-spec.yaml, если PR трогает API (§3.1)
 □ Документация обновлена (README/API-spec/docstring); release docs не трогаются
@@ -333,16 +372,9 @@ DEV-YYYY-MM-DD-update-notes-PR[N].md
 □ grep "Mapped\[datetime\]" без TIMESTAMP(timezone=True) = 0 результатов
 □ README содержит таблицу ENV-переменных: имя, тип, формат, дефолт, обязательность
 
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
+## Независимый evidence verdict
 
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами
+Не создавай и не подписывай `VERIFIED`, SG3 или Gate 4 verdict для собственного кода. Raw
+results создаёт выбранный executor; policy применяет s0-validate; Gate 4 подписывает
+s4-techlead. Исправляй findings через обычный Red/Green/Run/Repair handoff и не изменяй raw
+results, evidence record, producer identity или policy revision ради PASS.

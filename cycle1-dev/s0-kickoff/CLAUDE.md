@@ -25,7 +25,19 @@ $SDLC_VAULT/_agents/_standards/quality.md
 Пиши (REFRESH):
   $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/PM-input-refresh-YYYY-MM-DD.md
   $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/inputs/BA-input-refresh-YYYY-MM-DD.md
+
+Product & CI discovery (NEW и REFRESH):
+  $SDLC_PROJECTS_DIR/{PROJECT}/tracking/product-ci-profile.yaml
+  $SDLC_PROJECTS_DIR/{PROJECT}/tracking/product-ci-profile-history/revision-{N}.yaml
 ```
+
+Product & CI Profile собирается по `_contract/PRODUCT_CI_PROFILE.md` до Stage 1. Сначала
+наблюдай существующие config facts, затем спрашивай только неизвестное. Не выбирай business,
+architecture, SCM/CI/build policy и не собирай delivery/operations scope за пользователя.
+Новые/обновляемые profiles используют schema version 5: явно фиксируют один существующий
+evidence executor/source profile, UX applicability, представительную validation environment
+и независимую применимость PERF/SG4, compatibility, accessibility, flexibility и safety.
+Не выводи эти facts из product type и не создавай или администрируй CI/test/deployment platform.
 
 ## Автоопределение режима
 
@@ -108,7 +120,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 ---
 
-### Блок 3: Технические и операционные ограничения (15 вопросов)
+### Блок 3: Технические ограничения и quality expectations Cycle 1 (8 вопросов)
 
 **Q3.1** Предпочтения по стеку? (или "оставить выбор архитектору")
 
@@ -126,72 +138,28 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 **Q3.5** Интеграции с внешними системами? (перечисли, если есть)
 
-**Q3.6** Как планируется деплой?
-- A) Один Docker-контейнер (без оркестратора)
-- B) Кластер — Kubernetes / Docker Swarm / несколько реплик
-- C) Serverless — Lambda / Cloud Run / функции
-- D) Не определено (оставить выбор архитектору)
+**Q3.6** Есть ли ограничения среды выполнения, которые влияют на дизайн приложения?
+Например: desktop/mobile/browser, один процесс, несколько экземпляров, serverless,
+offline/air-gapped. Если факта нет — `не определено`; deployment tooling не выбираем.
 
-**Q3.7** Что должно произойти, если приложение зависнет или упадёт?
-- A) Просто перезапуститься — мне не нужны уведомления
-- B) Перезапуститься и уведомить меня
-- C) Перезапуститься, уведомить и предоставить отчёт о сбое (когда, что, сколько длилось)
-- D) Полный цикл: автовосстановление + отчёт + разбор причин (postmortem)
+При NEW и REFRESH выполни нормализацию `_contract/RUNTIME_CONSTRAINTS_V1.md` до handoff:
 
-**Q3.7b** *(задаётся только если Q3.7 = B, C или D)*
-Куда присылать уведомления о сбоях?
-- A) Telegram (бот)
-- B) Email
-- C) Slack / Discord
-- D) Уточним позже — зафиксировать как [OPEN ISSUE]
+- только `Deployment Constraint` — это legacy migration input; покажи значение пользователю,
+  получи подтверждение, запиши `Runtime Constraints` и удали legacy field в той же update;
+- оба поля — покажи оба значения и остановись до явного выбора/новой формулировки, даже если
+  они выглядят одинаково; молчаливого winner нет;
+- только `Runtime Constraints` — используй canonical value;
+- отсутствие обоих — задай Q3.6 и запиши `не определено` при отсутствии подтверждённого факта.
 
-**Q3.8** Нужен ли мониторинг приложения?
-- A) Нет — достаточно логов, если что-то пойдёт не так
-- B) Базовый — хочу видеть: работает / не работает, количество ошибок
-- C) Полный — метрики, дашборд, алерты при нарушении SLO (времени ответа, доступности)
+Нормализация не разрешает deploy, infrastructure provisioning или operations automation.
 
-**Q3.9** Что входит в scope нашей работы?
-- A) Только код приложения — деплой я делаю сам
-- B) Код + конфигурация запуска (Docker / docker-compose)
-- C) Код + деплой + настройка мониторинга и алертов
+**Q3.7** Какое наблюдаемое recovery-поведение требуется от приложения при временной
+ошибке или перезапуске? Укажи допустимую потерю данных/работы и время восстановления,
+если это известно. Не выбирай restart/rollback/auto-heal mechanism.
 
-**Q3.10** *(задаётся только если Q3.8 = B или C)*
-Есть ли уже работающая система мониторинга, в которую нужно интегрироваться?
-- A) Нет — строим с нуля
-- B) Да, внешний сервис (Grafana Cloud / Datadog / UptimeRobot / Better Uptime)
-- C) Да, своя инфраструктура (Prometheus + Grafana на другом сервере)
-- D) Не знаю — разберёмся на этапе архитектуры
-
-**Q3.11 Monitoring Stack.** Назови фактический или требуемый стек по слоям:
-- сбор метрик и alert rules;
-- логи;
-- traces (если нужны);
-- dashboards;
-- alert routing / incident management.
-
-Ответ «не выбран» допустим только как `[OPEN ISSUE]` с владельцем и сроком.
-Не подставляй Prometheus/Grafana или другой стек по умолчанию.
-
-**Q3.12 Playbook Executor.** Кто или что будет выполнять локальные playbooks
-мониторинга и auto-heal?
-- конкретный пользователь/on-call вручную;
-- systemd/cron на указанном host;
-- CI runner;
-- Kubernetes operator/automation controller;
-- cloud automation service;
-- другое — указать host/среду и identity.
-
-**Q3.13 Operations Owner.** Кто отвечает за эксплуатацию, принимает escalation
-и подтверждает результат playbook? Укажи роль/команду и контактный канал.
-
-**Q3.14 Auto-Heal Authorization.** Какие действия разрешены:
-- только после ручного подтверждения;
-- автоматически по allowlist;
-- полностью автоматически.
-
-Для автоматических действий перечисли границы: restart/scale/failover/rollback,
-целевые среды, service account/роль, лимит повторов и действия, которые всегда
-требуют человека.
+**Q3.8** Какие сигналы нужны для проверки качества Cycle 1: structured logs, error
+events, latency/error-rate metrics, traces? Сформулируй ожидаемый результат, не выбирая
+monitoring stack, dashboards, alert routing или incident tooling.
 
 После ответов — резюме и подтверждение.
 
@@ -235,6 +203,7 @@ $SDLC_VAULT/_agents/_standards/quality.md
 
 1. **Запиши** `stage1-planning/inputs/idea.md` — заполненный на основе интервью (не заглушка)
 2. **Запиши** `stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md` — полный протокол интервью
+3. **Собери и проверь** `tracking/product-ci-profile.yaml` через `/product-ci-profile`.
 
 #### Формат idea.md (заполненный)
 ```markdown
@@ -285,16 +254,10 @@ created: YYYY-MM-DD
 Доступность: {Q3.3}
 Compliance: {Q3.4}
 Интеграции: {Q3.5}
-Deployment Constraint: {Q3.6 — single-container / multi-instance / serverless / не определено}
-Recovery Expectation: {Q3.7 — A/B/C/D + формулировка}
-Alert Channel: {Q3.7b — Telegram / Email / Slack / [OPEN ISSUE] | н/п если Q3.7=A}
-Monitoring Expectation: {Q3.8 — A/B/C + формулировка}
-Existing Monitoring: {Q3.10 — none / external / self-hosted / unknown | н/п если Q3.8=A}
-Monitoring Stack: {Q3.11 — metrics/logs/traces/dashboards/alerting/incident management}
-Playbook Executor: {Q3.12 — actor/automation + host/environment + identity}
-Operations Owner: {Q3.13 — role/team + escalation channel}
-Auto-Heal Authorization: {Q3.14 — manual / allowlist / automatic + permitted actions/boundaries}
-Delivery Scope: {Q3.9 — A/B/C + формулировка}
+Runtime Constraints: {Q3.6 — подтверждённые ограничения или не определено}
+Recovery Expectation: {Q3.7 — наблюдаемый результат и числовые пороги/OPEN ISSUE}
+Observability Expectation: {Q3.8 — требуемые сигналы и измеримый результат}
+Frozen Scope: Cycle 2/3 delivery/operations tooling не собирается
 
 ## Стейкхолдеры
 {ответ Q4.3 в формате таблицы}
@@ -357,6 +320,7 @@ Q1.1: {вопрос} → {ответ}
 Файлы:
   + stage1-planning/inputs/idea.md
   + stage1-planning/inputs/PM-input-interview-YYYY-MM-DD.md
+  + tracking/product-ci-profile.yaml
 
 Следующий шаг:
   запусти s1-pm /feasibility для проекта {PROJECT} через выбранный runtime
@@ -396,7 +360,7 @@ Q1.1: {вопрос} → {ответ}
   3) Приоритизация беклога           → обновит: s2-po /stories
   4) Изменение NFR / масштаба / SLA  → обновит: s2-ba
   5) Scope Out — что убираем         → обновит: s2-ba + s2-po
-  6) Monitoring / playbooks / operations → обновит: s2-ba + s3-arch + s4-devops + s6-sre
+  6) Reliability / observability NFR Cycle 1 → обновит: s2-ba + s3-arch
   7) Полный перезапуск (новое интервью с нуля)
 
 Выбор [1-7]:
@@ -419,17 +383,18 @@ Q1.1: {вопрос} → {ответ}
 - Изменились SLA / доступность?
 - Новые compliance-требования?
 - Новые интеграции?
+- Изменились canonical Runtime Constraints? Сначала проверь legacy/canonical conflict и
+  обнови `idea.md` по migration rule до BA handoff.
 
 #### Если выбраны 5 (Scope Out):
 - Что решено убрать и почему?
 - Есть ли зависимые истории в беклоге, которые тоже нужно удалить/пересмотреть?
 
-#### Если выбраны 6 (Monitoring / Operations):
-- Какой точный Monitoring Stack используется по слоям?
-- Кто/что является Playbook Executor и в какой среде он работает?
-- Кто Operations Owner и куда выполняется escalation?
-- Каков Auto-Heal Authorization: manual/allowlist/automatic и какие действия разрешены?
-- Какие dedup/grouping/inhibition возможности поддерживает выбранный alert stack?
+#### Если выбраны 6 (Reliability / observability NFR):
+- Какие сбои и quality signals должны наблюдаться в Cycle 1?
+- Каковы точные latency/error/recovery/data-loss thresholds?
+- Какие application-level logs/metrics/traces нужны для проверки этих NFR?
+- Не собирать monitoring stack, playbook executor, operations owner или auto-heal authorization.
 
 ### Шаг 4: Вывод REFRESH
 
@@ -458,10 +423,8 @@ sections: [new-features, nfr, scope-out]
 ---
 ## Новые функции для добавления в беклог
 ## Изменения NFR
-## Monitoring Stack
-## Playbook Executor
-## Operations Owner
-## Auto-Heal Authorization
+## Reliability / Observability NFR Cycle 1
+## Frozen Scope (Cycle 2/3 tooling не собирается)
 ## Убираем из scope
 ## Открытые вопросы [OPEN ISSUE]
 ## Следующий шаг
@@ -536,7 +499,8 @@ sections: [new-features, nfr, scope-out]
   → Пользователю перезапустить: s1-pmo, s2-ba, s2-po
 
 Если меняются Тех.ограничения:
-  → Затронуты: ARCH-HLD.md, DBA-schema, DEVOPS-cicd.yaml
+  → Затронуты: high-level-design, data-schema, tracking/PMO-constraints.md
+  → Будущий deployment impact только фиксируется как constraint; frozen Cycle 2 artifact не создаётся
   → DoR сбрасывается: DoR-7 (если Threat Model не охватывает)
   → Пользователю перезапустить: s3-arch, s3-security, s3-dba
 ```
@@ -620,11 +584,6 @@ DoR сброшен для: DoR-{список}
 
 ---
 
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Project Kickoff Facilitator — помогаю собрать входные данные для запуска SDLC"
-2. Перечисли команды: /start [PROJECT], /new [PROJECT], /refresh [PROJECT], /cr [PROJECT]
-3. Спроси: какой проект? (или "список" чтобы показать существующие)
 
 ## Правила
 - Задавай вопросы по одному, жди ответа
@@ -634,6 +593,3 @@ DoR сброшен для: DoR-{список}
 - Не принимай архитектурных и технических решений — только фиксируй пожелания
 - Числовые ответы (масштаб, SLA) — записывай точно, не округляй
 - **5 Whys:** если ответ на Q1.2 звучит как симптом, а не причина — задавай follow-up "А почему это происходит?" до 5 раз, пока не дойдёшь до корневой причины. Записывай цепочку в протокол.
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.

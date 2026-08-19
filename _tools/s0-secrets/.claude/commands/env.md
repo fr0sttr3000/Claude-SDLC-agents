@@ -1,27 +1,15 @@
 ---
-description: Показать переменные окружения для проекта (без значений)
+description: Показать mapping переменных окружения на pass entries без значений
 ---
 
-Покажи переменные окружения для проекта $ARGUMENTS.
+Сначала прочитай каноническую policy в
+`$SDLC_VAULT/_agents/_standards/security.md#Хранение-секретов`.
 
-Шаги:
-1. Найди все секреты проекта:
-   `pass ls sdlc/projects/$ARGUMENTS`
-   и глобальные: `pass ls sdlc/`
+Для Project `$ARGUMENTS` покажи только подтверждённые mappings в форме:
 
-2. Покажи только mapping `ENV_VAR → pass/path` без реальных значений и без создания файла:
-```bash
-ANTHROPIC_API_KEY → pass:sdlc/anthropic-api-key
-GITHUB_TOKEN → pass:sdlc/github-token
-PROJECT_DB_PASSWORD → pass:sdlc/projects/$ARGUMENTS/db-password
+```text
+ENV_VAR → pass:entry/reference
 ```
 
-3. Покажи безопасную session/process-local загрузку (при выключенном shell tracing):
-```bash
-set +x
-ANTHROPIC_API_KEY="$(pass show sdlc/anthropic-api-key)" command-that-needs-it
-unset ANTHROPIC_API_KEY
-```
-
-Не используй `eval`, `xargs`, shell profile (`.bashrc`), history-bearing literal values или
-plaintext env files. НЕ выводи реальные значения секретов.
+Не читай и не выводи secret values, не создавай `.env`/export script/shell profile и не изменяй
+Project. Если mapping не определён однозначно, пометь его `UNMAPPED`, не угадывай entry.

@@ -2,26 +2,53 @@
 description: Полный отчёт SDLC-цикла — план vs факт по всем спринтам и этапам
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Создай полный отчёт о выполненной работе за SDLC-цикл для проекта $ARGUMENTS.
+
+До записи прочитай `_contract/CYCLE1_COMPLETION_V2.md`. `/report` выполняется после Gate 5:
+`s5-qa` уже владеет решением, а `s0-tracker` только агрегирует существующие verified references.
 
 Шаги:
 
 1. Собери данные из tracking/:
    $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/
 
-   - Прочитай все sprint-NN.md (в порядке возрастания)
+   - Прочитай все `sprint-NN.md` из явно перечисленных sprint refs (в порядке возрастания);
+     не выбирай current artifact по glob/mtime
    - Прочитай backlog.md
    - Прочитай current-sprint.md (если активный спринт — отметить это)
 
-2. Собери данные из SDLC-артефактов (план):
-   - stage1-planning/outputs/PMO-*-schedule.md  → плановые вехи и задачи
-   - stage1-planning/outputs/PMO-*-charter.md   → deliverables и даты
-   - stage2-requirements/outputs/PO-*-backlog.md → запланированные user stories
-   - stage7-ops/outputs/SRE-*-ops-report.md → MTTR, Change Failure Rate, Reliability/SLO (для §6 метрик)
-   - предыдущий tracking/cycle-summary.md (если есть) → значения метрик прошлого цикла для тренда
-   - Если файлов нет — отметить как [ПЛАН НЕДОСТУПЕН] / метрику как [НЕТ ДАННЫХ]
+2. Собери plan/Gate 5 facts только через `tracking/current-artifacts-v1.tsv` и canonical resolver:
+   - `project-charter` → deliverables/dates;
+   - `product-backlog` → planned user stories;
+   - `gate5-decision`, `s5-test-analysis`, `defect-index` → validation fact;
+   - verified Gate 5/evidence refs → exact source/build/profile binding.
+   Legacy schedule-файл не является обязательным контрактом. Если logical id не разрешён,
+   укажи `UNVERIFIED / current reference unavailable`; не выбирай похожий файл по имени.
+   Для дефектов используй resolved row `defect-index`. Это stable logical IDs/machine
+   contracts; произвольный Markdown-текст, имя похожего файла и память агента не являются
+   metric input.
 
-3. Сформируй отчёт и сохрани в:
+3. Сформируй current Completion v2 до отчёта:
+
+   - создай `tracking/completion/CYCLE1-evidence-bundle-v1.tsv` и
+     `tracking/completion/CYCLE1-completion-v2.yaml` точно по completion contract v2;
+   - используй source/build/profile из verified Gate 5 и Build Evidence v1, digest каждого
+     referenced artifact, earliest evidence expiry, UAT approval, active risk exceptions и
+     known issues;
+   - любые non-verified материалы перечисляй только в `unverified_evidence_refs`;
+   - runtime-owned поля бери только из окружения: `SDLC_EXECUTION_RUN_ID`,
+     `SDLC_EXECUTION_PLAN_SHA256` и `SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256`; не вычисляй и не
+     подменяй их;
+   - укажи `current_artifact_manifest_ref: tracking/current-artifacts-v1.tsv` и current
+     `full_dod_approval_ref` из logical artifact resolver.
+
+   Затем запусти `cycle1-completion-check.sh "$SDLC_PROJECTS_DIR/$ARGUMENTS"`. Если он вернул
+   BLOCKED, не создавай cycle-summary и не объявляй цикл завершённым: укажи exact owner/ref,
+   который должен быть исправлен.
+
+4. Сформируй отчёт и сохрани в:
    $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/cycle-summary.md
 
    Структура отчёта:
@@ -71,11 +98,10 @@ description: Полный отчёт SDLC-цикла — план vs факт п
 
    ## 4. Артефакты созданные за цикл
 
-   По каждому SDLC-этапу:
-   - stage1-planning/outputs/ → список файлов
-   - stage2-requirements/outputs/ → список файлов
-   ...
-   (используй ls/find для актуального списка)
+   Перечисли только verified current rows из `tracking/current-artifacts-v1.tsv`, сгруппировав
+   их по stage/owner. Не используй `ls`, `find`, mtime или filename glob как current selector.
+   Exact source/build/profile, evidence bundle и boundary statuses бери только из уже
+   проверенного `tracking/completion/CYCLE1-completion-v2.yaml`.
 
    ## 5. Задачи в бэклоге (не вошли в цикл)
 
@@ -84,27 +110,39 @@ description: Полный отчёт SDLC-цикла — план vs факт п
 
    ## 6. Метрики доставки и качества (quality.md §7)
 
-   ### DORA — план vs факт vs прошлый цикл
-   | Метрика | Цель (High) | Факт | Прошлый цикл | Тренд |
-   |---------|-------------|------|--------------|-------|
-   | Deployment Frequency | 1/день–1/неделю | | | ↑/↓/→ |
-   | Lead Time for Changes | 1 день–1 неделю | | | |
-   | MTTR | < 1 дня | | | |
-   | Change Failure Rate | < 10% | | | |
-   | Reliability (SLO) | SLO выполняется | | | |
+   ### DORA delivery performance — fact vs previous observation
+   | Метрика | Факт | Evidence ref | Прошлое сопоставимое наблюдение + evidence ref | Тренд |
+   |---------|------|--------------|-----------------------------------------------|-------|
+   | Change lead time | NOT_OBSERVED / deferred | none | none | N/A |
+   | Deployment frequency | NOT_OBSERVED / deferred | none | none | N/A |
+   | Failed deployment recovery time | NOT_OBSERVED / deferred | none | none | N/A |
+   | Change fail rate | NOT_OBSERVED / deferred | none | none | N/A |
+   | Deployment rework rate | NOT_OBSERVED / deferred | none | none | N/A |
 
-   Источники: Deployment Frequency / Lead Time — git-теги/CI (собирает s0-tracker);
-   MTTR / Change Failure Rate / Reliability — из SRE-*-ops-report.md (s6-sre).
+   Факт допустим только с exact Project-relative verified evidence ref и его contract-bound
+   source/build/profile. Тренд допустим только между двумя exact observations с одинаковыми
+   metric definition, unit, subject и observation scope; иначе `N/A / not comparable`.
+   Без exact production evidence не подставляй target/band/value. Reliability (SLO/error
+   budget) покажи отдельной строкой operational characteristic, не как шестую DORA metric:
+   `NOT_OBSERVED / deferred (Cycle 3 FROZEN)`.
 
    ### Defect-метрики — эффективность гейтов
-   | Метрика | Цель | Факт | Прошлый цикл | Тренд |
-   |---------|------|------|--------------|-------|
-   | Defect Density (деф./KLOC или /SP) | тренд ↓ | | | |
-   | DRE (% дефектов пойманных до прода) | ≥ 95% | | | |
-   | Escaped Defects (найдены в проде) | → 0 | | | |
+   | Метрика | Effective policy / режим | Факт | Evidence ref | Прошлый цикл + evidence ref | Тренд |
+   |---------|---------------------------|------|--------------|-----------------------------|-------|
+   | Defect Density (деф./KLOC или /SP) | NOT_DEFINED / observational | NOT_OBSERVED | none | none | N/A |
+   | DRE (% дефектов пойманных до прода) | NOT_DEFINED / observational | NOT_OBSERVED | none | none | N/A |
+   | Escaped Defects (найдены в проде) | NOT_DEFINED / observational | NOT_OBSERVED / deferred | none | none | N/A |
 
-   > Деградация метрики 2 цикла подряд → запись в tracking/tech-debt.md (процессный долг).
-   > DRE < 90% → ретро + усиление уровня тестов (§3.1). Escaped Defect S1/S2 → post-mortem (s6-sre).
+   Для каждой defect-метрики сначала вызови `quality-policy-read.sh PROJECT METRIC_ID`.
+   Только существующая effective policy row задаёт operator/threshold/unit; если metric id не
+   определён, оставь `NOT_DEFINED / observational` и не придумывай цель. Факт бери только из
+   exact current defect index или verified production evidence с явным numerator/denominator,
+   unit и observation scope.
+
+   > Деградация наблюдаемой метрики 2 цикла подряд → запись в tracking/tech-debt.md.
+   > NOT_OBSERVED не является деградацией и не получает выдуманный тренд.
+   > Escaped Defect S1/S2 в доступной Cycle 1 среде → ретро s5-qa; production post-mortem
+   > deferred.
 
    ## 7. Выводы и рекомендации
 
@@ -118,6 +156,14 @@ description: Полный отчёт SDLC-цикла — план vs факт п
    [топ-5 задач из backlog с обоснованием]
    ```
 
-4. После сохранения файла — выведи краткую версию отчёта в консоль.
+5. После сохранения файла — выведи краткую версию отчёта в консоль.
+
+6. Не создавай release notes/CHANGELOG, не выполняй push, release build, deploy или production
+   action и не читай Cycle 2/3 как prerequisite. Зафиксируй boundary statuses из contract и
+   `client_next_action: s0-tracker:/release-notes`.
+
+7. После записи cycle-summary повторно проверь, что completion manifest и current-artifact
+   manifest не изменились относительно прошедшего шага 3. При drift верни `BLOCKED` и не
+   объявляй цикл завершённым.
 
 ОБЯЗАТЕЛЬНО: в самом конце вывести итоговый task board со статусами всех задач из всех спринтов.

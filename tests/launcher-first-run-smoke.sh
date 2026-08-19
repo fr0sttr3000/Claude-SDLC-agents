@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d /tmp/sdlc-first-run-smoke.XXXXXX)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-first-run-smoke.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 fail() {
@@ -50,15 +50,25 @@ XDG_CONFIG_HOME="$TMP_DIR/explicit-config-home" \
 AGENT_RUNTIME=codex \
 CODEX_BIN=/bin/true \
 SDLC_RUNTIME_ROUTING=per-agent \
-SDLC_SUBAGENTS=auto \
+SDLC_SUBAGENTS=off \
 SDLC_SUBAGENT_MAX=4 \
   bash -c '
     set -euo pipefail
     source "$1"
     initialize_first_run_execution_policy
     [[ "$SDLC_RUNTIME_ROUTING" == "per-agent" ]]
-    [[ "$SDLC_SUBAGENTS" == "auto" ]]
+    [[ "$SDLC_SUBAGENTS" == "off" ]]
     [[ "$SDLC_SUBAGENT_MAX" == "4" ]]
   ' _ "$ROOT/sdlc.sh" || fail "explicit execution settings were overwritten"
+
+if XDG_CONFIG_HOME="$TMP_DIR/blocked-config-home" \
+  AGENT_RUNTIME=codex CODEX_BIN=/bin/true SDLC_RUNTIME_ROUTING=single \
+  SDLC_SUBAGENTS=auto SDLC_SUBAGENT_MAX=2 \
+  bash -c 'source "$1"; initialize_first_run_execution_policy' _ "$ROOT/sdlc.sh" \
+  >"$TMP_DIR/blocked-workers.out" 2>&1; then
+  fail 'first run accepted legacy auto worker setting'
+fi
+grep -Fq 'BLOCKED: workers отключены' "$TMP_DIR/blocked-workers.out" ||
+  fail 'first run did not explain fail-closed worker policy'
 
 echo "PASS: launcher first-run smoke"

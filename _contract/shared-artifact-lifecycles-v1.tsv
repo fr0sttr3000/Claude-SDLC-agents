@@ -1,0 +1,8 @@
+logical_id	lifecycle	owners	ordering
+business-requirements	draft-then-canonical	s2-ba:/extract-requirements,s2-ba:/brd	extract-requirements before brd
+api-contract	initialize-then-refine	s3-arch:/hld,s3-arch:/api-spec	hld before optional api-spec refinement
+authorization-matrix	initialize-then-refine	s3-rbac:/rbac-model,s3-rbac:/rbac-matrix	rbac-model before optional matrix refinement
+tdd-report	red-then-run	s4-qa-auto:/write-tests,s4-qa-auto:/run-tests	write-tests before run-tests
+tdd-status	state-machine	s4-qa-auto:/write-tests,s4-qa-auto:/run-tests	RED before PASS|FAIL|BLOCKED
+development-update-notes	per-pr-set-refinement	s4-dev:/dev-report,s4-dev:/update-notes	dev-report initializes each PR member; update-notes may revise the same member
+s5-validation-index	multi-stream-index	s5-qa:/test-plan,s5-qa-auto:/e2e-report,s5-perf:/load-test,s5-security:/security-test,s5-qa:/go-no-go	stream owners update only their row; go-no-go validates the complete index

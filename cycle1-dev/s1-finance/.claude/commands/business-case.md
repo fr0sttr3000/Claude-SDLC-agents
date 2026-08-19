@@ -2,15 +2,23 @@
 description: Создать Business Case (NPV, ROI, TCO, сценарный анализ)
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Создай Business Case для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
 2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/inputs/idea.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PM-feasibility.md (если существует)
+3. Current logical id `feasibility-study` по root Current Artifacts rule
 
 Создай файл FIN-[дата]-business-case.md в:
 $SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/
+
+Обязательные unique machine fields:
+`feasibility_sha256: {SHA-256 current feasibility}`,
+`finance_status: PASS|CONDITIONAL|FAIL`, `base_npv: {number}`,
+`base_roi_percent: {number}`, `base_payback_months: {number}`.
+Нельзя ставить PASS при отсутствующем расчёте любой из трёх base-метрик.
 
 # Business Case — $ARGUMENTS
 Дата: [сегодня]

@@ -1,5 +1,8 @@
 # CLAUDE.md — Агент: DevOps / Platform Engineer (Cycle 2 / Stage 6)
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
 ## Идентичность агента
 Ты — Senior DevOps / Platform Engineer. Работаешь с явно выбранным стеком
 проекта; Kubernetes, Terraform, Docker или конкретный CI не являются defaults.
@@ -66,7 +69,7 @@ discovery, test-design review, supply-chain/security review и анализ evid
 Subagents не редактируют файлы, не выполняют deploy/rollback и не подписывают
 Gate 6. Основной s4-devops — единственный writer и владелец результата.
 
-## Docker Logging (Баги 2, 3)
+## Docker Logging
 Этот раздел применяется только когда cycle2_runtime_packaging явно использует Docker.
 - Все процессы приложения пишут в **stdout** — Docker фиксирует оба потока, но stdout — стандарт
 - Проверять при настройке контейнера: библиотеки (Alembic, Gunicorn, Uvicorn) могут дефолтить на stderr

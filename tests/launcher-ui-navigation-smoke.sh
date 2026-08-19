@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d /tmp/sdlc-launcher-ui.XXXXXX)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-launcher-ui.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 export XDG_CONFIG_HOME="$TMP_DIR/config"
@@ -33,7 +33,8 @@ assert_not_contains() {
 for fn in normalize_ui_view set_ui_view toggle_ui_view render_ui_view_choice \
   console_action_map render_project_selector render_project_console \
   render_launcher_entry_intro render_project_console_intro \
-  render_action_help dispatch_console_action post_kickoff_menu valid_project_name \
+  render_action_help render_cycle23_frozen_status dispatch_console_action \
+  post_kickoff_menu valid_project_name \
   valid_menu_index; do
   declare -F "$fn" >/dev/null || fail "missing launcher UX function: $fn"
 done
@@ -53,7 +54,7 @@ if normalize_ui_view unknown >/dev/null 2>&1; then
   fail "unknown UI view accepted"
 fi
 
-valid_project_name "FamilyPlannerBot-2" || fail "safe project name rejected"
+valid_project_name "ExampleProject-2" || fail "safe project name rejected"
 for unsafe in "../escape" "nested/name" ".hidden" "" "name with spaces"; do
   if valid_project_name "$unsafe"; then
     fail "unsafe project name accepted: $unsafe"
@@ -113,7 +114,8 @@ assert_contains "$detailed_output" "PROJECT: Alpha"
 assert_contains "$detailed_output" "$PROJECTS/Alpha"
 assert_contains "$detailed_output" "Пройти или обновить Kickoff"
 assert_contains "$detailed_output" "Разработка не стартует сама"
-assert_contains "$detailed_output" "Запустить только один Cycle"
+assert_contains "$detailed_output" "Запустить Cycle 1"
+assert_contains "$detailed_output" "Cycle 2/3 — FROZEN / NOT READY"
 assert_contains "$detailed_output" "Локальные репозитории"
 assert_contains "$detailed_output" "v Краткий вид"
 assert_not_contains "$detailed_output" "Вариант A"
@@ -126,16 +128,17 @@ compact_map="$(console_action_map)"
 [[ "$detailed_map" == "$compact_map" ]] || fail "view changed action mapping"
 assert_contains "$compact_output" "PROJECT: Alpha"
 assert_contains "$compact_output" "1 Kickoff"
-assert_contains "$compact_output" "6 Один Cycle"
+assert_contains "$compact_output" "5 Cycle 1"
+assert_contains "$compact_output" "6 Cycle 2/3 — FROZEN / NOT READY"
 assert_contains "$compact_output" "v Подробный вид"
 assert_not_contains "$compact_output" "Разработка не стартует сама"
 
-expected_map=$'0|unfinished\n1|kickoff\n2|overview\n3|review\n4|repair\n5|goal\n6|cycle\n7|agent\n8|goal-config\n9|ai\nu|utilities\np|projects\nl|local-repositories\ng|launcher-settings\nv|view\n?|help\nq|exit'
+expected_map=$'0|unfinished\n1|kickoff\n2|overview\n3|review\n4|repair\n5|cycle1\n6|cycle23-frozen\n7|agent\n9|ai\nu|utilities\np|projects\nl|local-repositories\ng|launcher-settings\nv|view\n?|help\nq|exit'
 [[ "$compact_map" == "$expected_map" ]] || fail "unexpected Project Console action map"
 
 help_output="$(render_action_help cycle)"
 assert_contains "$help_output" "ТОЛЬКО CYCLE 1"
-assert_contains "$help_output" "Cycle 2"
+assert_contains "$help_output" "FROZEN / NOT READY"
 assert_contains "$help_output" "Проверка запуска"
 
 CALLS=()
@@ -143,20 +146,19 @@ menu_kickoff() { CALLS+=(kickoff); }
 menu_project_overview() { CALLS+=(overview); }
 menu_project_review() { CALLS+=(review); }
 menu_project_repair() { CALLS+=(repair); }
-run_goal_mode() { CALLS+=(goal); }
-menu_cycle_select() { CALLS+=(cycle); }
+run_cycle1() { CALLS+=(cycle1); }
+render_cycle23_frozen_status() { CALLS+=(cycle23-frozen); }
 menu_single_agent() { CALLS+=(agent); }
-menu_goal_profile() { CALLS+=(goal-config); }
 menu_ai_assignment() { CALLS+=(ai); }
 menu_utilities() { CALLS+=(utilities); }
 project_selector() { CALLS+=(projects); }
 menu_local_repositories() { CALLS+=(local-repositories); }
 menu_launcher_settings() { CALLS+=(launcher-settings); }
 
-for key in 1 2 3 4 5 6 7 8 9 u p l g; do
+for key in 1 2 3 4 5 6 7 9 u p l g; do
   dispatch_console_action "$key"
 done
-[[ "${CALLS[*]}" == "kickoff overview review repair goal cycle agent goal-config ai utilities projects local-repositories launcher-settings" ]] ||
+[[ "${CALLS[*]}" == "kickoff overview review repair cycle1 cycle23-frozen agent ai utilities projects local-repositories launcher-settings" ]] ||
   fail "Project Console dispatch mismatch: ${CALLS[*]}"
 
 CALLS=()
@@ -165,9 +167,9 @@ post_kickoff_menu <<< "1" >/dev/null
 [[ "${CALLS[*]}" == "cycle1:selected" ]] || fail "Kickoff does not hand off to only Cycle 1"
 
 CALLS=()
-configure_goal_profile() { CALLS+=(configure-goal); }
-run_goal_mode() { CALLS+=(goal); }
-post_kickoff_menu <<< "2" >/dev/null
-[[ "${CALLS[*]}" == "configure-goal goal" ]] || fail "Kickoff Goal route handoff is wrong"
+post_output="$(post_kickoff_menu <<< "3")"
+assert_contains "$post_output" "FROZEN / NOT READY"
+assert_not_contains "$post_output" "режим цели"
+[[ "${#CALLS[@]}" -eq 0 ]] || fail "Kickoff still exposes a frozen continuation: ${CALLS[*]}"
 
 echo "PASS: launcher UI/navigation smoke"

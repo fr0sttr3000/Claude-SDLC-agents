@@ -2,6 +2,8 @@
 description: Сформировать Product Vision, North Star Metric и OKR с поддержкой вето стейкхолдера
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 ## Шаг 1 — Разбор аргументов
 
 `$ARGUMENTS` может содержать: `[PROJECT] [флаги]`
@@ -21,7 +23,7 @@ description: Сформировать Product Vision, North Star Metric и OKR �
 Прочитай:
 1. `$SDLC_VAULT/_agents/_standards/company.md`
 2. Все файлы из `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/inputs/`
-3. `$SDLC_PROJECTS_DIR/$ARGUMENTS/stage1-planning/outputs/PM-*-feasibility.md` (если существует)
+3. Current logical id `feasibility-study` по root Current Artifacts rule
 
 Из `idea.md` извлеки и запомни:
 - `## Проблема` (Q1.2) → формулировка проблемы для Vision

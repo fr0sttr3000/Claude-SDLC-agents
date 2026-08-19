@@ -2,20 +2,23 @@
 description: Провести Threat Modeling (STRIDE + CVSS + OWASP)
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Проведи Threat Modeling для проекта $ARGUMENTS.
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/security.md
 2. $SDLC_VAULT/_agents/_standards/quality.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/PMO-constraints.md
-4. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-*-BRD.md
-5. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-*-NFR.md
-6. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/SEC-*-security-requirements.md (SG1)
-7. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-*-HLD.md
-8. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/ARCH-*-api-spec.yaml (если применимо)
+3. Current `project-constraints`, `business-requirements`, `nonfunctional-requirements`,
+   `security-requirements` (SG1), `high-level-design`, `api-contract` по root Current
+   Artifacts rule
 
 Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage3-design/outputs/:
 - SEC-[дата]-threat-model.md
+
+Frontmatter обязан соответствовать Artifact Metadata v1 и дополнительно содержать уникальные
+`product_profile_revision`, `sg1_sha256`, `hld_sha256`, `asvs_version: 5.0.0`,
+`component_scope` и `sg2_status: PASS|FAIL`.
 
 Не создавай повторно security requirements: SG1 принадлежит `s2-security`; здесь он развивается
 в design controls и SG2 evidence.
@@ -32,6 +35,9 @@ description: Провести Threat Modeling (STRIDE + CVSS + OWASP)
 
 | Компонент | S | T | R | I | D | E |
 |-----------|---|---|---|---|---|---|
+
+Для каждого проверяемого решения добавь machine-readable строку SG2 Validation v1:
+`Threat trace: THREAT-001 | Scenario: SEC-SC-001 | Component: CMP-API | Control: CTRL-001 | Test: SEC-TEST-001 | ASVS: v5.0.0-1.2.3 | Severity: Medium | Status: MITIGATED`.
 
 - **S**poofing — подмена идентичности
 - **T**ampering — модификация данных
@@ -73,3 +79,6 @@ description: Провести Threat Modeling (STRIDE + CVSS + OWASP)
 Обоснование: ...
 
 FAIL или открытые Critical/High → Gate 3 заблокирован.
+
+Перед завершением запусти `s0-validate/sg2-check.sh`; prose/checklist без `SG2 VERIFIED`
+не закрывает SG2.

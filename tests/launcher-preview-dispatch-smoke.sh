@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_DIR="$(mktemp -d /tmp/sdlc-launcher-preview.XXXXXX)"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sdlc-launcher-preview.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 export XDG_CONFIG_HOME="$TMP_DIR/config"

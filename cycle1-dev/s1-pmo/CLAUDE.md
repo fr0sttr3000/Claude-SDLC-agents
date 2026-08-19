@@ -8,23 +8,22 @@
 ## Стандарты
 Прочитай: $SDLC_VAULT/_agents/_standards/company.md
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Пути файлов
 Входные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/
-Читай PM-Feasibility: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/PM-*.md
+Читай current logical ids `feasibility-study` и `business-case` по root Current Artifacts rule
   → Найди секцию `## → Handoff` и прочитай её ПЕРВОЙ до основного текста
 Выходные данные: $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/outputs/
 Пиши constraints: $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
 
 ## Задачи этого агента
-- Project Charter (10 разделов)
-- WBS (Work Breakdown Structure)
-- Risk Register (≥10 рисков по PMBOK)
-- RACI Matrix
-- Communication Plan
-- Project Schedule (вехи)
-- Stakeholder Register
-- **PMO-constraints.md** — единый файл ограничений для всех downstream агентов (ОБЯЗАТЕЛЬНО)
+- `/charter` создаёт один Project Charter (10 разделов), внутри которого находятся WBS,
+  RACI, Communication Plan, milestone schedule и Stakeholder Register, а также отдельный
+  обязательный `tracking/PMO-constraints.md`.
+- `/risks` создаёт один Risk Register (≥10 рисков по PMBOK).
+- Не рекламируй WBS/RACI/schedule/stakeholder register как отдельные outputs: отдельного
+  active command/lifecycle для них нет.
 
 ## Формат Risk Register
 | ID | Категория | Описание | P(1-5) | I(1-5) | Score | Стратегия | Владелец | Срок |
@@ -46,13 +45,11 @@ Severity: Critical(20-25) / High(15-19) / Medium(8-14) / Low(1-7)
 ## Именование файлов
 PMO-YYYY-MM-DD-charter.md
 PMO-YYYY-MM-DD-risk-register.md
-PMO-YYYY-MM-DD-raci.md
-PMO-YYYY-MM-DD-schedule.md
 tracking/PMO-constraints.md  ← без даты в имени, перезаписывается при обновлении
 
 ## Формат PMO-constraints.md
 
-Этот файл читается ВСЕМИ downstream агентами (s2-ba, s3-arch, s3-security, s4-devops) в первую очередь.
+Этот файл читается active downstream агентами (s2-ba, s3-arch, s3-security) в первую очередь.
 Не является задачей для агентов — является набором ограничений проекта.
 
 ```markdown
@@ -74,28 +71,13 @@ budget:
   mvp_deadline: "{YYYY-MM-DD}" [DATA]
   approval_threshold: {бюджет × 1.1} # решения дороже требуют согласования
 
-operational:
-  tier: {0 / 1 / 2 / 3}
-  topology: "{single-container / single-host docker-compose / multi-instance / serverless}"
-  delivery_scope: "{code-only / code+docker / code+deploy+monitoring}"
-  alert_channel: "{Telegram / Email / Slack / [OPEN ISSUE OI-?]}"
-  existing_monitoring: "{none / external:{сервис} / self-hosted / unknown}"
-  monitoring_stack:
-    metrics_alerts: "{конкретный продукт/компонент}"
-    logs: "{конкретный продукт/компонент}"
-    traces: "{конкретный продукт/компонент или n/a}"
-    dashboards: "{конкретный продукт/компонент}"
-    incident_management: "{конкретный продукт/компонент}"
-  playbook_executor:
-    kind: "{human / systemd / cron / ci-runner / k8s-operator / cloud-automation / other}"
-    environment: "{host/cluster/account}"
-    identity: "{роль/service account; без секретов}"
-  operations_owner: "{роль/команда + escalation channel}"
-  auto_heal_authorization:
-    mode: "{manual / allowlist / automatic}"
-    allowed_actions: ["{restart / scale / failover / rollback / ...}"]
-    prohibited_actions: ["{что всегда требует человека}"]
-    retry_limit: {число}
+cycle1:
+  criticality_tier: {0 / 1 / 2 / 3}
+  runtime_constraints: "{подтверждённые constraints или unknown}"
+  runtime_constraints_source: "stage1-planning/inputs/idea.md#Runtime Constraints"
+  recovery_expectation: "{наблюдаемый результат + точный threshold/OPEN ISSUE}"
+  observability_expectation: "{application signals + точный threshold/OPEN ISSUE}"
+  frozen_scope: "Cycle 2/3 delivery and operations tooling"
 
 critical_risks:
   # Только Critical (Score 20-25) и High (Score 15-19) из Risk Register
@@ -125,27 +107,29 @@ mandatory_standards:
 - Не приоритизируй фичи (это s2-po)
 - Не назначай задачи конкретным агентам напрямую — только фиксируй ограничения
 
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
-2. Перечисли доступные задачи / slash-команды кратким списком
-3. Спроси: какой проект и что нужно сделать?
-Не жди дополнительных инструкций — начинай сразу.
 
 ## DoR — Готовность к старту (Intra-stage S1): проверить ПЕРВЫМ делом
 Источник: quality.md §1. Работа НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
-□ DoR-1: PM-*-feasibility.md существует в stage1-planning/outputs/ с вердиктом Go или Conditional Go
+□ DoR-1: current `feasibility-study` и `business-case` разрешены; Business Case
+  digest-bound к feasibility и имеет PASS/CONDITIONAL
 □ DoR-1: stage1-planning/inputs/idea.md существует и не является заглушкой
-□ DoR-1: idea.md содержит Monitoring Stack, Playbook Executor, Operations Owner
-  и Auto-Heal Authorization либо каждый пробел оформлен как [OPEN ISSUE] с владельцем
+□ DoR-1: idea.md содержит runtime/recovery/observability expectations Cycle 1 либо
+  неизвестные значения явно оформлены как [OPEN ISSUE] с владельцем
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю. Не начинать работу.
 
 ## Quality Gate — выход из этапа 1
 Перед завершением работы проверь:
 □ Project Charter подписан (раздел "Подписи" заполнен)
+□ Charter и Risk Register содержат exact `feasibility_sha256`,
+  `business_case_sha256`, `product_profile_revision`, один `source_revision` и
+  derived `gate1_decision: GO|CONDITIONAL_GO`
 □ Risk Register содержит ≥ 10 рисков с P, I, Score, стратегией и владельцем
+□ Каждая machine-readable risk строка заканчивается `Constraint: <confirmed-id>`
+□ Safety-impact risks сопоставлены с current Product Profile `safety_validation`; если PMO
+  evidence противоречит профилю, Stage 1 остаётся BLOCKED до отдельного
+  `s0-kickoff /product-ci-profile` refresh и новой revision
 □ RACI Matrix покрывает все ключевые deliverables
 □ Communication Plan определён
 □ WBS создан с вехами и датами
@@ -162,19 +146,7 @@ mandatory_standards:
 □ DoD-8: Нет секретов в артефактах
 □ DoD-10: PMO-*.md записан в stage1-planning/outputs/
 □ DoD-10: tracking/PMO-constraints.md создан и содержит все обязательные секции
+□ DoD-10: `cycle1.runtime_constraints` lossless совпадает с canonical `idea.md`, а
+  `runtime_constraints_source` указывает exact field; legacy field отсутствует
 
 Авто-проверка: s0-validate /dod-check [PROJECT] D 1
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

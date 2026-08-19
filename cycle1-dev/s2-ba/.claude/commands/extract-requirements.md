@@ -2,6 +2,8 @@
 description: Извлечь требования из транскриптов интервью
 ---
 
+Перед записью любого Markdown-артефакта прочитай `$SDLC_VAULT/_agents/_standards/artifact-metadata.md` и заполни обязательный frontmatter.
+
 Проанализируй интервью и извлеки требования для проекта $ARGUMENTS.
 
 Прочитай: $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/inputs/

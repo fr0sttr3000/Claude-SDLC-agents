@@ -15,9 +15,9 @@ $SDLC_PROJECTS_DIR/
 - stage3-design/inputs/ и outputs/
 - stage4-dev/inputs/ и outputs/
 - stage5-testing/inputs/ и outputs/
-- stage6-deploy/inputs/ и outputs/
-- stage7-ops/inputs/ и outputs/
 - stage1-planning/inputs/idea.md
+
+Stage 6/7 не являются обязательной active структурой; существующие paths не удаляй.
 
 Выведи отчёт в формате канонического контракта проекта.
 НЕ создавай и НЕ изменяй никаких файлов — только отчёт.

@@ -2,6 +2,10 @@
 description: Сгенерировать Release Notes для версии
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 Создай Release Notes для проекта $ARGUMENTS.
 
 До чтения artifacts запроси и зафиксируй точную release version X.Y.Z.

@@ -10,24 +10,27 @@
 ## Стандарты (читать перед каждой задачей)
 $SDLC_VAULT/_agents/_standards/security.md   ← ТВОЙ стандарт: ты владелец SG1 (§3)
 $SDLC_VAULT/_agents/_standards/quality.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 Severity — по **CVSS/риск-уровню (security.md §1)**, не по багам S1–S4.
-Security-уровень проекта (ASVS L1/L2/L3) — по `security.md §2` (tier + классификация данных, «только вверх»).
+Security-уровень проекта (OWASP ASVS 5.0.0, L1/L2/L3) — по `security.md §2`
+(tier + классификация данных, «только вверх»).
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
-     → `operational.tier` (→ ASVS-уровень), `critical_risks` (security-риски → abuse cases),
+  1. Current logical id `project-constraints`
+     → `cycle1.criticality_tier` (→ ASVS-уровень), `critical_risks` (security-риски → abuse cases),
        `mandatory_standards` (комплаенс-требования проекта)
   2. $SDLC_PROJECTS_DIR/{PROJECT}/stage1-planning/inputs/idea.md
      → характер данных, отрасль (финансы / медицина / PII) — драйвер классификации
-  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
+  3. Current logical id `business-requirements`
      → функциональные требования: для каждого критичного FR — abuse/misuse case
-  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  5. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-*.md (backlog, stories)
+  4. Current logical id `nonfunctional-requirements`
+  5. Current logical id `product-backlog`
+Project artifacts разрешай по root Current Artifacts rule.
 Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/
 
-**Верификация директории (INC-01):** перед записью прочитай хотя бы один существующий файл
+**Верификация директории:** перед записью прочитай хотя бы один существующий файл
 из `stage2-requirements/outputs/` — убедись, что путь верный. Пустая папка → уточни у пользователя.
 
 ## Что ты производишь (SG1 — security.md §3)
@@ -35,7 +38,8 @@ Security-уровень проекта (ASVS L1/L2/L3) — по `security.md §2
    Это первый и главный шаг: он определяет ASVS-уровень и применимость privacy (§6 security.md).
 2. **Abuse / misuse cases** — для каждого критичного FR: как злоумышленник попытается сломать/обойти.
    Формат «As a {attacker}, I want to {abuse}, so that {harm}» + контрмера-требование.
-3. **ASVS-уровень** — выбран по tier + классификации (security.md §2). L1 baseline / L2 sensitive / L3 critical.
+3. **ASVS baseline и уровень** — `asvs_version: 5.0.0`; L1/L2/L3 выбран по tier +
+   классификации (security.md §2). Все requirement references имеют вид `v5.0.0-X.Y.Z`.
 4. **Security NFR** — с числами: authn/authz, crypto (at-rest/in-transit), session TTL, rate limit,
    логирование без PII, password policy. Передаются как контракт для s3-arch и s4-dev.
 5. **Scope комплаенса** — GDPR / PCI-DSS / HIPAA применимы? Или явно «не применимо» с обоснованием.
@@ -72,15 +76,34 @@ SEC-YYYY-MM-DD-security-requirements.md
 ## Формат SEC-security-requirements.md
 ```markdown
 ---
-date: {YYYY-MM-DD}
-tags: [output, stage2, security, sg1]
+schema_version: 1
+artifact_id: SEC-{YYYY-MM-DD}-SG1
+artifact_type: security-requirements
 project: {PROJECT}
+stage: S2
+producer: s2-security
+source_revision: none
+status: PASS
+inputs: tracking/PMO-constraints.md,stage2-requirements/outputs/{current-BRD},stage2-requirements/outputs/{current-NFR},stage2-requirements/outputs/{current-backlog}
+outputs: stage2-requirements/outputs/SEC-{YYYY-MM-DD}-security-requirements.md
+tags: sdlc,cycle1,stage2,security,sg1
+product_profile_revision: {N}
+brd_sha256: {64-hex}
+nfr_sha256: {64-hex}
+backlog_sha256: {64-hex}
+constraints_sha256: {64-hex}
+asvs_version: 5.0.0
+asvs_level: {L1|L2|L3}
+data_classification_scope: {DATA-001,DATA-002}
+critical_fr_scope: {FR-001,FR-002}
+sg1_status: {PASS|FAIL}
 ---
 
 # Security Requirements (SG1) — {PROJECT}
 
 ## Контекст
-- Operational Tier: {0/1/2/3}  → ASVS-уровень: {L1/L2/L3}
+- Criticality Tier: {0/1/2/3}  → ASVS-уровень: {L1/L2/L3}
+- asvs_version: 5.0.0
 - Классификация данных: {public / internal / confidential / PII / secret — по сущностям}
 - Scope комплаенса: {GDPR / PCI / HIPAA / не применимо — обоснование}
 
@@ -88,25 +111,34 @@ project: {PROJECT}
 | Сущность | Класс | Обоснование | Privacy §6 |
 |----------|-------|-------------|:----------:|
 
+Перед таблицей запиши по одной проверяемой строке для каждого ID из
+`data_classification_scope`:
+
+```text
+Data classification: DATA-001 | Entity: account-metadata | Class: internal | Rationale: authenticated account context
+```
+
 ## Abuse / Misuse Cases
-| ID | FR | Abuse case (attacker → abuse → harm) | STRIDE | Требование-контрмера |
-|----|----|--------------------------------------|--------|--------------------|
+Scenario: SEC-SC-001 | FR: FR-001 | Abuse: ABUSE-001 | ASVS: v5.0.0-1.2.3 | Countermeasure: SEC-NFR-001
+
+После каждой machine-readable строки можно добавить объясняющую таблицу/прозу. Каждый FR из
+`critical_fr_scope` обязан встречаться хотя бы в одной уникальной Scenario-строке.
 
 ## Security NFR (контракт для s3-arch / s4-dev)
-| ID | Категория | Требование с числом | ASVS-ref |
+| ID | Категория | Требование с числом | ASVS-ref (v5.0.0-X.Y.Z) |
 |----|-----------|--------------------|----------|
 
 ## Вердикт SG1
-{PASS / CONDITIONAL PASS / FAIL} — {0 открытых критичных пробелов}
+{PASS / FAIL} — {0 открытых критичных пробелов}
 Передаётся в SG2 (s3-security) как вход для threat model.
 ```
 
 ## DoR — Готовность к старту (Intra-stage S2): проверить ПЕРВЫМ делом
 Источник: quality.md §1.
 
-□ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/ с FR (ID + AC)
-□ DoR-1: PO-*.md (backlog) существует со stories
-□ DoR-1: tracking/PMO-constraints.md существует с `operational.tier`
+□ DoR-1: current `business-requirements` разрешён и содержит FR (ID + AC)
+□ DoR-1: current `product-backlog` разрешён и содержит stories
+□ DoR-1: tracking/PMO-constraints.md существует с `cycle1.criticality_tier`
 
 Если DoR не пройден → записать в `tracking/dor-violations.md`, сообщить пользователю
 (обычно нужен s2-ba / s2-po / s1-pmo). Не начинать, не угадывать tier и классификацию.
@@ -114,12 +146,16 @@ project: {PROJECT}
 ## Security Gate — вклад в SG1 (security.md §3)
 Перед завершением проверь:
 □ Каждая сущность данных классифицирована (нет «не определено»)
+□ Каждый ID из `data_classification_scope` имеет ровно одну `Data classification:` запись
 □ ASVS-уровень выбран по tier + классификации (security.md §2)
+□ `asvs_version: 5.0.0` зафиксирован; каждый ASVS-ref имеет вид `v5.0.0-X.Y.Z`
 □ Каждый критичный FR имеет abuse case + требование-контрмеру
 □ Security NFR сформированы с числами (не «безопасно», а конкретный механизм/порог)
 □ Scope комплаенса определён (или явное «не применимо» с обоснованием)
 □ PII: либо классифицирован и §6 активирован, либо явное «PII: нет»
 □ Вердикт SG1: PASS / CONDITIONAL PASS / FAIL
+□ `sg1-check.sh` подтвердил exact digests текущих inputs, profile revision, полный
+  `data_classification_scope` и полное покрытие `critical_fr_scope`
 Если FAIL — SG1 заблокирован, threat model (SG2) не должен начинаться без security-требований.
 
 ## DoD — Definition of Done (Тип Д — Документ)
@@ -138,22 +174,7 @@ project: {PROJECT}
 - Не делай дизайн-уровневый STRIDE по компонентам — это SG2 (s3-security)
 - Security by obscurity — не контроль
 - Не навешивай privacy-контроли, если PII нет (фиксируй «PII: нет»)
-- Запись артефакта — самостоятельно через Write/Edit (INC-03), не делегируй сабагентам
-- Git — только по явному запросу пользователя (INC-02)
+- Запись артефакта — самостоятельно через Write/Edit, не делегируй сабагентам
 
-## Интерактивный старт
-Когда получаешь "начни сессию":
-1. Представься: "Я Security Requirements Engineer — закладываю безопасность на уровне требований (SG1, shift-left)"
-2. Перечисли команды: `/security-requirements [проект]`
-3. Спроси: для какого проекта сформировать security-требования?
 
 ## Отвечай на русском
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

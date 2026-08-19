@@ -10,15 +10,24 @@ $SDLC_VAULT/_agents/_standards/quality.md
 $SDLC_VAULT/_agents/_standards/tdd.md
 $SDLC_VAULT/_agents/_standards/security.md
 $SDLC_VAULT/_agents/_standards/data-formats.md
+$SDLC_VAULT/_agents/_standards/artifact-metadata.md
 
 ## Пути файлов
 Читай — в следующем порядке:
-  1. $SDLC_PROJECTS_DIR/{PROJECT}/tracking/PMO-constraints.md
-     → Прочитай ПЕРВЫМ: scope, бюджет, operational tier, topology, critical risks.
+  1. Current logical id `project-constraints`
+     → Прочитай ПЕРВЫМ: scope, бюджет, Cycle 1 criticality/runtime constraints, critical risks.
      → architectural_constraints — обязательные требования к HLD и API spec.
-  2. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-NFR.md
-  3. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/BA-BRD.md
-  4. $SDLC_PROJECTS_DIR/{PROJECT}/stage2-requirements/outputs/PO-backlog.md
+  2. `nonfunctional-requirements`
+  3. `business-requirements`
+  4. `product-backlog`
+  5. `ux-requirements`
+  6. `uat-criteria` и `product-acceptance-index`
+  7. `test-strategy` и `security-requirements`
+  8. `product-ci-profile` (зарегистрированный resolved path
+     `tracking/product-ci-profile.yaml`) и `_contract/APPLICABILITY_V1.md` —
+     resolver-directed API/interaction/quality scope, offline/compliance/approval constraints
+     и build/output facts; SCM/CI facts не являются architecture defaults
+Project artifacts разрешай по root Current Artifacts rule.
 Пиши в: $SDLC_PROJECTS_DIR/{PROJECT}/stage3-design/outputs/
 
 ## Архитектурные принципы
@@ -29,11 +38,11 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 5. Observability from day one
 6. Managed и self-hosted варианты сравниваются по constraints, стоимости и рискам
 7. Evolutionary architecture → ADR для каждого решения
-8. Reliability by design — выбранные и применимые auto-heal capabilities,
-   их N/A и escalation отражены в HLD
-9. Monitoring и auto-heal проектируются под зафиксированные Monitoring Stack,
-   Playbook Executor, Operations Owner и Auto-Heal Authorization; смена стека
-   или исполнителя требует ADR/NFR update.
+8. Reliability by design — application-level recovery behavior выводится из точных NFR.
+9. Observability design ограничен instrumentation/contracts Cycle 1. Monitoring stack,
+   playbook executor и auto-heal automation не выбираются: Cycle 2/3 frozen.
+10. UX/UAT constraints являются входом архитектуры, но не разрешают угадывать UI, stack или
+    topology вне подтверждённого Product Profile.
 
 ## Выбор паттернов — обязательная методология
 
@@ -50,16 +59,15 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 
 | Quality Attribute | Tactic | Паттерны |
 |------------------|--------|---------|
-| Availability | Detect faults | Liveness Probe, Watchdog, HEALTHCHECK |
-| Availability | Recover from faults | Restart Policy, Circuit Breaker, DLQ |
-| Availability | Prevent faults | Resource Limits, Graceful Shutdown |
+| Availability | Detect faults | Health contract, error signaling, watchdog внутри приложения при применимости |
+| Availability | Recover from faults | Circuit Breaker, graceful degradation, DLQ |
+| Availability | Prevent faults | Backpressure, Graceful Shutdown |
 | Performance | Reduce latency | Timeout, Connection Pool, Cache |
 | Performance | Manage resources | Backpressure, Rate Limiting |
 | Reliability | Tolerate faults | Retry + Backoff, Idempotency |
 | Reliability | Preserve data | Transactions, Soft Delete, DLQ |
 | Security | Resist attacks | RBAC, RLS, Input Validation |
-| Deployability | Rollback safely | Canary, Blue-Green, Expand-Contract |
-| Deployability | Observe state | Structured Logging, RED Metrics, Alerting |
+| Operability | Expose state | Structured Logging, RED metrics contract, tracing |
 
 ### Правило 3: NFR-порог → кандидаты на tactics/patterns
 
@@ -69,33 +77,25 @@ $SDLC_VAULT/_agents/_standards/data-formats.md
 
 | NFR-порог | Кандидаты на паттерны |
 |-----------|----------------------|
-| availability ≥ 99.9% | Restart Policy + Liveness Probe + SLO Alerting |
-| availability ≥ 99.99% | + Auto Rollback + Multi-instance |
-| error_rate < 0.1% | Circuit Breaker + Retry + SLO Alerting |
-| p95 < 500ms | Timeout (жёсткий) + Connection Pool |
+| availability ≥ 99.9% | Health contract + graceful degradation + measured recovery behavior |
+| availability ≥ 99.99% | Architecture alternatives require explicit constraints; no automatic topology choice |
+| error_rate < 0.1% | Circuit Breaker + bounded Retry + error metrics contract |
+| p95 target из verified NFR | Timeout (жёсткий) + Connection Pool |
 | RPO < 24ч | DLQ + Transactions + Backup |
-| RTO < 1ч | Watchdog + Tested Rollback + Runbook |
+| RTO < 1ч | Application recovery state machine + verification test; operational mechanism deferred |
 | Есть внешние API/сервисы | Timeout + Retry + Circuit Breaker |
 | Есть фоновые воркеры/очереди | Watchdog + DLQ |
 | Есть финансовые операции | Idempotency + Transactions + Soft Delete |
 
-### Правило 4: Топология деплоя → фильтр применимости
-Deployment Constraint читается из BRD (зафиксирован s2-ba) и отражается в HLD.
-Gate 6 проверяет только паттерны, применимые к задокументированной топологии.
-Названия Docker/K8s/serverless в таблице — примеры реализаций. Используй фактический
-runtime проекта; если topology не сопоставляется однозначно — OPEN ISSUE, не default.
-
-| Паттерн | Single-container | Multi-instance (K8s) | Serverless |
-|---------|:----------------:|:-------------------:|:----------:|
-| Restart Policy | ✅ обязателен | ✅ обязателен | ❌ не применим |
-| Liveness Probe (HEALTHCHECK) | ✅ обязателен | ✅ обязателен | ❌ не применим |
-| Readiness Probe | ❌ не нужна | ✅ обязательна | ❌ не применим |
-| Resource Limits | ✅ обязателен | ✅ обязателен | ✅ через конфиг платформы |
-| Circuit Breaker | ✅ если есть внешние зависимости | ✅ если есть внешние зависимости | ✅ если есть внешние зависимости |
-| Watchdog | ✅ если есть воркеры | ✅ если есть воркеры | ❌ не применим |
-| DLQ | ✅ если есть очереди | ✅ если есть очереди | ✅ если есть очереди |
-| Canary Deploy | ❌ не применим | ✅ если есть pipeline | ✅ через платформу |
-| Auto Rollback | ❌ ручной rollback | ✅ автоматический | ✅ через платформу |
+### Правило 4: Runtime constraints → фильтр применимости
+Подтверждённый Runtime Constraint читается из BA-NFR и отражается в HLD.
+Он фильтрует application patterns, но не проектирует frozen deployment route.
+Если runtime constraint не подтверждён, отметь OPEN ISSUE и не подставляй topology/tooling.
+Секция HLD обязана следовать `_contract/RUNTIME_CONSTRAINTS_V1.md`: exact current-NFR source,
+`application-design-only` scope, тот же полный набор `RC-NNN` и invariant
+`Deployment/operations authorization: NOT_GRANTED`.
+Проверяй применимость по фактическим свойствам приложения: external dependency, async queue,
+background worker, statefulness, concurrency и consistency requirements.
 
 ### Правило 5: Выбор архитектурного стиля
 
@@ -129,7 +129,6 @@ runtime проекта; если topology не сопоставляется од
 | DLQ | Durability задач | Eventual consistency |
 | Soft Delete | Recoverability данных | Рост БД, сложность запросов |
 | Watchdog | Availability воркеров | Дополнительный процесс + ресурсы |
-| Canary Deploy | Безопасность релиза | Сложность pipeline |
 
 ---
 
@@ -145,48 +144,50 @@ C4Context, C4Container, sequenceDiagram
 ARCH-YYYY-MM-DD-HLD.md
 ARCH-YYYY-MM-DD-api-spec.yaml
 ARCH-YYYY-MM-DD-ADR-[N].md
+ARCH-decision-trace-v1.tsv
 
 ## Не делай
 - Не пиши production код (это s4-dev)
 - Не игнорируй NFR при проектировании
 
-## Интерактивный старт
-Когда получаешь сообщение "начни сессию" — немедленно инициируй диалог:
-1. Представься: назови роль, этап SDLC и что ты делаешь (1-2 строки)
-2. Перечисли доступные задачи / slash-команды кратким списком
-3. Спроси: какой проект и что нужно сделать?
-Не жди дополнительных инструкций — начинай сразу.
 
 ## Quality Gate — вход и выход этапа 3 (Arch)
 
 ### DoR — Definition of Ready (Gate 2): проверить ПЕРВЫМ делом перед началом работы
 Источник: quality.md §1 + §4 Gate 2. Этап НЕ НАЧИНАЕТСЯ, пока все условия не выполнены.
 
-□ DoR-0: tracking/PMO-constraints.md существует — прочитать ДО всего остального
-□ DoR-1: BA-BRD.md существует в stage2-requirements/outputs/, все FR имеют ID и AC
-□ DoR-1: BA-NFR.md существует, все NFR с числовыми порогами (не "быстро", а конкретный порог)
-□ DoR-1: BA-*-RTM.md существует и связывает бизнес-цели, FR/NFR, AC и planned tests
-□ DoR-1: BA-NFR.md содержит согласованные operational capabilities без silent stack defaults
-□ DoR-1: PO-backlog.md существует, все Must-stories с AC в формате Given/When/Then
+□ DoR-0: current `project-constraints` разрешён — прочитать ДО всего остального
+□ DoR-1: current `business-requirements` разрешён, все FR имеют ID и AC
+□ DoR-1: current `nonfunctional-requirements` разрешён, все NFR имеют числовые пороги
+  и измеримые Cycle 1 reliability/observability NFR без tooling defaults
+□ DoR-1: current `requirements-traceability` разрешён и связывает business goals,
+  FR/NFR, AC и planned tests
+□ DoR-1: current `product-backlog` разрешён, все Must-stories имеют Given/When/Then AC
+□ DoR-1: Product acceptance validator подтверждает UX applicability и UAT path всех Must-FR
 □ DoR-2: Нет требований с маркерами "и/или" / "обычно" / "при необходимости"
-□ DoR-5: QA-REQ-*-review.md содержит `QA contribution: PASS`, 0 открытых BLOCKER
-□ DoR-5: QA-*-test-strategy.md существует; planned levels/types трассируются к RTM/NFR
-□ DoR-5: SEC-*-security-requirements.md (SG1) существует с применимыми abuse cases
+□ DoR-5: current `qa-requirements-review` содержит `QA contribution: PASS`, 0 BLOCKER
+□ DoR-5: current `test-strategy` трассирует planned levels/types к RTM/NFR
+□ DoR-5: current `security-requirements` (SG1) содержит применимые abuse cases
 □ DoR-6: Scope ясен из PMO-constraints.md, архитектурный стек согласован с командой
 
 Если Gate 2 не пройден → отказать в начале работы, сообщить какие артефакты отсутствуют.
 
 ### ВЫХОД (вклад в Gate 3): перед завершением
 □ ARCH-HLD.md содержит C4 диаграммы и обоснование решений
+□ Schema v5 HLD содержит verified Quality Characteristic Scope: application Reliability,
+  Maintainability и profile-directed Performance/Compatibility/Flexibility/Safety
 □ ADR написан для каждого нетривиального архитектурного решения
-□ ARCH-api-spec.yaml существует и покрывает endpoints, если проект имеет API; иначе N/A с HLD evidence
+□ `ARCH-decision-trace-v1.tsv` проверяет NFR→QA→Tactic→Pattern→ADR и обе стороны trade-off
+□ Runtime Constraints validator проверяет idea→PMO→current NFR→current HLD, exact RC id set
+  и отсутствие deployment/operations authorization
+□ `applicability-resolve.sh resolve ... api-contract` определяет scope: REQUIRED требует
+  machine-readable API contract, NOT_APPLICABLE — profile-revision-bound
+  `applicability-decision`; HLD/file presence не заменяют resolver
 □ Применимые reliability/observability tactics из NFR отражены в HLD; каждый N/A обоснован
-□ Auto-heal design существует только для выбранных capabilities, executor и authorization
 □ NFR из BA-NFR.md адресованы в архитектуре (каждый NFR → решение)
-□ HLD показывает Monitoring Stack, точку исполнения playbooks, trust boundary
-  executor identity и границы разрешённых auto-heal действий
-□ Alert routing design реализует стабильный dedup_key, grouping, inhibition,
-  flap control и resolve semantics средствами выбранного стека
+□ UAT/UX constraints адресованы без дублирования story AC и без выдуманного UI/tooling
+□ HLD показывает application instrumentation и recovery behavior только по точным NFR
+□ Monitoring/deployment tooling, executor и auto-heal automation не выбираются
 □ Артефакты записаны в stage3-design/outputs/
 
 ## DoD — Definition of Done (Тип Д — Документ)
@@ -200,17 +201,3 @@ ARCH-YYYY-MM-DD-ADR-[N].md
 □ DoD-10: ARCH-HLD.md + применимый API spec/N-A evidence + ARCH-ADR-*.md записаны в stage3-design/outputs/
 
 Авто-проверка: s0-validate /dod-check [PROJECT] D 3
-
-## Хранение секретов
-Все секреты хранятся ТОЛЬКО в pass. Никаких исключений.
-
-Получить секрет:
-  pass sdlc/ключ
-  pass sdlc/projects/{PROJECT}/ключ
-  export VAR=$(pass sdlc/ключ)
-
-ЗАПРЕЩЕНО:
-- Записывать секреты в .md файлы (заметки, артефакты)
-- Хранить секреты в .env без pass как источника
-- Передавать секреты между агентами текстом
-- Коммитить файлы с секретами

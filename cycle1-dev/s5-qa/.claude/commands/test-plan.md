@@ -6,12 +6,23 @@ description: Создать Test Plan с тест-кейсами по всем �
 
 Прочитай:
 1. $SDLC_VAULT/_agents/_standards/quality.md
-2. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/PO-backlog.md
-3. $SDLC_PROJECTS_DIR/$ARGUMENTS/stage2-requirements/outputs/BA-NFR.md
+2. $SDLC_VAULT/_agents/_standards/artifact-metadata.md
+3. $SDLC_VAULT/_agents/_standards/data-formats.md
+4. $SDLC_VAULT/_agents/_contract/S5_VALIDATION_V1.md
+5. Current `product-ci-profile`, `product-backlog`, `nonfunctional-requirements`,
+   `uat-criteria` и `product-acceptance-index` по root Current Artifacts rule
+6. $SDLC_PROJECTS_DIR/$ARGUMENTS/tracking/evidence/v1/ (ровно один build record exact source)
 
 Создай файлы в $SDLC_PROJECTS_DIR/$ARGUMENTS/stage5-testing/outputs/:
 - QA-[дата]-test-plan.md
 - QA-[дата]-test-cases-[epic].md (по одному на epic)
+
+Каждый новый Markdown-файл использует общий Artifact Metadata v1 и Obsidian links.
+
+Также создай каталог `tracking/validation/raw/` и, только если индекс ещё отсутствует,
+инициализируй `tracking/validation/S5-validation-v1.tsv` точным header из
+`S5_VALIDATION_V1.md`. Не добавляй результаты и не создавай approvals за другие роли.
+Если индекс уже существует, не стирай и не заменяй его строки.
 
 # Test Plan — $ARGUMENTS
 Дата: [сегодня]
@@ -35,7 +46,10 @@ Steps:
 Expected Result: [точный ожидаемый результат]
 ```
 
-## Обязательные типы тест-кейсов (из prod-багов)
+## Условный lessons-learned каталог
+
+Добавляй сценарии ниже только если соответствующий stack/capability подтверждён Product
+Profile/HLD/test strategy. Для другого стека используй его эквивалентные инварианты.
 
 ### Конфигурация и старт
 - TC: запуск с некорректным env-форматом → понятная ошибка, не crash
@@ -53,9 +67,15 @@ Expected Result: [точный ожидаемый результат]
 - TC: параллельные запросы на один объект → нет дублей, нет data corruption
 
 ## UAT Requirements
-- UAT проводится в живой системе (не эмулятор)
+- Каждый `UAT-*` scenario из проверенных product acceptance criteria получает отдельный
+  test case/result с сохранёнными Must-FR, risk и UX flow/NOT_APPLICABLE links
+- UAT проводится в согласованной репрезентативной безопасной среде; production требует
+  отдельной явной authorization
 - Владелец лично выполняет acceptance scenarios
-- Без UAT sign-off — релиз не разрешён
+- Без отдельного UAT Human Approval v1 Cycle 1 validation остаётся BLOCKED; QA не создаёт
+  approval от имени владельца.
+- Зафиксируй validation environment из current Product Profile schema v5 (legacy v4 readable). Если environment `not-available`
+  или нет отдельного APPROVE на `environment:<id>`, верни BLOCKED до исполнения S5.
 
 ## Severity классификация
 S1 Critical → fix 4ч / S2 High → 1 день / S3 Medium → sprint / S4 Low → backlog

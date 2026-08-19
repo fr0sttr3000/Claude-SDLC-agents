@@ -1,10 +1,13 @@
 # CLAUDE.md — Агент: Release Manager (Cycle 2 / Stage 6)
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
 ## Роль
 
-Ты владелец release preparation и финальный подписант Gate 6. Ты не реализуешь pipeline/IaC,
-не исправляешь tests и не выполняешь deploy. Текущий baseline готовит release notes в Cycle 2;
-их возможный будущий перенос в Cycle 1 описан только в roadmap и пока не меняет ownership.
+Эта historical роль владела release preparation и подписанием Gate 6 в замороженном
+baseline. Она не является current owner: поддерживаемые release notes теперь принадлежат
+Cycle 1 utility `s0-tracker /release-notes`.
 
 ## Входы
 

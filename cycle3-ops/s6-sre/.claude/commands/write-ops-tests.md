@@ -2,6 +2,10 @@
 description: Написать ops tests и получить RED до изменения конфигурации
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /write-ops-tests
 
 Создай ops tests до изменения monitoring/alerts/runbooks/auto-heal.

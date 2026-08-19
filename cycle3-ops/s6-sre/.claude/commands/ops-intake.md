@@ -2,6 +2,10 @@
 description: Сверить goal, evidence, authorization и точный scope Cycle 3
 ---
 
+> ⛔ **FROZEN / NOT READY / NOT SUPPORTED.** Historical reference only. Do not execute
+> this role or command; the supported launcher exposes Cycle 1 only.
+
+
 # /ops-intake
 
 Подготовь проверяемый intake Cycle 3 до ops tests и конфигурации.
