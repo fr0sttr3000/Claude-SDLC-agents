@@ -31,11 +31,13 @@ export SDLC_RUNTIME_ROUTING="${SDLC_RUNTIME_ROUTING:-}"
 export SDLC_EXECUTION_RUN_ID="${SDLC_EXECUTION_RUN_ID:-}"
 export SDLC_EXECUTION_PLAN_SHA256="${SDLC_EXECUTION_PLAN_SHA256:-}"
 export SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256="${SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256:-}"
+export SDLC_CHANGE_SCOPE_SHA256="${SDLC_CHANGE_SCOPE_SHA256:-}"
 AGENT_RUNNER="$AGENTS/_runtimes/agent-run.sh"
 COMMAND_CAPABILITIES_FILE="$AGENTS/_contract/command-capabilities-v1.tsv"
 CURRENT_ARTIFACT_GROUPS_FILE="$AGENTS/_contract/current-artifact-groups-v1.tsv"
 CYCLE1_STEPS_FILE="$AGENTS/_contract/cycle1-steps-v1.tsv"
 CURRENT_ARTIFACT_TOOL="$AGENTS/cycle1-dev/s0-validate/current-artifact.sh"
+CHANGE_SCOPE_TOOL="$AGENTS/cycle1-dev/s0-validate/change-scope-v1.sh"
 source "$AGENTS/_runtimes/runtime-boundary.sh"
 BASE_PROFILE=""
 LAUNCHER_BASE_PROFILE=""
@@ -56,6 +58,20 @@ RELEASE_NOTES_SOURCE=""
 RELEASE_NOTES_MANIFEST_REF=""
 RELEASE_NOTES_MANIFEST_SHA=""
 RELEASE_NOTES_TARGET_REF=""
+ACTIVE_CHANGE_SCOPE_FILE=""
+ACTIVE_CHANGE_SCOPE_SHA256=""
+CHANGE_SCOPE_METADATA_FILE=""
+CHANGE_SCOPE_METADATA_SHA256=""
+CHANGE_SCOPE_PATHS_FILE=""
+CHANGE_SCOPE_PATHS_SHA256=""
+CHANGE_SCOPE_BEFORE_MANIFEST=""
+CHANGE_SCOPE_AFTER_MANIFEST=""
+CHANGE_SCOPE_INVOCATION_DIR=""
+SCOPE_PREP_ID=""
+SCOPE_PREP_KIND=""
+SCOPE_PREP_REFS=""
+SCOPE_PREP_SOURCE=""
+SCOPE_PREP_PROFILE_REVISION=""
 declare -a EXECUTION_STEP_PROFILES=()
 declare -a EXECUTION_STEP_SOURCES=()
 declare -A JOURNAL_VALIDATED_FILE_SHA=()
@@ -892,6 +908,361 @@ command_supported_by_one_agent() {
   local capability
   capability="$(command_capability "$1" "$2")" || return 1
   [[ "$capability" == read-only-no-output || "$capability" == mutating-declared-output ]]
+}
+
+change_scope_pointer_field() {
+  local file="$1" key="$2"
+  awk -F': ' -v key="$key" '$1 == key { print $2; found=1; exit } END { exit(found ? 0 : 1) }' "$file"
+}
+
+change_scope_safe_ref() {
+  local value="${1:-}" segment
+  [[ -n "$value" && "$value" != /* && "$value" != *$'\t'* &&
+     "$value" != *$'\n'* && "$value" != *$'\r'* && "$value" != *//* ]] || return 1
+  IFS='/' read -r -a segments <<< "$value"
+  for segment in "${segments[@]}"; do
+    [[ -n "$segment" && "$segment" != . && "$segment" != .. ]] || return 1
+  done
+}
+
+resolve_current_change_scope() {
+  local project_dir pointer scope_ref paths_ref output
+  project_dir="$(project_path)"
+  pointer="$project_dir/tracking/current-change-scope-v1.yaml"
+  [[ -x "$CHANGE_SCOPE_TOOL" ]] || {
+    CHANGE_SCOPE_REASON='Change Scope validator is unavailable'
+    return 1
+  }
+  if ! output="$(bash "$CHANGE_SCOPE_TOOL" current "$project_dir" 2>&1)"; then
+    CHANGE_SCOPE_REASON="${output:-current approved Change Scope is missing or invalid}"
+    return 1
+  fi
+  scope_ref="$(change_scope_pointer_field "$pointer" scope_ref 2>/dev/null || true)"
+  paths_ref="$(change_scope_pointer_field "$pointer" paths_ref 2>/dev/null || true)"
+  CHANGE_SCOPE_METADATA_SHA256="$(change_scope_pointer_field "$pointer" scope_sha256 2>/dev/null || true)"
+  CHANGE_SCOPE_PATHS_SHA256="$(change_scope_pointer_field "$pointer" paths_sha256 2>/dev/null || true)"
+  change_scope_safe_ref "$scope_ref" && change_scope_safe_ref "$paths_ref" || {
+    CHANGE_SCOPE_REASON='current Change Scope pointer contains an unsafe reference'
+    return 1
+  }
+  [[ "$CHANGE_SCOPE_METADATA_SHA256" =~ ^[0-9a-f]{64}$ &&
+     "$CHANGE_SCOPE_PATHS_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+    CHANGE_SCOPE_REASON='current Change Scope pointer has no exact digest'
+    return 1
+  }
+  CHANGE_SCOPE_METADATA_FILE="$project_dir/$scope_ref"
+  CHANGE_SCOPE_PATHS_FILE="$project_dir/$paths_ref"
+  CHANGE_SCOPE_REASON="$output"
+}
+
+change_scope_mark_resolution() {
+  local record="$1" reason="$2" resolved tmp
+  resolved="${record%.yaml}.resolved.yaml"
+  [[ ! -e "$resolved" ]] || return 0
+  tmp="$(mktemp "${resolved}.tmp.XXXXXX")" || return 1
+  printf 'schema_version: 1\nviolation_ref: %s\nresolution: %s\nresolved_at: %s\n' \
+    "$(basename "$record")" "$reason" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  mv "$tmp" "$resolved"
+}
+
+change_scope_has_unresolved_violation() {
+  local violations record resolved recorded_scope before before_sha paths paths_sha agent command current report
+  violations="$(journal_root "$PROJECT")/violations"
+  [[ -d "$violations" ]] || return 1
+  while IFS= read -r -d '' record; do
+    resolved="${record%.yaml}.resolved.yaml"
+    [[ ! -f "$resolved" ]] || continue
+    recorded_scope="$(change_scope_pointer_field "$record" scope_sha256 2>/dev/null || true)"
+    if [[ -n "$recorded_scope" && "$recorded_scope" != "$CHANGE_SCOPE_METADATA_SHA256" ]]; then
+      change_scope_mark_resolution "$record" FRESH_APPROVED_SCOPE || return 0
+      continue
+    fi
+    before="$(change_scope_pointer_field "$record" before_manifest 2>/dev/null || true)"
+    before_sha="$(change_scope_pointer_field "$record" before_manifest_sha256 2>/dev/null || true)"
+    paths="${record%.yaml}.paths.tsv"
+    paths_sha="$(change_scope_pointer_field "$record" paths_sha256 2>/dev/null || true)"
+    agent="$(change_scope_pointer_field "$record" agent 2>/dev/null || true)"
+    command="$(change_scope_pointer_field "$record" command 2>/dev/null || true)"
+    [[ -f "$before" && ! -L "$before" && -f "$paths" && ! -L "$paths" &&
+       "$(sha256sum "$before" | awk '{print $1}')" == "$before_sha" &&
+       "$(sha256sum "$paths" | awk '{print $1}')" == "$paths_sha" ]] || return 0
+    current="$(mktemp "$(journal_root "$PROJECT")/violation-current.XXXXXX.tsv")" || return 0
+    if bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$current" >/dev/null 2>&1 &&
+       bash "$CHANGE_SCOPE_TOOL" verify-diff "$(project_path)" "$before" "$current" \
+         "$paths" "$agent" "$command" >/dev/null 2>&1; then
+      change_scope_mark_resolution "$record" OUT_OF_SCOPE_CHANGES_REMOVED || { rm -f "$current"; return 0; }
+      rm -f "$current"
+      continue
+    fi
+    rm -f "$current"
+    return 0
+  done < <(find "$violations" -maxdepth 1 -type f -name 'VIOLATION-*.yaml' \
+    ! -name '*.resolved.yaml' -print0 | sort -z)
+  return 1
+}
+
+prepare_change_scope_step() {
+  local agent="$1" task="$2" step="${3:-0}" run_dir command output
+  CHANGE_SCOPE_REASON=''
+  resolve_current_change_scope || return 1
+  if change_scope_has_unresolved_violation; then
+    CHANGE_SCOPE_REASON='an unresolved out-of-scope Project change blocks Stage 4 mutation'
+    return 1
+  fi
+  [[ -n "${CURRENT_RUN_ID:-}" ]] || {
+    CHANGE_SCOPE_REASON='Execution Journal run is required for scoped-write'
+    return 1
+  }
+  run_dir="$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")"
+  command="${task%% *}"
+  mkdir -p "$run_dir/change-scope"
+  CHANGE_SCOPE_INVOCATION_DIR="$(mktemp -d "$run_dir/change-scope/step-${step}-${agent}-${command#/}.XXXXXX")" || return 1
+  ACTIVE_CHANGE_SCOPE_FILE="$CHANGE_SCOPE_INVOCATION_DIR/runtime-access-v1.tsv"
+  if ! output="$(bash "$CHANGE_SCOPE_TOOL" runtime-access "$(project_path)" \
+      "$CHANGE_SCOPE_METADATA_FILE" "$agent" "$command" "$ACTIVE_CHANGE_SCOPE_FILE" 2>&1)"; then
+    CHANGE_SCOPE_REASON="$output"
+    return 1
+  fi
+  ACTIVE_CHANGE_SCOPE_SHA256="$(sha256sum "$ACTIVE_CHANGE_SCOPE_FILE" | awk '{print $1}')"
+  CHANGE_SCOPE_BEFORE_MANIFEST="$CHANGE_SCOPE_INVOCATION_DIR/before-tree-v1.tsv"
+  CHANGE_SCOPE_AFTER_MANIFEST="$CHANGE_SCOPE_INVOCATION_DIR/after-tree-v1.tsv"
+  if ! output="$(bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$CHANGE_SCOPE_BEFORE_MANIFEST" 2>&1)"; then
+    CHANGE_SCOPE_REASON="$output"
+    return 1
+  fi
+  SDLC_CHANGE_SCOPE_SHA256="$CHANGE_SCOPE_METADATA_SHA256"
+  export SDLC_CHANGE_SCOPE_SHA256
+  CHANGE_SCOPE_REASON="scope_sha256=$CHANGE_SCOPE_METADATA_SHA256 runtime_sha256=$ACTIVE_CHANGE_SCOPE_SHA256"
+  [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+    journal_append_event "$CURRENT_RUN_ID" change_scope_ready RUNNING "$step" RUNNING \
+      "$agent" "$command" "$CHANGE_SCOPE_REASON"
+}
+
+record_change_scope_violation() {
+  local agent="$1" command="$2" step="$3" report="$4" root stamp record tmp copied_paths
+  root="$(journal_root "$PROJECT")/violations"
+  mkdir -p "$root"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)-${CURRENT_RUN_ID:-run}-${step}-${BASHPID:-$$}-$RANDOM"
+  record="$root/VIOLATION-$stamp.yaml"
+  [[ ! -e "$record" && ! -e "${record%.yaml}.paths.tsv" ]] || return 1
+  copied_paths="${record%.yaml}.paths.tsv"
+  cp "$CHANGE_SCOPE_PATHS_FILE" "$copied_paths" || return 1
+  tmp="$(mktemp "${record}.tmp.XXXXXX")" || return 1
+  printf 'schema_version: 1\nstatus: UNRESOLVED\nproject: %s\nrun_id: %s\nstep: %s\nagent: %s\ncommand: %s\nscope_sha256: %s\npaths_sha256: %s\nbefore_manifest: %s\nbefore_manifest_sha256: %s\nafter_manifest: %s\nafter_manifest_sha256: %s\nreport: %s\nobserved_at: %s\n' \
+    "$PROJECT" "${CURRENT_RUN_ID:-none}" "$step" "$agent" "$command" \
+    "$CHANGE_SCOPE_METADATA_SHA256" "$(sha256sum "$copied_paths" | awk '{print $1}')" \
+    "$CHANGE_SCOPE_BEFORE_MANIFEST" "$(sha256sum "$CHANGE_SCOPE_BEFORE_MANIFEST" | awk '{print $1}')" \
+    "$CHANGE_SCOPE_AFTER_MANIFEST" "$(sha256sum "$CHANGE_SCOPE_AFTER_MANIFEST" | awk '{print $1}')" \
+    "$report" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  mv "$tmp" "$record"
+  CHANGE_SCOPE_VIOLATION_RECORD="$record"
+}
+
+verify_change_scope_step() {
+  local agent="$1" task="$2" step="${3:-0}" command output report
+  command="${task%% *}"
+  report="$CHANGE_SCOPE_INVOCATION_DIR/diff-verification.out"
+  if ! output="$(bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$CHANGE_SCOPE_AFTER_MANIFEST" 2>&1)"; then
+    CHANGE_SCOPE_REASON="$output"
+    return 1
+  fi
+  if bash "$CHANGE_SCOPE_TOOL" verify-diff "$(project_path)" "$CHANGE_SCOPE_BEFORE_MANIFEST" \
+      "$CHANGE_SCOPE_AFTER_MANIFEST" "$CHANGE_SCOPE_PATHS_FILE" "$agent" "$command" > "$report" 2>&1; then
+    CHANGE_SCOPE_REASON="$(tr '\n' ';' < "$report" | sed 's/;$//')"
+    [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+      journal_append_event "$CURRENT_RUN_ID" change_scope_verified RUNNING "$step" ARTIFACT_VERIFIED \
+        "$agent" "$command" "$CHANGE_SCOPE_REASON"
+    return 0
+  fi
+  CHANGE_SCOPE_REASON="$(tr '\n' ';' < "$report" | sed 's/;$//')"
+  record_change_scope_violation "$agent" "$command" "$step" "$report" || true
+  [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+    journal_append_event "$CURRENT_RUN_ID" change_scope_violation BLOCKED "$step" UNVERIFIED \
+      "$agent" "$command" "$CHANGE_SCOPE_REASON"
+  return 1
+}
+
+clear_active_change_scope() {
+  ACTIVE_CHANGE_SCOPE_FILE=''
+  ACTIVE_CHANGE_SCOPE_SHA256=''
+  SDLC_CHANGE_SCOPE_SHA256=''
+  export SDLC_CHANGE_SCOPE_SHA256
+}
+
+change_scope_project_source() {
+  local project_dir="$1" revision
+  if [[ -e "$project_dir/.git" ]] &&
+     revision="$(git -C "$project_dir" rev-parse --verify HEAD 2>/dev/null)" &&
+     [[ "$revision" =~ ^[0-9a-f]{40}$|^[0-9a-f]{64}$ ]]; then
+    printf '%s\n' "$revision"
+    return 0
+  fi
+  printf '%s\n' pending-tree-digest
+}
+
+run_change_scope_preparation_agent() {
+  local agent="$1" command="$2" directory="$3" step="$4" run_dir runtime_scope before after allowed
+  local runtime_sha previous_access="${ACTIVE_AGENT_ACCESS:-}" rc=0 output
+  run_dir="$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")/change-scope-preparation/step-$step-$agent"
+  mkdir -p "$run_dir"
+  runtime_scope="$run_dir/runtime-access-v1.tsv"
+  printf 'schema_version\tcapability\tpath\n1\twrite\t%s\n' "$directory" > "$runtime_scope"
+  runtime_sha="$(sha256sum "$runtime_scope" | awk '{print $1}')"
+  before="$run_dir/before-tree-v1.tsv"
+  after="$run_dir/after-tree-v1.tsv"
+  allowed="$run_dir/preparation-paths-v1.tsv"
+  printf 'schema_version\tintent_id\tagent\tcommand\toperation\tpath\tmodule_id\tmodule_mode\torigin\n1\tINTENT-%s\t%s\t%s\tephemeral\t%s/\tpreparation\tMODIFY\ts3\n' \
+    "${SCOPE_PREP_ID#SCOPE-}" "$agent" "$command" "$directory" > "$allowed"
+  bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$before" >/dev/null || return 1
+  ACTIVE_CHANGE_SCOPE_FILE="$runtime_scope"
+  ACTIVE_CHANGE_SCOPE_SHA256="$runtime_sha"
+  ACTIVE_AGENT_ACCESS=scoped-write
+  ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[$((step - 1))]:-}"
+  SDLC_CHANGE_SCOPE_SHA256="$(sha256sum "$(project_path)/tracking/change-scopes/$SCOPE_PREP_ID/intent.yaml" | awk '{print $1}')"
+  export SDLC_CHANGE_SCOPE_SHA256
+  journal_write_state "$CURRENT_RUN_ID" RUNNING "$step" 2 RUNNING "$agent $command"
+  journal_append_event "$CURRENT_RUN_ID" step_started RUNNING "$step" RUNNING "$agent" "$command" \
+    "isolated Change Scope preparation directory: $directory"
+  run_agent "$agent" "$PROJECT" "$command $SCOPE_PREP_ID" || rc=$?
+  ACTIVE_EXECUTION_PROFILE=''
+  ACTIVE_AGENT_ACCESS="$previous_access"
+  clear_active_change_scope
+  if ! bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$after" >/dev/null; then rc=1; fi
+  if [[ $rc -ne 0 ]] || ! output="$(bash "$CHANGE_SCOPE_TOOL" verify-diff "$(project_path)" \
+      "$before" "$after" "$allowed" "$agent" "$command" 2>&1)"; then
+    journal_append_event "$CURRENT_RUN_ID" change_scope_preparation_blocked BLOCKED "$step" UNVERIFIED \
+      "$agent" "$command" "${output:-runtime exit code $rc}"
+    return 1
+  fi
+  case "$agent:$command" in
+    l1-analyze:/impact) output="$(bash "$CHANGE_SCOPE_TOOL" validate-l1 "$(project_path)" "$SCOPE_PREP_ID" 2>&1)" || return 1 ;;
+    s3-arch:/change-impact) output="$(bash "$CHANGE_SCOPE_TOOL" validate-s3 "$(project_path)" "$SCOPE_PREP_ID" 2>&1)" || return 1 ;;
+    *) return 1 ;;
+  esac
+  journal_append_event "$CURRENT_RUN_ID" change_scope_preparation_verified RUNNING "$step" ARTIFACT_VERIFIED \
+    "$agent" "$command" "$output"
+}
+
+change_scope_preparation_blocked() {
+  local step="$1" reason="$2"
+  journal_write_state "$CURRENT_RUN_ID" BLOCKED "$step" 2 UNVERIFIED 'Change Scope preparation'
+  journal_append_event "$CURRENT_RUN_ID" run_blocked BLOCKED "$step" UNVERIFIED '' '' "$reason"
+  journal_release_lease "$CURRENT_RUN_ID"
+  printf '%s\n' "$reason"
+  return 1
+}
+
+execute_change_scope_preparation() {
+  local run_dir baseline_manifest baseline_sha actual_source init_output request
+  local approval_id subject scope evidence_producer activate_output actual_profile_revision
+  journal_create_run SCOPE "Change Intent $SCOPE_PREP_KIND: $SCOPE_PREP_REFS" \
+    'Stage 4 mutation, approval self-service and all paths outside isolated L1/S3 outputs' || return 1
+  journal_acquire_lease "$CURRENT_RUN_ID" || return 1
+  run_dir="$(journal_run_dir "$PROJECT" "$CURRENT_RUN_ID")"
+  journal_write_state "$CURRENT_RUN_ID" READY 0 2 PENDING ''
+  journal_append_event "$CURRENT_RUN_ID" execution_confirmed READY 0 PENDING '' '' \
+    'user explicitly confirmed Change Intent preview'
+  baseline_manifest="$run_dir/change-scope-baseline-v1.tsv"
+  bash "$CHANGE_SCOPE_TOOL" snapshot "$(project_path)" "$baseline_manifest" >/dev/null || {
+    change_scope_preparation_blocked 0 'cannot create exact Project baseline'; return 1;
+  }
+  baseline_sha="$(sha256sum "$baseline_manifest" | awk '{print $1}')"
+  actual_source="$(change_scope_project_source "$(project_path)")"
+  [[ "$actual_source" != pending-tree-digest ]] || actual_source="sha256:$baseline_sha"
+  if [[ -n "$SCOPE_PREP_SOURCE" && "$SCOPE_PREP_SOURCE" != pending-tree-digest &&
+        "$actual_source" != "$SCOPE_PREP_SOURCE" ]]; then
+    change_scope_preparation_blocked 0 'Project source revision changed after Preview'
+    return 1
+  fi
+  SCOPE_PREP_SOURCE="$actual_source"
+  actual_profile_revision="$(read_product_ci_profile_field revision 2>/dev/null || true)"
+  if [[ "$actual_profile_revision" != "$SCOPE_PREP_PROFILE_REVISION" ]]; then
+    change_scope_preparation_blocked 0 'Product & CI Profile revision changed after Preview'
+    return 1
+  fi
+  if ! init_output="$(bash "$CHANGE_SCOPE_TOOL" init "$(project_path)" "$SCOPE_PREP_ID" \
+      "$SCOPE_PREP_KIND" "$SCOPE_PREP_REFS" "$SCOPE_PREP_SOURCE" "$baseline_sha" \
+      "$SCOPE_PREP_PROFILE_REVISION" "$CURRENT_RUN_ID" 2>&1)"; then
+    change_scope_preparation_blocked 0 "$init_output"
+    return 1
+  fi
+  journal_append_event "$CURRENT_RUN_ID" change_intent_created RUNNING 0 ARTIFACT_VERIFIED \
+    launcher /change-scope "$init_output"
+  if ! run_change_scope_preparation_agent l1-analyze /impact \
+      "tracking/change-scopes/$SCOPE_PREP_ID/l1" 1; then
+    change_scope_preparation_blocked 1 'L1 Change Scope preparation failed or changed another path'
+    return 1
+  fi
+  if ! run_change_scope_preparation_agent s3-arch /change-impact \
+      "tracking/change-scopes/$SCOPE_PREP_ID/s3" 2; then
+    change_scope_preparation_blocked 2 'S3 Change Scope preparation failed or changed another path'
+    return 1
+  fi
+  if ! request="$(bash "$CHANGE_SCOPE_TOOL" request "$(project_path)" "$SCOPE_PREP_ID" 2>&1)"; then
+    change_scope_preparation_blocked 2 "$request"
+    return 1
+  fi
+  approval_id="$(awk -F': ' '$1=="approval_id" {print $2; exit}' <<< "$request")"
+  subject="$(awk -F': ' '$1=="subject_digest" {print $2; exit}' <<< "$request")"
+  scope="$(awk -F': ' '$1=="scope" {sub(/^[^:]*: /, ""); print; exit}' <<< "$request")"
+  evidence_producer="$(awk -F': ' '$1=="evidence_producer" {print $2; exit}' <<< "$request")"
+  [[ "$approval_id" =~ ^APPROVAL-SCOPE-[A-Z0-9._-]+$ && "$subject" =~ ^[0-9a-f]{64}$ &&
+     "$scope" == change-scope:* && "$evidence_producer" == s3-arch ]] || {
+    change_scope_preparation_blocked 2 'invalid Change Scope approval request'; return 1;
+  }
+  printf '%s\n' 'CHANGE SCOPE APPROVAL PREVIEW' "$request"
+  journal_write_state "$CURRENT_RUN_ID" WAITING_USER 2 2 UNVERIFIED 'Human Change Scope Approval'
+  journal_append_event "$CURRENT_RUN_ID" change_scope_approval_requested WAITING_USER 2 UNVERIFIED \
+    launcher /change-scope "subject_digest=$subject scope=$scope"
+  if ! bash "$AGENTS/_runtimes/human-approval-record.sh" "$(project_path)" "$approval_id" \
+      "$SCOPE_PREP_SOURCE" "$subject" "$scope" "$evidence_producer"; then
+    change_scope_preparation_blocked 2 'Human Change Scope Approval was not recorded'
+    return 1
+  fi
+  if ! activate_output="$(bash "$CHANGE_SCOPE_TOOL" activate "$(project_path)" "$SCOPE_PREP_ID" 2>&1)"; then
+    change_scope_preparation_blocked 2 "$activate_output"
+    return 1
+  fi
+  journal_append_event "$CURRENT_RUN_ID" change_scope_activated COMPLETED 2 ARTIFACT_VERIFIED \
+    launcher /change-scope "$activate_output"
+  journal_write_state "$CURRENT_RUN_ID" COMPLETED 2 2 ARTIFACT_VERIFIED ''
+  journal_release_lease "$CURRENT_RUN_ID"
+  printf '%s\n' "$activate_output"
+}
+
+menu_change_scope_preparation() {
+  local choice refs stamp
+  require_product_ci_profile || return 1
+  printf '%s\n' \
+    'CHANGE SCOPE PREPARATION' \
+    '1 Backlog/FR/task refs (default)' \
+    '2 Existing Change Request' \
+    'b Назад'
+  read -rp 'Источник [1]: ' choice
+  case "$choice" in
+    ''|1) SCOPE_PREP_KIND=BACKLOG; read -rp 'Exact backlog/FR/task refs через запятую: ' refs ;;
+    2) SCOPE_PREP_KIND=CHANGE_REQUEST; read -rp 'Exact existing Change Request ref: ' refs ;;
+    b|B) return 0 ;;
+    *) return 1 ;;
+  esac
+  [[ -n "$refs" && "$refs" != *$'\n'* && "$refs" != *$'\r'* ]] || {
+    echo -e "${R}BLOCKED: exact Change Intent refs are required.${N}"; return 1;
+  }
+  SCOPE_PREP_REFS="$refs"
+  stamp="$(date -u +%Y%m%d-%H%M%S)"
+  SCOPE_PREP_ID="SCOPE-$stamp-$RANDOM"
+  SCOPE_PREP_SOURCE="$(change_scope_project_source "$(project_path)")"
+  SCOPE_PREP_PROFILE_REVISION="$(read_product_ci_profile_field revision 2>/dev/null || true)"
+  [[ "$SCOPE_PREP_PROFILE_REVISION" =~ ^[1-9][0-9]*$ ]] || {
+    echo -e "${R}BLOCKED: valid current Product & CI Profile is required.${N}"; return 1;
+  }
+  local -a RUN_CYCLE=('l1-analyze:/impact' 's3-arch:/change-impact')
+  local -a RUN_OPTIONAL=(0 0)
+  EXECUTION_TYPE=SCOPE
+  EXECUTION_SCOPE="$SCOPE_PREP_KIND $SCOPE_PREP_REFS → L1 /impact → S3 /change-impact → Human Approval"
+  EXECUTION_EXCLUDED='Stage 4 mutation; approval by any primary agent; scope self-expansion'
+  render_execution_preview "$EXECUTION_TYPE" "$EXECUTION_SCOPE" "$EXECUTION_EXCLUDED"
+  confirm_execution_preview execute_change_scope_preparation
 }
 
 tracker_special_command() {
@@ -2420,6 +2791,7 @@ run_agent() {
   local task="$3"
   local access="${ACTIVE_AGENT_ACCESS:-write}"
   local agent_dir project_dir="$PROJECTS/$project"
+  local -a runtime_scope_args=()
   case "$agent" in
     s4-devops|s6-release|s6-sre)
       cycle23_frozen_notice
@@ -2437,6 +2809,16 @@ run_agent() {
 
   if [[ ! -x "$AGENT_RUNNER" ]]; then
     echo -e "${R}Runtime dispatcher не найден или не исполняемый: $AGENT_RUNNER${N}"; return 1
+  fi
+
+  if [[ "$access" == scoped-write ]]; then
+    [[ -f "${ACTIVE_CHANGE_SCOPE_FILE:-}" &&
+       "${ACTIVE_CHANGE_SCOPE_SHA256:-}" =~ ^[0-9a-f]{64}$ ]] || {
+      echo -e "${R}BLOCKED: scoped-write runtime scope не подготовлен launcher-ом.${N}"
+      return 1
+    }
+    runtime_scope_args=(--scope-file "$ACTIVE_CHANGE_SCOPE_FILE" \
+      --scope-sha256 "$ACTIVE_CHANGE_SCOPE_SHA256")
   fi
 
   if [[ -n "${ACTIVE_EXECUTION_PROFILE:-}" ]]; then
@@ -2492,6 +2874,8 @@ run_agent() {
     echo -e "  ${Y}i${N}     — открыть интерактивный диалог с агентом"
   elif [[ "$access" == write ]]; then
     echo -e "  ${C}Codex task-only${N} — интерактивный режим недоступен"
+  elif [[ "$access" == scoped-write ]]; then
+    echo -e "  ${C}scoped-write${N} — запись только в одобренные пути; интерактивный режим запрещён"
   else
     echo -e "  ${C}read-only${N} — запись и интерактивный режим запрещены launcher-ом"
   fi
@@ -2509,8 +2893,8 @@ run_agent() {
       return 3
       ;;
     i|I)
-      if [[ "$access" == read-only ]]; then
-        echo -e "${R}Интерактивный режим недоступен для read-only действия.${N}"
+      if [[ "$access" != write ]]; then
+        echo -e "${R}Интерактивный режим недоступен для constrained-write/read-only действия.${N}"
         return 1
       fi
       if ! runtime_supports_interactive; then
@@ -2540,7 +2924,8 @@ run_agent() {
         echo -e "${C}Запускаю ($(runtime_label)): ${W}$prompt${N}"
         echo
         "$AGENT_RUNNER" --runtime "$AGENT_RUNTIME" --agent-dir "$agent_dir" \
-          --project-dir "$project_dir" --mode task --access "$access" --prompt "$prompt" || rc=$?
+          --project-dir "$project_dir" --mode task --access "$access" \
+          "${runtime_scope_args[@]}" --prompt "$prompt" || rc=$?
       else
         if ! runtime_supports_interactive; then
           report_interactive_codex_block
@@ -3373,12 +3758,32 @@ run_cycle_tdd_repair_loop() {
     for entry in "${repair_steps[@]}"; do
       agent="${entry%%:*}"
       task="${entry#*:}"
-      local repair_before='UNMAPPED'
+      local repair_before='UNMAPPED' repair_access previous_access="${ACTIVE_AGENT_ACCESS:-}"
       if [[ "$cycle" == 1 ]]; then
         repair_before="$(declared_output_fingerprint "$agent" "$task" 2>/dev/null || printf 'UNMAPPED')"
+        repair_access="$(command_access "$agent" "$task" 2>/dev/null || true)"
+        [[ "$repair_access" == scoped-write ]] || {
+          echo -e "${R}TDD BLOCKED: Stage 4 repair command has no scoped-write capability.${N}"
+          return 1
+        }
+        if ! prepare_change_scope_step "$agent" "$task" "${EXECUTION_LAST_STEP:-0}"; then
+          echo -e "${R}TDD BLOCKED: ${CHANGE_SCOPE_REASON:-approved Change Scope is required}.${N}"
+          clear_active_change_scope
+          return 1
+        fi
+        ACTIVE_AGENT_ACCESS="$repair_access"
       fi
       run_agent "$agent" "$PROJECT" "$task"
       rc=$?
+      ACTIVE_AGENT_ACCESS="$previous_access"
+      if [[ "$cycle" == 1 ]] &&
+         ! verify_change_scope_step "$agent" "$task" "${EXECUTION_LAST_STEP:-0}"; then
+        clear_active_change_scope
+        set_cycle_tdd_status_blocked "$cycle" || true
+        echo -e "${R}TDD BLOCKED: repair изменил Project вне одобренного Change Scope.${N}"
+        return 1
+      fi
+      clear_active_change_scope
       [[ $rc -eq 0 ]] || { set_cycle_tdd_status_blocked "$cycle" || true; return 1; }
       if [[ "$cycle" == 1 ]]; then
         [[ -z "${CURRENT_RUN_ID:-}" ]] ||
@@ -3573,12 +3978,24 @@ execute_cycle() {
     if [[ "$capability" == mutating-declared-output ]]; then
       declared_before="$(declared_output_fingerprint "$agent" "$task" 2>/dev/null || printf 'UNMAPPED')"
     fi
+    if [[ "$access" == scoped-write ]] && ! prepare_change_scope_step "$agent" "$task" "$step"; then
+      EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+      EXECUTION_LAST_REASON="${CHANGE_SCOPE_REASON:-approved Change Scope is required}"
+      step_log+=("  ${R}✗${N}  $label${opt_tag} — Change Scope blocked")
+      ((aborted++))
+      [[ -z "${CURRENT_RUN_ID:-}" ]] ||
+        journal_append_event "$CURRENT_RUN_ID" change_scope_blocked WAITING_USER "$step" UNVERIFIED \
+          "$agent" "$task" "$EXECUTION_LAST_REASON"
+      clear_active_change_scope
+      break
+    fi
     if [[ "$cycle_id" == 1 ]] && cycle1_completion_after_entry "$agent" "$task"; then
       if ! prepare_cycle1_completion_context "$CURRENT_RUN_ID"; then
         EXECUTION_LAST_STEP_STATUS=UNVERIFIED
         EXECUTION_LAST_REASON='completion runtime context unavailable'
         step_log+=("  ${R}✗${N}  $label — current manifest/plan context отсутствует")
         ((aborted++))
+        clear_active_change_scope
         break
       fi
     fi
@@ -3590,7 +4007,13 @@ execute_cycle() {
     ACTIVE_AGENT_ACCESS="$previous_access"
     clear_cycle1_completion_context
 
-    if [[ $rc -eq 0 && "$entry" == "s4-qa-auto:/run-tests" ]]; then
+    local scope_verification_failed=0
+    if [[ "$access" == scoped-write ]] && ! verify_change_scope_step "$agent" "$task" "$step"; then
+      scope_verification_failed=1
+    fi
+    clear_active_change_scope
+
+    if [[ $scope_verification_failed -eq 0 && $rc -eq 0 && "$entry" == "s4-qa-auto:/run-tests" ]]; then
       run_cycle_tdd_repair_loop 1
       rc=$?
     elif [[ $rc -eq 0 && "$entry" == "s4-devops:/run-deploy-tests" ]]; then
@@ -3601,7 +4024,14 @@ execute_cycle() {
       rc=$?
     fi
 
-    if [[ $rc -eq 2 ]]; then
+    if [[ $scope_verification_failed -ne 0 ]]; then
+      EXECUTION_LAST_STEP_STATUS=UNVERIFIED
+      EXECUTION_LAST_REASON="${CHANGE_SCOPE_REASON:-full Project diff violates approved Change Scope}"
+      step_log+=("  ${R}✗${N}  $label${opt_tag} — Change Scope violation")
+      ((aborted++))
+      echo -e "${R}Цикл заблокирован: обнаружено изменение вне одобренного Change Scope.${N}"
+      break
+    elif [[ $rc -eq 2 ]]; then
       EXECUTION_LAST_STEP_STATUS=UNKNOWN
       EXECUTION_LAST_REASON='пользователь прервал цикл'
       step_log+=("  ${Y}⏹${N}  $label${opt_tag}")
@@ -3943,7 +4373,7 @@ menu_kickoff() {
   echo -e "  ${Y}1)${N} ${G}Новый проект${N} — провести интервью с нуля   ${C}(/new)${N}"
   echo -e "  ${Y}2)${N} ${C}Обновить существующий${N} — беклог, видение   ${C}(/refresh)${N}"
   echo -e "  ${Y}3)${N} Авто-определение режима                     ${C}(/start)${N}"
-  echo -e "  ${Y}4)${N} Проверить полноту контекста                 ${C}(/cr)${N}"
+  echo -e "  ${Y}4)${N} Change Request / анализ влияния            ${C}(/cr)${N}"
   echo -e "  ${Y}b)${N} Назад"
   echo
   read -rp "$(echo -e "${W}Выбери [1-4/b]:${N} ")" choice
@@ -4169,6 +4599,7 @@ cycle1_one_agent_postflight() {
 execute_previewed_agent() {
   local rc=0 declared_before='UNMAPPED' release_manifest_before='' release_version=''
   local release_output current_manifest_sha tracker_before='' previous_access="${ACTIVE_AGENT_ACCESS:-}"
+  local scope_verification_failed=0
   if release_notes_after_entry "$SINGLE_AGENT" "$SINGLE_TASK"; then
     release_version="${SINGLE_TASK#/release-notes }"
     release_manifest_before="$RELEASE_NOTES_MANIFEST_SHA"
@@ -4179,6 +4610,15 @@ execute_previewed_agent() {
   if ! cycle1_one_agent_preflight "$SINGLE_AGENT" "$SINGLE_TASK"; then
     journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 GATE_BLOCKED "$SINGLE_AGENT $SINGLE_TASK"
     journal_release_lease "$CURRENT_RUN_ID"
+    return 1
+  fi
+  if [[ "$SINGLE_ACCESS" == scoped-write ]] &&
+     ! prepare_change_scope_step "$SINGLE_AGENT" "$SINGLE_TASK" 1; then
+    journal_append_event "$CURRENT_RUN_ID" change_scope_blocked WAITING_USER 1 UNVERIFIED \
+      "$SINGLE_AGENT" "$SINGLE_TASK" "${CHANGE_SCOPE_REASON:-approved Change Scope is required}"
+    journal_write_state "$CURRENT_RUN_ID" WAITING_USER 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+    journal_release_lease "$CURRENT_RUN_ID"
+    clear_active_change_scope
     return 1
   fi
   if [[ "$SINGLE_CAPABILITY" == mutating-declared-output ]] ||
@@ -4194,6 +4634,7 @@ execute_previewed_agent() {
       "$SINGLE_AGENT" "$SINGLE_TASK" 'completion runtime context unavailable'
     journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
     journal_release_lease "$CURRENT_RUN_ID"
+    clear_active_change_scope
     return 1
   fi
   ACTIVE_EXECUTION_PROFILE="${EXECUTION_STEP_PROFILES[0]:-}"
@@ -4202,10 +4643,19 @@ execute_previewed_agent() {
   ACTIVE_EXECUTION_PROFILE=""
   ACTIVE_AGENT_ACCESS="$previous_access"
   clear_cycle1_completion_context
-  if [[ $rc -eq 0 && "$SINGLE_AGENT:$SINGLE_TASK" == "s4-qa-auto:/run-tests" ]]; then
+  if [[ "$SINGLE_ACCESS" == scoped-write ]] &&
+     ! verify_change_scope_step "$SINGLE_AGENT" "$SINGLE_TASK" 1; then
+    scope_verification_failed=1
+  fi
+  clear_active_change_scope
+  if [[ $scope_verification_failed -eq 0 && $rc -eq 0 &&
+        "$SINGLE_AGENT:$SINGLE_TASK" == "s4-qa-auto:/run-tests" ]]; then
     run_cycle_tdd_repair_loop 1 || rc=$?
   fi
-  if [[ $rc -eq 0 ]]; then
+  if [[ $scope_verification_failed -ne 0 ]]; then
+    rc=1
+    journal_write_state "$CURRENT_RUN_ID" BLOCKED 1 1 UNVERIFIED "$SINGLE_AGENT $SINGLE_TASK"
+  elif [[ $rc -eq 0 ]]; then
     journal_append_event "$CURRENT_RUN_ID" step_process_ok RUNNING 1 PROCESS_OK "$SINGLE_AGENT" "$SINGLE_TASK" 'runtime exit code 0'
     if [[ "$SINGLE_CAPABILITY" == read-only-no-output ]]; then
       journal_append_event "$CURRENT_RUN_ID" step_read_only_verified COMPLETED 1 READ_ONLY_VERIFIED \
@@ -5045,6 +5495,7 @@ menu_utilities() {
   echo -e "  ${Y}3)${N} Quality gates    ${C}(s0-quality-gates)${N}"
   echo -e "  ${Y}4)${N} Structure check ${C}(s0-validate)${N}"
   echo -e "  ${Y}5)${N} Release notes   ${C}(s0-tracker /release-notes vX.Y.Z)${N}"
+  echo -e "  ${Y}6)${N} Change Scope    ${C}(L1 impact → S3 architecture → Human Approval)${N}"
   echo -e "  ${Y}b)${N} Назад"
   read -rp "$(echo -e "${W}Выбери:${N} ")" choice
   local agent task
@@ -5060,6 +5511,7 @@ menu_utilities() {
       run_agent_with_preview s0-tracker "$PROJECT" "/release-notes $version"
       return
       ;;
+    6) menu_change_scope_preparation; return ;;
     b|B|"") return ;;
     *) return 1 ;;
   esac
@@ -5097,9 +5549,15 @@ menu_unfinished_run() {
 }
 
 retry_journal_run() {
-  local parent_run="$1" dir next total line n profile source
+  local parent_run="$1" dir next total line n profile source plan_type
   local -a all_entries=() all_profiles=() all_sources=()
   dir="$(journal_run_dir "$PROJECT" "$parent_run")"
+  plan_type="$(awk -F': ' '$1 == "type" {print $2; exit}' "$dir/plan.md" 2>/dev/null || true)"
+  if [[ "$plan_type" == SCOPE ]]; then
+    echo -e "${Y}Change Scope preparation нельзя продолжить как обычный child retry.${N}"
+    echo -e "${Y}Создай новый scope через Utilities → Change Scope: граница и подтверждение должны быть собраны заново.${N}"
+    return 1
+  fi
   next="$(journal_resume_point "$PROJECT" "$parent_run")" || return 1
   while IFS= read -r line; do
     [[ "$line" =~ ^([0-9]+)\.\ (.+)$ ]] || continue

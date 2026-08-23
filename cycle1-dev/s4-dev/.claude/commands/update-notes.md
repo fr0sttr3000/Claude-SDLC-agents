@@ -6,6 +6,11 @@ description: Создать Update Notes для PR (обязательно по�
 
 Создай Update Notes для PR проекта $ARGUMENTS.
 
+Прочитай current approved Change Scope по `_contract/CHANGE_SCOPE_V1.md`. Эта команда может
+изменять только launcher-registered `s4-dev /update-notes` governance output. Не меняй code,
+tests, README, API spec или другие Project paths; описывай уже выполненные изменения. Если
+нужного факта нет в current evidence — пометь `BLOCKED`, не расширяй scope.
+
 Создай файл DEV-[дата]-update-notes-PR[N].md в:
 $SDLC_PROJECTS_DIR/$ARGUMENTS/stage4-dev/outputs/
 
@@ -37,6 +42,9 @@ deploy, migration или production action.] Если влияния нет — 
 
 ## Обновлённая документация
 - README: [да/нет + что изменилось]
-- API-spec: [да/нет + что изменилось]
+- Current API contract alignment: [ссылка + соответствует / N/A]
+- Stage 3 artifacts: не изменяются этой командой
+- Требуемое изменение API contract/HLD/ADR: [нет | BLOCKED для launcher-mediated s3-arch
+  handoff, затем fresh Change Scope и отдельное Human Approval]
 - CHANGELOG/release notes: не изменяются этой командой; только отдельная release preparation
-- ADR: [да/нет]
+- Source-local docs/docstring: [exact approved paths + что изменилось]

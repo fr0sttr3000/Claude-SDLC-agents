@@ -10,28 +10,53 @@ artifacts не зависят от Claude, Codex, Gemini или локально
 
 ## Fast Start
 
-### ChatGPT desktop app / Codex — рекомендуемый маршрут
+### `sdlc.sh` — рекомендуемый маршрут
 
-1. Установите ChatGPT desktop app, войдите в аккаунт и откройте каталог `_agents` как
-   folder/project.
-2. Выберите Codex и создайте **Local** chat. Для Vault это основной режим: он работает с
-   текущим checkout. Managed Worktree может не включить внешние, untracked или ignored файлы.
-3. Откройте integrated terminal кнопкой справа сверху или сочетанием
-   <kbd>Ctrl</kbd>+<kbd>&#96;</kbd>.
-4. Проверьте окружение и запустите launcher:
+1. Откройте терминал в каталоге `_agents`.
+2. Запустите канонический launcher:
 
    ```bash
-   pwd
-   command -v codex
-   AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+   bash sdlc.sh
    ```
 
-5. В первом wizard выберите вид, каталог Projects, режим Project и AI routing. После сообщения
-   `LAUNCHER ГОТОВ` выберите Project; для нового Project начните с `1 Kickoff`.
+3. В первом wizard выберите runtime, вид, каталог Projects, режим Project и AI routing.
+4. После сообщения `LAUNCHER ГОТОВ` выберите Project; для нового Project начните с
+   `1 Kickoff`.
+
+Runtime можно выбрать заранее:
+
+```bash
+AGENT_RUNTIME=claude SDLC_SUBAGENTS=off bash sdlc.sh
+AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+AGENT_RUNTIME=gemini SDLC_SUBAGENTS=off bash sdlc.sh
+```
+
+Без `AGENT_RUNTIME` первый wizard попросит выбрать runtime явно.
+Если runtime binary отсутствует в `PATH`, перед запуском launcher укажите один точный путь через
+`CLAUDE_BIN`, `CODEX_BIN` или `GEMINI_BIN`. Значение должно обозначать executable, а не shell-команду.
 
 Выбор папки, Project или пункта меню сам по себе не запускает разработку. Перед изменениями
 launcher показывает Preview с `PROJECT`, `PATH`, `SCOPE`, `EXCLUDED`, ordered routes, exact
 profile и `Fallback OFF`.
+
+Прямой запуск `_runtimes/agent-run.sh` не поддерживается: это внутренняя реализация launcher-а,
+которая сама не создаёт пользовательский Preview и Execution Journal.
+
+### ChatGPT desktop app / Codex
+
+ChatGPT desktop app и Codex — поддерживаемый интерфейс к checkout, но не отдельная точка входа
+SDLC. Внутри App также запускайте рекомендуемый `sdlc.sh`:
+
+1. Установите ChatGPT desktop app, войдите в аккаунт и откройте каталог `_agents` как
+   folder/project.
+2. Выберите Codex и создайте **Local** chat. Managed Worktree может не включить внешние,
+   untracked или ignored файлы.
+3. Откройте integrated terminal кнопкой справа сверху или сочетанием
+   <kbd>Ctrl</kbd>+<kbd>&#96;</kbd> и запустите:
+
+   ```bash
+   AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
+   ```
 
 Launcher/argv/sandbox routing проверены synthetic compatibility smoke. Полный live Project E2E
 через реальный nested Codex ещё не подтверждён; до отдельного подтверждения используйте этот
@@ -46,28 +71,6 @@ Launcher/argv/sandbox routing проверены synthetic compatibility smoke. 
 - [Managed Worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees)
 - [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 - [Windows app](https://learn.chatgpt.com/docs/windows/windows-app)
-
-### Обычный терминал
-
-Из каталога `_agents`:
-
-```bash
-bash sdlc.sh
-```
-
-Runtime можно выбрать заранее:
-
-```bash
-AGENT_RUNTIME=claude SDLC_SUBAGENTS=off bash sdlc.sh
-AGENT_RUNTIME=codex SDLC_SUBAGENTS=off bash sdlc.sh
-AGENT_RUNTIME=gemini SDLC_SUBAGENTS=off bash sdlc.sh
-```
-
-Без `AGENT_RUNTIME` первый wizard попросит выбрать runtime явно.
-Если runtime binary отсутствует в `PATH`, перед запуском launcher укажите один точный путь через
-`CLAUDE_BIN`, `CODEX_BIN` или `GEMINI_BIN`. Значение должно обозначать executable, а не shell-команду.
-Прямой запуск `_runtimes/agent-run.sh` не поддерживается: это внутренняя реализация launcher-а,
-которая сама не создаёт пользовательский Preview и Execution Journal.
 
 ### Windows — experimental
 
@@ -96,7 +99,7 @@ integrated terminal настраиваются отдельно; после см
 | Cycle 2 — Deploy | **FROZEN / NOT READY** | historical code сохранён, execution route отсутствует |
 | Cycle 3 — Operations | **FROZEN / NOT READY** | historical code сохранён, execution route отсутствует |
 
-Подготовленный platform release: [v2.001.000](RELEASE_NOTES_v2.001.000.md).
+Подготовленный platform release: [v2.001.001](RELEASE_NOTES_v2.001.001.md).
 Он имеет статус `PREPARED / NOT PUBLISHED` до отдельного commit/tag/publication action.
 
 Cycle 1 содержит 28 обязательных шагов. Launcher показывает immutable ordered plan до запуска и
@@ -178,7 +181,7 @@ bash sdlc.sh
 | `6` | Cycle 2/3 status | показать `FROZEN / NOT READY`; execution недоступен |
 | `7` | Один Agent | запустить одну роль и одну команду |
 | `9` | AI routing/workers | настроить primary profiles и увидеть статус workers |
-| `u` | Утилиты | secret mappings, tracker, quality gates, validation |
+| `u` | Утилиты | secret mappings, tracker, quality gates, validation, Change Scope |
 | `l` | Локальные репозитории | clone/pull, analyze, setup, build, local smoke |
 | `g` | Launcher settings | изменить каталоги, UI, runtime и routing |
 | `v` | Вид | переключить compact/detailed без смены функций |
@@ -189,6 +192,13 @@ bash sdlc.sh
 синхронизацию task state, DoD/governance ledgers или итоговый sprint state. Один exit code `0`
 не завершает Tracker operation.
 
+В `u → Change Scope` launcher сначала фиксирует Change Intent. По умолчанию это exact
+backlog/FR/task refs; альтернативно можно выбрать существующий Change Request. Затем в двух
+новых изолированных процессах всегда выполняются `l1-analyze /impact` и
+`s3-arch /change-impact`. Launcher проверяет их file handoff, добавляет только зарегистрированные
+Stage 4 governance outputs, показывает exact subject/path scope и вызывает отдельный Human
+Approval. L1, S3 и Stage 4 не могут подтвердить или расширить собственный scope.
+
 ## Рекомендуемый путь нового Project
 
 1. Откройте `1 Kickoff` и заполните idea и ограничения Cycle 1.
@@ -197,7 +207,9 @@ bash sdlc.sh
 3. Запустите `s0-validate /profile-check` и получите `PROFILE VALID`.
 4. При необходимости выполните `3 Review` для read-only проверки входов.
 5. Откройте `9 AI routing/workers` и проверьте назначения primary.
-6. Выберите `5 Cycle 1`, изучите Preview и только затем подтвердите запуск.
+6. До первого изменяющего шага Stage 4 откройте `u → Change Scope`, проверьте предложенные
+   module modes/paths и отдельно подтвердите Human Approval.
+7. Выберите `5 Cycle 1`, изучите Preview и только затем подтвердите запуск.
 
 `PROFILE BLOCKED` означает, что обязательный fact отсутствует, inferred, stale или нарушает
 supported boundary. Исправьте названный факт; не подставляйте silent default.
@@ -228,6 +240,13 @@ read-only. Repair и Cycle получают право записи только
 
 Project Console → `5 Cycle 1`. Перед Stage 1 обязателен валидный Product & CI Profile. После S1
 quality-gates связывают применимые characteristics с owners, evidence contracts и Gates.
+
+Начиная со Stage 4 каждая изменяющая команда требует current approved Change Scope. Runtime
+читает Project целиком, но пишет только в вычисленные paths текущего owner. Launcher делает
+полный before/after manifest и проверяет create/delete/modify/mode/type/symlink changes; declared
+report без прошедшего full diff не получает `ARTIFACT_VERIFIED`. Нарушение не откатывается
+автоматически и блокирует следующую mutation до восстановления Project или свежего approved
+scope.
 
 Cycle завершается только после Gate 1–5, автоматического и независимого полного DoD, exact
 current artifacts и связанной root/Retry evidence chain. `CYCLE 1 COMPLETION VERIFIED` означает

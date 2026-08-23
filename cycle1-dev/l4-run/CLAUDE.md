@@ -22,6 +22,14 @@
 - Диагностировать ошибки запуска
 - Зафиксировать кастомизации
 
+## KISS при изменении repository
+
+Если диагностика или подтверждённая кастомизация требует правки repository, используй
+существующий runtime path и public interfaces, сделай smallest coherent diff и не добавляй
+daemon, service, wrapper, dependency, framework или extension point «про запас». Новый элемент
+допустим только при точной необходимости из documented run contract. KISS не разрешает
+ослаблять smoke oracle, validation, error handling, security или runtime constraints.
+
 ## Команды запуска по стекам
 
 ### Node.js

@@ -22,6 +22,12 @@ grep -Fqx $'1\twrite\tpublic-canon\tallow\tdeny' "$MATRIX" ||
   fail 'write mode does not keep public canon read-only'
 grep -Fqx $'1\twrite\texact-project\tallow\tallow' "$MATRIX" ||
   fail 'write mode does not declare exact Project write access'
+grep -Fqx $'1\tscoped-write\texact-project\tallow\tdeny' "$MATRIX" ||
+  fail 'scoped-write mode does not keep the Project default read-only'
+grep -Fqx $'1\tscoped-write\tapproved-project-path\tallow\tallow' "$MATRIX" ||
+  fail 'scoped-write mode does not declare approved Project path writes'
+grep -Fqx $'1\tscoped-write\texact-notes\tallow\tdeny' "$MATRIX" ||
+  fail 'scoped-write mode does not keep notes read-only'
 grep -Fqx $'1\tread-only\texact-project\tallow\tdeny' "$MATRIX" ||
   fail 'read-only mode does not deny exact Project writes'
 grep -Fqx $'1\twrite\tambient-home\tdeny\tdeny' "$MATRIX" ||

@@ -16,8 +16,14 @@ $XDG_STATE_HOME/sdlc-agents/execution-journal/projects/{PROJECT}-{path-digest}/
         ├── plan.md
         ├── state.md
         ├── events.jsonl
+        ├── change-scope/             # runtime tables and before/after manifests
         └── lease
 ```
+
+Project-level `violations/` beside `runs/` stores immutable Change Scope violation records and
+the exact path table used for verification. A later launcher preflight records resolution only
+after a fresh approved scope or a full-tree comparison proves that out-of-scope changes were
+removed. Primary agents cannot read or write this state.
 
 The canonical journal directory is launcher-owned state. `{path-digest}` binds the project name
 to its canonical absolute path and prevents collisions. Project-scoped agents cannot write this
@@ -58,6 +64,9 @@ For `mutating-declared-output`, the launcher checks every task output group and 
 fingerprint to change during the process before recording `ARTIFACT_VERIFIED`. For
 `read-only-no-output`, enforced read-only access plus process success records the separate
 `READ_ONLY_VERIFIED`. `orchestrated-special` uses only its named dedicated verifier.
+For Stage 4 `scoped-write`, declared outputs are necessary but not sufficient: the launcher
+also verifies the whole Project tree against the current approved agent/command path table. A
+violation remains `UNVERIFIED/BLOCKED` even when process exit and reports look valid.
 File existence alone never proves a gate verdict. An unfinished `RUNNING` step
 observed without a live launcher is `INTERRUPTED/UNKNOWN`, not verified work.
 
@@ -81,6 +90,9 @@ reviews for the same source and launcher run.
 Evidence Contract v1 binds test/security/build/policy results to producer, exact
 source/subject, raw digest, profile/policy revision and freshness. Gate events store concise
 evidence ids from the deterministic verifier, never copied raw output.
+Change Scope preparation and execution use distinct events for intent creation, isolated L1/S3
+verification, human approval request, activation, per-step readiness, full-diff success and
+violation. Raw model output is not stored as scope evidence.
 Resume accepts step progress only from structurally anchored
 `step_artifact_verified`/`step_read_only_verified`/optional-skip events; numbers appearing inside evidence text
 and `PROCESS_OK` do not advance the resume point.

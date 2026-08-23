@@ -19,6 +19,12 @@ SDLC_SUBAGENT_MAX=2
 source "$ROOT/sdlc.sh"
 source "$ROOT/tests/lib/artifact-metadata-fixture.sh"
 
+# This unit fixture isolates TDD ordering/result verification. Change Scope pre/postflight has
+# its own positive/negative launcher smoke and is stubbed here so the mocked runtime can focus
+# on the repair sequence.
+prepare_change_scope_step() { return 0; }
+verify_change_scope_step() { return 0; }
+
 PROJECTS="$TMP_DIR/projects"
 PROJECT="demo"
 STATUS_FILE="$PROJECTS/$PROJECT/stage4-dev/outputs/QA-TDD-status.md"

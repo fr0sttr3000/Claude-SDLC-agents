@@ -8,6 +8,16 @@ schema_version	access	scope	read	write
 1	write	sibling-project	deny	deny
 1	write	runtime-denied-root	deny	deny
 1	write	unspecified-local-path	deny	deny
+1	scoped-write	system-runtime	dependency-read	deny
+1	scoped-write	public-canon	allow	deny
+1	scoped-write	exact-project	allow	deny
+1	scoped-write	approved-project-path	allow	allow
+1	scoped-write	exact-notes	allow	deny
+1	scoped-write	isolated-runtime-scratch	allow	allow
+1	scoped-write	ambient-home	deny	deny
+1	scoped-write	sibling-project	deny	deny
+1	scoped-write	runtime-denied-root	deny	deny
+1	scoped-write	unspecified-local-path	deny	deny
 1	read-only	system-runtime	dependency-read	deny
 1	read-only	public-canon	allow	deny
 1	read-only	exact-project	allow	deny

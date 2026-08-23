@@ -178,6 +178,8 @@ HOOKS=()
 require_cycle_tdd_red() { HOOKS+=(tdd-red); return 0; }
 cycle1_gate_before_entry() { return 0; }
 cycle1_gate_after_entry() { return 0; }
+prepare_change_scope_step() { return 0; }
+verify_change_scope_step() { return 0; }
 cycle1_software_dod_after_entry() { HOOKS+=(dod-applicable); return 0; }
 run_cycle1_software_dod_validator() { HOOKS+=(dod-validator); return 0; }
 run_cycle1_full_dod_validator() { HOOKS+=(dod-approval-blocked); return 1; }

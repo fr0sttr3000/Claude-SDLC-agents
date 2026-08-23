@@ -28,6 +28,14 @@ Closed list стеков отсутствует: приоритет у native ma
 а не выбранную по догадке команду. Для library/package валидный package/import test может быть
 основной build-проверкой, если отдельная сборка неприменима и это явно зафиксировано.
 
+## KISS при исправлении repository
+
+Для build fix используй native toolchain и existing conventions, меняй минимальный связный
+набор строк и не вводи новый build layer, wrapper, dependency, framework или abstraction «про
+запас». Новый элемент допустим только при доказанной необходимости из build error и
+manifest/README. KISS не разрешает пропускать tests, validation, error handling, security или
+documented runtime constraints.
+
 ## Команды сборки по стекам
 
 ### Node.js

@@ -1,5 +1,5 @@
 ---
-date: 2026-08-19
+date: 2026-08-23
 tags:
   - docs
   - changelog
@@ -12,6 +12,49 @@ tags:
 ---
 
 ## [Unreleased]
+
+Пока без записей.
+
+## [2.001.001] — 2026-08-23
+
+### Added
+
+- Change Scope v1 preparation: exact Change Intent, isolated L1 Project Map/impact, independent
+  S3 architecture/path review and digest-bound Human Approval before Stage 4 mutation.
+- `scoped-write` runtime capabilities plus full Project entry/type/mode/content/symlink manifests
+  and persistent launcher-owned scope-violation evidence.
+
+### Changed
+
+- All five Stage 4 mutating commands now require the current approved per-owner path table and a
+  combined full-diff + declared-output verifier. The canonical 28-step Cycle 1 sequence is unchanged.
+- TDD repair iterations use the same scope preparation and postflight checks as their original
+  Stage 4 commands.
+- KISS is now mandatory for implementation-writing roles (`s4-dev`, plus Local Repositories
+  setup/build/run when they modify a repository): prefer the smallest sufficient change without
+  weakening architecture, quality, security, reliability or test controls. Function size follows
+  SRP and the effective complexity policy rather than a separate prose-only line limit.
+- Stage 4 documentation updates are limited to exact approved source-local paths. Changes to HLD,
+  API contracts or ADRs return to the Stage 3 owner and require a fresh approved Change Scope.
+- Feasibility handoff records confirmed recovery/observability outcomes and applicability without
+  deriving HTTP endpoints, monitoring stacks or executable runbooks from criticality tier.
+
+### Fixed
+
+- Gate 2/3 architecture and QA consumers now resolve only manifest-selected current artifacts;
+  retained history is excluded and a stale/missing manifest row cannot fall back to a glob or fixed name.
+- QA decision records must bind the exact current requirements review and digest.
+- The Stage 4 Dev Report uses the registered `branch_coverage_percent` metric id, and semantic
+  regression checks reject metric ids absent from the authoritative quality-policy registry.
+- Change Scope rejects native Stage 4 rows that match or contain registry-owned governance outputs;
+  those paths can enter a scope only as launcher-owned `declared-output` alternatives.
+
+### Security
+
+- `USE|LOCKED`, notes, unspecified Project paths, ambient home, sibling Projects and VCS metadata
+  remain unwritable during Stage 4; tampered/stale scope digests fail before runtime dispatch.
+- Out-of-scope changes block further mutation without automatic rollback until the Project is
+  restored or a fresh Change Scope is separately approved.
 
 ## [2.001.000] — 2026-08-19
 

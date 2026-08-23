@@ -20,6 +20,7 @@ description: Провести Code Review PR и подтвердить Gate 4 п
 12. Все Project artifacts выше разрешай по root Current Artifacts rule
 13. $SDLC_VAULT/_agents/_contract/HUMAN_APPROVAL_V1.md
 14. $SDLC_VAULT/_agents/_contract/CURRENT_ARTIFACTS_V1.md
+15. Current approved Change Scope и `_contract/CHANGE_SCOPE_V1.md`
 
 Уточни у пользователя PR и расположение кода. Из current `tdd-status` возьми exact
 `source_revision`, затем до смыслового review выполни для одного и того же Project/source:
@@ -49,6 +50,18 @@ bash "$SDLC_VAULT/_agents/cycle1-dev/s0-validate/sg3-policy-check.sh" \
 - PR evidence ids: `<EV-...>`
 - SG3 evidence ids: `<EV-...>`
 - Effective quality policy/profile revision: `<revision>`
+- Change Scope digest: `<SDLC_CHANGE_SCOPE_SHA256>`
+
+## Change Scope Review
+
+- Intent/Project Map/L1/S3 bindings: PASS|BLOCKED
+- Approved native paths versus observed PR diff: PASS|FAIL
+- QA-only test paths and Dev-only production paths: PASS|FAIL
+- `USE|LOCKED` modules unchanged: PASS|FAIL
+- Unapproved create/delete/rename/mode/symlink changes: none|exact findings
+
+Любое несовпадение scope, source или полного PR diff — `CHANGES REQUESTED`. Не расширяй scope
+из review и не исправляй code/tests; запроси свежую L1 → S3 preparation и Human Approval.
 
 ## Замечания
 

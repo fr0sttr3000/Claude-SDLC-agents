@@ -93,6 +93,33 @@ write_valid() {
     ARCH-ADR-001 S3 s3-arch none APPROVED
 }
 
+append_current_row() {
+  local project="$1" logical="$2" member="$3" ref="$4" producer="$5" command="$6" group="$7"
+  local digest
+  digest="$(sha256sum "$project/$ref" | awk '{print $1}')"
+  printf '1\t%s\t%s\t%s\t%s\t%s\t%s\t%s\tnone\t1\tRUN-ARCH\t%s\t2026-08-23T12:00:00Z\n' \
+    "$logical" "$member" "$ref" "$digest" "$producer" "$command" "$group" \
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >> \
+    "$project/tracking/current-artifacts-v1.tsv"
+}
+
+write_arch_manifest() {
+  local project="$1"; shift
+  local adr_ref member=1
+  printf '%s\n' $'schema_version\tlogical_id\tmember_index\tartifact_ref\tartifact_sha256\tproducer\tcommand\toutput_group\tsource_revision\tproduct_profile_revision\trun_id\tplan_sha256\trecorded_at' > \
+    "$project/tracking/current-artifacts-v1.tsv"
+  append_current_row "$project" nonfunctional-requirements 1 \
+    stage2-requirements/outputs/BA-2026-07-27-NFR.md s2-ba /brd 2
+  append_current_row "$project" high-level-design 1 \
+    stage3-design/outputs/ARCH-2026-07-27-HLD.md s3-arch /hld 1
+  for adr_ref in "$@"; do
+    append_current_row "$project" architecture-decisions "$member" "$adr_ref" s3-arch /adr 1
+    member=$((member + 1))
+  done
+  append_current_row "$project" architecture-decision-index 1 \
+    stage3-design/outputs/ARCH-decision-trace-v1.tsv s3-arch /adr 2
+}
+
 upgrade_to_v5() {
   local project="$1"
   sed -i 's/^schema_version: 3/schema_version: 5/' "$project/tracking/product-ci-profile.yaml"
@@ -145,6 +172,62 @@ P_VALID="$TMP_DIR/valid"
 write_valid "$P_VALID"
 bash "$CHECK" "$P_VALID" > "$TMP_DIR/valid.out" || fail 'valid decision trace was rejected'
 grep -Fq 'ARCHITECTURE TRACE VERIFIED' "$TMP_DIR/valid.out" || fail 'verified verdict missing'
+
+P_CURRENT_HISTORY="$TMP_DIR/current-with-history"
+write_valid "$P_CURRENT_HISTORY"
+cp "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-27-HLD.md" \
+  "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-26-HLD.md"
+cp "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-27-ADR-001.md" \
+  "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-26-ADR-999.md"
+sed -i 's/^artifact_id: ARCH-HLD-V1$/artifact_id: ARCH-HLD-HIST/' \
+  "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-26-HLD.md"
+sed -i 's/^artifact_id: ARCH-ADR-001$/artifact_id: ARCH-ADR-HIST/' \
+  "$P_CURRENT_HISTORY/stage3-design/outputs/ARCH-2026-07-26-ADR-999.md"
+write_arch_manifest "$P_CURRENT_HISTORY" \
+  stage3-design/outputs/ARCH-2026-07-27-ADR-001.md
+bash "$CHECK" "$P_CURRENT_HISTORY" > "$TMP_DIR/current-history.out" ||
+  fail 'manifest-selected architecture was rejected because retained history exists'
+
+P_MISSING_CURRENT_HLD="$TMP_DIR/missing-current-hld"
+write_valid "$P_MISSING_CURRENT_HLD"
+write_arch_manifest "$P_MISSING_CURRENT_HLD" \
+  stage3-design/outputs/ARCH-2026-07-27-ADR-001.md
+sed -i '/\thigh-level-design\t/d' \
+  "$P_MISSING_CURRENT_HLD/tracking/current-artifacts-v1.tsv"
+expect_blocked 'manifest without current HLD fell back to the matching file' \
+  "$P_MISSING_CURRENT_HLD" "$TMP_DIR/missing-current-hld.out"
+
+P_HISTORICAL_NFR="$TMP_DIR/historical-nfr-only"
+write_valid "$P_HISTORICAL_NFR"
+printf '%s\n' '# Historical NFR' 'NFR-999: retired latency requirement.' > \
+  "$P_HISTORICAL_NFR/stage2-requirements/outputs/BA-2026-07-26-NFR.md"
+sed -i 's/NFR-001/NFR-999/g' \
+  "$P_HISTORICAL_NFR/stage3-design/outputs/ARCH-2026-07-27-HLD.md" \
+  "$P_HISTORICAL_NFR/stage3-design/outputs/ARCH-2026-07-27-ADR-001.md" \
+  "$P_HISTORICAL_NFR/stage3-design/outputs/ARCH-decision-trace-v1.tsv"
+write_arch_manifest "$P_HISTORICAL_NFR" \
+  stage3-design/outputs/ARCH-2026-07-27-ADR-001.md
+expect_blocked 'trace resolved an NFR from historical rather than current requirements' \
+  "$P_HISTORICAL_NFR" "$TMP_DIR/historical-nfr.out"
+
+P_HISTORICAL_TRACED_ADR="$TMP_DIR/historical-traced-adr"
+write_valid "$P_HISTORICAL_TRACED_ADR"
+cp "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-2026-07-27-ADR-001.md" \
+  "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-2026-07-26-ADR-999.md"
+sed -i 's/DEC-001/DEC-999/g; s/ADR-001/ADR-999/g' \
+  "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-2026-07-26-ADR-999.md"
+complete_artifact_metadata_fixture \
+  "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-2026-07-26-ADR-999.md" \
+  "$P_HISTORICAL_TRACED_ADR" ARCH-ADR-999 S3 s3-arch none APPROVED
+printf '%s\n' \
+  'DEC-999: NFR-001 → QA-Performance → TACTIC-Bound-Latency → PATTERN-Timeout → ADR-999.' >> \
+  "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-2026-07-27-HLD.md"
+printf '%s\n' $'DEC-999\tNFR-001\tQA-Performance\tTACTIC-Bound-Latency\tPATTERN-Timeout\tADR-999\tstage3-design/outputs/ARCH-2026-07-26-ADR-999.md\t1' >> \
+  "$P_HISTORICAL_TRACED_ADR/stage3-design/outputs/ARCH-decision-trace-v1.tsv"
+write_arch_manifest "$P_HISTORICAL_TRACED_ADR" \
+  stage3-design/outputs/ARCH-2026-07-27-ADR-001.md
+expect_blocked 'trace accepted an ADR outside the manifest-selected current set' \
+  "$P_HISTORICAL_TRACED_ADR" "$TMP_DIR/historical-traced-adr.out"
 
 P_V5="$TMP_DIR/valid-v5"
 write_valid_v5 "$P_V5"

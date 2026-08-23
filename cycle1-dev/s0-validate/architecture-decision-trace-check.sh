@@ -51,15 +51,52 @@ expect_meta() {
     blocked "$(basename "$file"): $key должен быть $expected, получено ${actual:-MISSING}"
 }
 
-shopt -s nullglob
-hlds=("$OUTPUTS"/ARCH-*-HLD.md)
-traces=("$OUTPUTS"/ARCH-decision-trace-v1.tsv)
-adrs=("$OUTPUTS"/ARCH-*-ADR-*.md)
-nfr_files=("$PROJECT_PATH"/stage2-requirements/outputs/BA-*-NFR.md)
-(( ${#hlds[@]} == 1 )) || blocked "ожидался один ARCH-*-HLD.md, найдено ${#hlds[@]}"
-(( ${#traces[@]} == 1 )) || blocked "ожидался один ARCH-decision-trace-v1.tsv, найдено ${#traces[@]}"
-(( ${#adrs[@]} > 0 )) || blocked 'ARCH-*-ADR-*.md отсутствуют'
-(( ${#nfr_files[@]} > 0 )) || blocked 'BA-*-NFR.md отсутствует'
+resolve_one_ref() {
+  local logical="$1" output
+  if ! output="$(bash "$SCRIPT_DIR/current-artifact.sh" \
+      resolve-compatible-one "$PROJECT_PATH" "$logical")"; then
+    blocked "current artifact resolution failed: $logical"
+  fi
+  [[ -n "$output" && "$output" != *$'\n'* ]] ||
+    blocked "current artifact cardinality invalid: $logical"
+  printf '%s\n' "$output"
+}
+
+resolve_refs() {
+  local logical="$1" output
+  if ! output="$(bash "$SCRIPT_DIR/current-artifact.sh" \
+      resolve-compatible "$PROJECT_PATH" "$logical")"; then
+    blocked "current artifact resolution failed: $logical"
+  fi
+  [[ -n "$output" ]] || blocked "current artifact set is empty: $logical"
+  printf '%s\n' "$output"
+}
+
+project_file_from_ref() {
+  local ref="$1" path canonical
+  [[ "$ref" =~ ^[A-Za-z0-9._/-]+$ && "$ref" != /* && "$ref" != ../* &&
+    "$ref" != *'/../'* && "$ref" != */.. ]] || blocked "unsafe current artifact ref: $ref"
+  path="$PROJECT_PATH/$ref"
+  [[ -f "$path" && ! -L "$path" ]] || blocked "current artifact missing/symlink: $ref"
+  canonical="$(readlink -f "$path")"
+  [[ "$canonical" == "$PROJECT_PATH/"* ]] || blocked "current artifact escapes Project: $ref"
+  printf '%s\n' "$path"
+}
+
+hld_ref="$(resolve_one_ref high-level-design)"
+trace_ref="$(resolve_one_ref architecture-decision-index)"
+nfr_ref="$(resolve_one_ref nonfunctional-requirements)"
+adr_output="$(resolve_refs architecture-decisions)"
+mapfile -t adr_refs <<< "$adr_output"
+
+hld="$(project_file_from_ref "$hld_ref")"
+trace="$(project_file_from_ref "$trace_ref")"
+nfr_file="$(project_file_from_ref "$nfr_ref")"
+adrs=()
+for adr_ref in "${adr_refs[@]}"; do
+  adrs+=("$(project_file_from_ref "$adr_ref")")
+done
+nfr_files=("$nfr_file")
 
 runtime_output="$(bash "$SCRIPT_DIR/runtime-constraints-check.sh" \
   "$PROJECT_PATH" architecture 2>&1)" || {
@@ -67,10 +104,6 @@ runtime_output="$(bash "$SCRIPT_DIR/runtime-constraints-check.sh" \
   blocked 'Runtime Constraints v1 trace invalid'
 }
 
-hld="${hlds[0]}"
-trace="${traces[0]}"
-[[ -f "$hld" && ! -L "$hld" && -f "$trace" && ! -L "$trace" ]] ||
-  blocked 'HLD/trace не могут быть symlink'
 for metadata_doc in "$hld" "${adrs[@]}"; do
   metadata_ref="${metadata_doc#"$PROJECT_PATH/"}"
   bash "$SCRIPT_DIR/artifact-metadata-check.sh" "$PROJECT_PATH" "$metadata_ref" >/dev/null ||
@@ -140,7 +173,10 @@ IFS= read -r header < "$trace" || blocked 'architecture decision trace пуст'
 [[ "$header" == $'decision_id\tnfr_id\tquality_attribute_id\ttactic_id\tpattern_id\tadr_id\tadr_uri\tproduct_profile_revision' ]] ||
   blocked 'architecture decision trace имеет неверный header'
 
-declare -A seen_decisions=() seen_adrs=() seen_uris=()
+declare -A seen_decisions=() seen_adrs=() seen_uris=() current_adr_uris=()
+for adr_ref in "${adr_refs[@]}"; do
+  current_adr_uris["$adr_ref"]=1
+done
 row_count=0
 while IFS=$'\t' read -r decision_id nfr_id qa_id tactic_id pattern_id adr_id adr_uri row_revision extra ||
   [[ -n "${decision_id}${nfr_id}${qa_id}${tactic_id}${pattern_id}${adr_id}${adr_uri}${row_revision}${extra}" ]]; do
@@ -158,6 +194,8 @@ while IFS=$'\t' read -r decision_id nfr_id qa_id tactic_id pattern_id adr_id adr
   [[ "$row_revision" == "$profile_revision" ]] || blocked "trace row $row_count связан с другой Product Profile revision"
   [[ "$adr_uri" =~ ^stage3-design/outputs/ARCH-[A-Za-z0-9._-]+-ADR-[A-Za-z0-9_-]+\.md$ ]] ||
     blocked "trace row $row_count: invalid adr_uri"
+  [[ -n "${current_adr_uris[$adr_uri]:-}" ]] ||
+    blocked "trace row $row_count: ADR is not in the current manifest set: $adr_uri"
   adr_path="$PROJECT_PATH/$adr_uri"
   [[ -f "$adr_path" && ! -L "$adr_path" ]] || blocked "trace row $row_count: ADR отсутствует или symlink"
   canonical="$(readlink -f "$adr_path")"

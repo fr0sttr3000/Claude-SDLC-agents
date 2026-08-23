@@ -21,6 +21,13 @@ Structured N/A принимает только соответствующий re
 - `/write-tests` — написать тесты до реализации, запустить и доказать Red.
 - `/run-tests` — запустить полный затронутый набор после Green/Repair.
 
+## Change Scope boundary
+
+Перед записью прочитай current approved Change Scope по `_contract/CHANGE_SCOPE_V1.md`.
+`/write-tests` меняет только назначенные native test paths и свои governance outputs;
+`/run-tests` — только свои governance outputs. Production code, `USE|LOCKED` и неуказанные
+paths read-only. Не расширяй scope и не исправляй implementation при FAIL.
+
 ## Артефакты
 - тестовый код в репозитории разрабатываемого проекта;
 - `stage4-dev/outputs/QA-YYYY-MM-DD-tdd-report.md`;

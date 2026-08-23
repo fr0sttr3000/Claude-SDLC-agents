@@ -25,6 +25,14 @@
 - Запустить docker-compose (если нужно)
 - Проверить что всё готово к сборке
 
+## KISS при изменении repository
+
+Если setup требует изменить repository-local config или script, используй native toolchain и
+существующие conventions проекта, сделай smallest coherent diff и не добавляй wrapper,
+dependency, service, framework или extension point «про запас». Новый элемент допустим только
+при точной необходимости из manifest/README/подтверждённого local-run scope. KISS не разрешает
+обходить validation, error handling, secret boundary, tests или documented runtime constraints.
+
 ## Стратегия по стекам
 
 Это примеры, а не обязательный closed list. Сначала используй lockfile, package manager,
