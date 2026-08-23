@@ -97,7 +97,9 @@ open_issues:
 
 mandatory_standards:
   # Дополнительные требования этого проекта поверх company.md
-  - "{например: все сервисы обязаны экспортировать /health если Tier ≥ 1}"
+  # Tier используется только для risk classification и не создаёт endpoint,
+  # protocol, monitoring stack или runbook requirement.
+  - "{например: confirmed long-running network service требует observable liveness outcome; точный interface задают NFR/HLD}"
 ```
 ```
 

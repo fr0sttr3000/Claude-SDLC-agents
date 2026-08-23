@@ -216,3 +216,11 @@ Cycle 2/3: FROZEN / NOT READY
 
 Отсутствие quality-артефакта для завершённого этапа = ❌ QUALITY VIOLATION
 Historical Stage 6/7 не являются active quality violations.
+
+## Change Scope v1
+
+Для Stage 4 используй `change-scope-v1.sh`: `validate/current` проверяют digest-bound approved
+bundle и независимый Human Approval; `runtime-access` строит capability table текущего owner;
+`snapshot/verify-diff` проверяют полный Project tree. Никогда не считать declared output или
+process exit заменой full-diff verdict. Violation блокирует дальнейшую mutation и не запускает
+автоматический rollback.

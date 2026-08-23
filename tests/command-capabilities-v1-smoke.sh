@@ -42,7 +42,7 @@ for file in "${command_files[@]}"; do
   metadata_stages="$(command_capability_field "$record" 7)"
   metadata_types="$(command_capability_field "$record" 8)"
   case "$capability:$access" in
-    read-only-no-output:read-only|mutating-declared-output:write|orchestrated-special:read-only|orchestrated-special:write) ;;
+    read-only-no-output:read-only|mutating-declared-output:write|mutating-declared-output:scoped-write|orchestrated-special:read-only|orchestrated-special:write|orchestrated-special:scoped-write) ;;
     *) fail "invalid capability/access: $agent $command $capability/$access" ;;
   esac
   [[ -n "$verifier" ]] || fail "empty result verifier: $agent $command"
@@ -63,12 +63,29 @@ for file in "${command_files[@]}"; do
   fi
 done
 
+for stage4_owner in 's4-qa-auto:/write-tests' 's4-dev:/dev-report' \
+  's4-qa-auto:/run-tests' 's4-techlead:/review' 's4-dev:/update-notes'; do
+  stage4_agent="${stage4_owner%%:*}"
+  stage4_command="${stage4_owner#*:}"
+  [[ "$(command_access "$stage4_agent" "$stage4_command")" == scoped-write ]] ||
+    fail "Stage 4 mutator is not scoped-write: $stage4_owner"
+  [[ "$(command_result_verifier "$stage4_agent" "$stage4_command")" == \
+    change-scope-and-declared-output ]] ||
+    fail "Stage 4 mutator lacks combined verifier: $stage4_owner"
+done
+[[ "$(command_result_verifier l1-analyze /impact)" == change-scope-l1-dispatch &&
+   "$(command_access l1-analyze /impact)" == scoped-write ]] ||
+  fail 'L1 impact is not isolated behind its dedicated workflow'
+[[ "$(command_result_verifier s3-arch /change-impact)" == change-scope-s3-dispatch &&
+   "$(command_access s3-arch /change-impact)" == scoped-write ]] ||
+  fail 'S3 change-impact is not isolated behind its dedicated workflow'
+
 [[ "$(sed -n '1p' "$LIFECYCLES")" == $'logical_id\tlifecycle\towners\tordering' ]] ||
   fail 'shared artifact lifecycle header mismatch'
 while IFS=$'\t' read -r agent command _group _logical_id _cardinality _track _patterns; do
   [[ "$agent:$command" == launcher:/full-dod-approval ]] && continue
   awk -F '\t' -v agent="$agent" -v command="$command" \
-    'NR > 1 && $2 == agent && $3 == command && $5 == "write" &&
+    'NR > 1 && $2 == agent && $3 == command && ($5 == "write" || $5 == "scoped-write") &&
       ($4 == "mutating-declared-output" || $4 == "orchestrated-special") {found=1}
      END {exit !found}' "$REGISTRY" ||
     fail "output group producer is not a registered write command: $agent $command"

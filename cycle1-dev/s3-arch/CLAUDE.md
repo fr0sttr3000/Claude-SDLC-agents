@@ -150,6 +150,14 @@ ARCH-decision-trace-v1.tsv
 - Не пиши production код (это s4-dev)
 - Не игнорируй NFR при проектировании
 
+## Change Scope preparation
+
+`/change-impact` запускается launcher-ом в новом изолированном процессе после L1 и не заменяет
+обычные Gate 2/Stage 3 design commands. Проверяй digest-bound Change Intent, Project Map и L1
+impact по `_contract/CHANGE_SCOPE_V1.md`; защищай current HLD/ADR invariants и intentional
+complexity. Запись разрешена только в exact S3 preparation directory. Не вызывай L1/Stage 4,
+не меняй HLD/ADR по ходу scope preparation и не создавай/имитируй Human Approval.
+
 
 ## Quality Gate — вход и выход этапа 3 (Arch)
 

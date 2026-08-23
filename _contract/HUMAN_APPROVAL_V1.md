@@ -40,6 +40,15 @@ separate approval succeeds. On success the launcher also records that exact appr
 current `dod-approval` logical artifact, bound to the active run id and immutable plan digest;
 completion rejects a valid-looking approval that is not current for its execution chain.
 
+For Change Scope the approval id begins with `APPROVAL-SCOPE-`. The exact one-line `scope` is
+`change-scope:{scope-id}@{subject-digest}`. The subject digest binds exact source revision,
+preparation baseline, Change Intent, Project Map, L1 impact, S3 architecture impact and final
+Stage 4 path table. The approver is independent from `s3-arch`; only `APPROVE` can activate the
+scope. Every new or expanded digest requires a new approval. A retry may reuse the existing
+approval only when the digest is byte-identical and no unresolved launcher-recorded scope
+violation exists. Approval authorizes only the named Project paths and never commit, push,
+merge, release, deployment or production action.
+
 The human records a decision only through the interactive
 `_runtimes/human-approval-record.sh` action outside primary agent dispatch. Roles may prepare
 the exact source, subject digest and scope for preview, but must never create, edit, imitate or

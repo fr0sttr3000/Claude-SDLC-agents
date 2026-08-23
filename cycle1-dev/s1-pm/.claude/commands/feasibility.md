@@ -33,8 +33,15 @@ description: Запустить полный или частичный Feasibili
 - `## To-Be` → для Operational секции
 - `## Критерии успеха продукта` → North Star (не генерируй свой)
 - `## Kill Criteria` → риск №1 в Топ-5 + условие No-Go в ВЕРДИКТЕ
-- `Deployment Constraint` (в Технических ограничениях) → Technical секция
+- `Runtime Constraints` (Q3.6) → Technical секция как application-design limitation
+- `Recovery Expectation` (Q3.7) → измеримый recovery outcome без выбора mechanism
+- `Observability Expectation` (Q3.8) → application signals/outcome без выбора stack/interface
 - `## Неизвестное` + `## Риски и стопперы` → база для Топ-5 рисков
+
+До анализа проверь поля по `_contract/RUNTIME_CONSTRAINTS_V1.md`. Legacy
+`Deployment Constraint` или одновременные legacy/canonical fields означают `BLOCKED` и
+возврат пользователю в launcher для `s0-kickoff /refresh`. Не используй legacy field как
+источник требования; Runtime Constraint не является deploy/operations authorization.
 
 ---
 
@@ -109,15 +116,16 @@ Axis: legal | Verdict: {PASS|CONDITIONAL|FAIL} | Evidence: {конкретный
 {Если секция выполняется:}
 
 **Стек:** {Q3.1 из idea.md — [DATA — stakeholder interview]}
-**Deployment Constraint:** {Q3.6 — single-container / multi-instance / serverless / не определено [DATA — stakeholder interview]}
+**Runtime Constraints:** {Q3.6 — confirmed application-design limitations или unknown [DATA — stakeholder interview]}
 **Масштаб:** {Q3.2 — [DATA — stakeholder interview]}
 **Compliance:** {Q3.4 — [DATA — stakeholder interview]}
 
 ### Существующий стек и команда
 {из idea.md Q2.4 + company.md}
 
-### Инфраструктурные требования
-{на основе Deployment Constraint из Q3.6 — какие компоненты нужны, какие паттерны применимы}
+### Применимость application capabilities
+{какие измеримые recovery/observability capabilities следуют из Q3.6–Q3.8; interface,
+protocol, infrastructure и operational tooling не выбирать без confirmed Project facts}
 
 ### Оценка сложности перехода As-Is → To-Be
 **As-Is:** {Q1.3 из idea.md [DATA — stakeholder interview]}
@@ -328,26 +336,26 @@ decisions:
   frozen_scope: "Cycle 2/3 delivery and operations tooling"
 
 inherited_nfr:
-  # NFR-требования из подтверждённых expectations — перенести в BA-NFR.md с числовыми порогами
-  - "{/health endpoint (liveness) — если Tier ≥ 1}"
-  - "{metrics contract — если требуется точным NFR}"
-  - "{/ready endpoint — если подтверждённые runtime_constraints требуют нескольких instances}"
-  - "{structured JSON logging с correlation_id — если Tier ≥ 1}"
-  - "{recovery behavior — из точного NFR}"
+  # Перенести только подтверждённые outcomes; OPEN/N/A сохраняют owner и evidence reason
+  - "liveness/readiness outcome: {required | optional | N/A | OPEN}; applicable only for a confirmed long-running network service"
+  - 'interface: "CONFIRMED from Project facts/NFR/HLD | UNSPECIFIED"'
+  - "observability outcomes: {signals, fields и thresholds из confirmed expectation | OPEN}"
+  - "logging format/fields: {confirmed contract | UNSPECIFIED}; JSON не является default"
+  - "recovery behavior: {из confirmed Recovery Expectation | OPEN}"
 
 architectural_constraints:
-  # Runtime и observability constraints Cycle 1 — учесть в HLD/API spec
+  # BA/HLD выбирают точный интерфейс и tactic; PM не создаёт API/infrastructure defaults
   - "runtime_constraints: {значение} — учесть при выборе application patterns"
-  - "{добавить /health в API spec — если Tier ≥ 1}"
-  - "{добавить /metrics в API spec — если Tier ≥ 2}"
+  - "health/readiness interface: не выбирать без confirmed service topology и Project facts"
+  - "metrics protocol/interface: не выбирать без confirmed NFR/HLD"
   - "Cycle 2/3 tooling: FROZEN / NOT READY; не выбирать"
 
 application_constraints:
   # Cycle 1 capabilities; delivery/operations tooling не выбирать
   - "criticality_tier: {N} — risk classification, не infrastructure preset"
-  - "monitoring_stack: {с нуля / интеграция с {existing_monitoring}}"
-  - "runbook: {обязателен если Tier ≥ 1}"
-  - "postmortem_template: {обязателен если Q3.7 = D}"
+  - "Tier не определяет interface, protocol, stack или runbook applicability"
+  - "observability_stack: {CONFIRMED: exact existing stack | UNKNOWN / OPEN ISSUE}"
+  - "runbook_applicability: {required | N/A | OPEN} из confirmed failure modes/owner; executable runbook deferred"
 
 open_issues:
   # Каждый [OPEN ISSUE] — владелец и статус

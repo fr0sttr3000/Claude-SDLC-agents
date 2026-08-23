@@ -120,6 +120,13 @@ Landlock-границу. Метаданные VCS исходного checkout и
 Landlock, helper source, compiler, cache validation или enforcement недоступны, dispatch
 завершается fail-closed. Эта граница primary runtime не включает worker capability.
 
+Изменяющие Stage 4 команды дополнительно используют `_contract/CHANGE_SCOPE_V1.md`. До них
+launcher фиксирует Change Intent и всегда запускает независимые `l1-analyze /impact` и
+`s3-arch /change-impact` в разных scoped-write процессах. Final path table активируется только
+после отдельного Human Approval. На каждом Stage 4 запуске dispatcher выдаёт запись только в
+paths текущего agent/command, а launcher проверяет полный Project manifest до declared-output
+verdict. Agent не расширяет scope; violation блокирует дальнейшую mutation без auto-rollback.
+
 Текущий исполняемый режим — только `SDLC_SUBAGENTS=off`. Значения `auto|cross-runtime` и прямой
 `subagent-run.sh` завершаются fail-closed с `BLOCKED`: существующие adapters не доказывают
 bounded read scope на уровне runtime/OS. Prompt-only ограничение не считается изоляцией.
@@ -170,6 +177,7 @@ product type и не разрешает профилю снижать global min
 | 3 — Дизайн | `s3-security` | Threat Model |
 | 3 — Дизайн | `s3-rbac` | `/rbac-model`; `/rbac-matrix` — optional refinement через One Agent |
 | 3 — Дизайн | `s3-dba` | `/schema`, `/migration` (design/N-A, без live DB action) |
+| 3 → 4 — Change Scope | `l1-analyze` → `s3-arch` → launcher/human | `/impact`, `/change-impact`, exact path approval; precondition, не новый canonical step |
 | 4 — Разработка | `s4-qa-auto` | `/write-tests`, `/run-tests` — Red до кода, независимый verdict после кода |
 | 4 — Разработка | `s4-dev` | Green/Repair, Dev Report, Update Notes (обязательно после каждого PR) |
 | 4 — Разработка | `s4-techlead` | Code Review (блокирует PR без обновлённой документации) |
@@ -341,6 +349,17 @@ cd /some/project && git log
   нормализовано в `Runtime Constraints` до Stage 2. Если присутствуют оба поля, ни одно
   не имеет молчаливого приоритета: конфликт явно разрешает пользователь, legacy удаляется.
   Runtime Constraint не даёт разрешения на deploy/operations или frozen Cycle 2/3.
+- **KISS — только для implementation writers.** `s4-dev`, а также `l2-setup`, `l3-build` и
+  `l4-run` при фактическом изменении repository выбирают минимальную достаточную реализацию:
+  existing conventions/public interfaces, smallest coherent diff, без speculative layers,
+  dependencies, frameworks, extension points и обобщений «про запас». Решение всё равно
+  обязано выполнять approved scope, requirements, HLD/ADR, NFR, security, reliability,
+  compatibility/data contracts и тесты. KISS не разрешает убирать validation, error handling,
+  authorization, observability, recovery controls или intentional complexity. Изменение
+  архитектуры/approved paths требует нового handoff и возвращает `BLOCKED`. Planning/design,
+  QA/quality, security, reliability/SRE и validator roles не упрощают принадлежащие им
+  проверки/evidence по этому принципу. Каноническая формулировка — в
+  `plans/principles.md#KISS — минимальная достаточная реализация`.
 
 ## Отвечай на русском
 

@@ -12,7 +12,7 @@ sdlc.sh ── Project selector ── Project Console ── Preview / Journal
   │                                      ├─ Cycle 2/3 status (FROZEN / NOT READY)
   │                                      ├─ One Agent
   │                                      ├─ scoped Review / Repair
-  │                                      └─ Utilities / Local Repositories
+  │                                      └─ Utilities / Change Scope / Local Repositories
   ▼
 runtime routing ── agent-run.sh ── Claude | Codex | Gemini | Local host
                                         │
@@ -57,6 +57,8 @@ Launcher отвечает за Project/scope/routes/state. Runtime adapter от�
     ├── runtime-routing
     ├── backlog.md / current-sprint.md / known-issues.md
     ├── current-artifacts-v1.tsv
+    ├── current-change-scope-v1.yaml
+    ├── change-scopes/<scope-id>/{intent,l1,s3,approved}/
     ├── completion/CYCLE1-completion-v2.yaml
     ├── releases/REL-vX.Y.Z-release-notes.md   # optional, prepared/not released
 Launcher state (outside Project write scope):
@@ -80,6 +82,8 @@ Kickoff
   → Gate 2 validator
   → S3 HLD+API-or-N/A / Threat model(CVSS) / Authorization / Data-or-N/A
   → Gate 3 validator
+  → Change Intent → isolated L1 Project Map/impact → isolated S3 architecture/path impact
+  → launcher path assembly → independent Human Change Scope Approval
   → S4 QA-TDD Red → Developer Green/Repair → full affected manifest + selected executor raw results
   → s0-validate: TDD Status v1 + Evidence v1 + quality coverage + only-up + SG3 + controls
   → five-dimension Tech Lead maintainability review → Gate 4
@@ -122,6 +126,8 @@ ask          resolve every needed step before Preview
 Missing route/profile = BLOCKED. Route не наследуется между разными Projects. Local Repositories
 имеет собственный routing profile и не наследует последнего SDLC Agent.
 
+Рекомендуемый пользовательский вход в систему — канонический `sdlc.sh`.
+
 В Codex App канонический путь проходит через Local project и integrated terminal: terminal
 запускает `sdlc.sh`/`localrun.sh`, а каждый автоматический task получает новый ephemeral
 `codex exec --ignore-user-config --ephemeral` с exact Project scope. Вложенный интерактивный
@@ -134,6 +140,12 @@ untracked Project files. Проверенные и `UNVERIFIED` compatibility cl
 Landlock-границу: source-checkout VCS metadata и checkout-local runtime-denied roots запрещены
 для open/read/list/write. Публичный канон остаётся readable, а selected Project/notes scopes
 сохраняют только runtime-contract access. Отсутствие enforcement блокирует запуск.
+
+Stage 4 mutators используют `scoped-write`: весь exact Project readable, notes read-only, а
+Landlock write capabilities вычисляются только для current agent/command из digest-bound Change
+Scope. Для create/delete/rename launcher выдаёт минимальный существующий parent и компенсирует
+гранулярность обязательным full-tree diff. `USE|LOCKED` paths дополнительно вычитаются. Scope
+preparation всегда разделена на L1 и S3 процессы и завершается отдельным Human Approval.
 
 ### Supervisor + Worker
 
@@ -179,6 +191,9 @@ Windows adapter — experimental, на свой страх и риск.
 - Mutating-шаг продвигается только после `ARTIFACT_VERIFIED`: изменился каждый declared output
   group задачи. Read-only команда запускается с принудительным read-only access и получает
   отдельный `READ_ONLY_VERIFIED`.
+- Stage 4 дополнительно требует current approved Change Scope, exact runtime-table digest и
+  совпадение полного before/after Project manifest; нарушение сохраняется launcher-ом и
+  блокирует последующие writes без автоматического rollback.
 - `_contract/command-capabilities-v1.tsv` классифицирует все active commands; generic One Agent
   не показывает `orchestrated-special` операции.
 - Tracker mutators dispatch-ятся только из Utilities → Tracker: launcher связывает exact

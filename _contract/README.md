@@ -42,6 +42,8 @@ The SDLC Agent System can be executed through multiple AI runtimes while keeping
   classification, access and result verifier for every active command template
 - `_contract/RUNTIME_ACCESS_V1.md` and `runtime-access-v1.tsv` — shared capability-enforced
   read/write matrix for every primary runtime
+- `_contract/CHANGE_SCOPE_V1.md` — Change Intent, L1/S3 isolated discovery, human-approved
+  Stage 4 path ownership, scoped runtime writes and full-tree diff verification
 - root `CLAUDE.md` — global SDLC context and behavioral rules
 - `cycle*/{agent}/CLAUDE.md` — role-specific agent contracts
 - `.claude/commands/*.md` — shared command prompt templates
@@ -82,6 +84,11 @@ the Runtime Access v1 Landlock matrix. Public canon is read-only; exact Project/
 selected by the command; an isolated per-process scratch is writable; ambient HOME, sibling
 Projects, source-checkout VCS metadata, runtime-denied roots and unspecified paths receive no
 capability. Missing helper, compiler, kernel support or successful enforcement blocks dispatch.
+
+Stage 4 uses the narrower `scoped-write` profile. A current approved Change Scope selects the
+write paths for one exact agent/command; all other Project paths and notes remain read-only.
+Launcher-owned before/after manifests and the declared-output verifier must both pass before
+`ARTIFACT_VERIFIED`.
 
 Secret-like prompt values are rejected by the shared runtime boundary before Preview/dispatch;
 the rejected value is not printed. Project secrets remain pass references, never prompt content.

@@ -20,7 +20,7 @@ mapfile -t commands < <(cd "$ROOT" && rg --hidden --files . \
   -g 'cycle1-dev/**/.claude/commands/*.md' \
   -g '_tools/**/.claude/commands/*.md' \
   -g '!cycle2-deploy/**' -g '!cycle3-ops/**' | sort)
-[[ "${#commands[@]}" -eq 62 ]] || fail "expected 62 active command templates, got ${#commands[@]}"
+[[ "${#commands[@]}" -eq 64 ]] || fail "expected 64 active command templates, got ${#commands[@]}"
 
 for command_file in "${commands[@]}"; do
   command_file="$ROOT/${command_file#./}"

@@ -11,10 +11,14 @@ ACCESS="write"
 AGENT_DIR_VALUE=""
 PROJECT_DIR_VALUE=""
 NOTES_DIR_VALUE=""
+SCOPE_FILE_VALUE=""
+SCOPE_SHA256_VALUE=""
 PROMPT=""
 LOCAL_HOST_REGISTRY="${LOCAL_HOST_REGISTRY:-$SCRIPT_DIR/local-hosts}"
 LOCAL_HOST_PATH=""
 RUNTIME_BIN_PATH=""
+declare -a SCOPED_WRITE_PATHS=()
+declare -a SCOPED_DENY_PATHS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +44,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --access)
       ACCESS="${2:-}"
+      shift 2
+      ;;
+    --scope-file)
+      SCOPE_FILE_VALUE="${2:-}"
+      shift 2
+      ;;
+    --scope-sha256)
+      SCOPE_SHA256_VALUE="${2:-}"
       shift 2
       ;;
     --prompt)
@@ -122,6 +134,92 @@ validate_scalar() {
   fi
 }
 
+scope_safe_relative() {
+  local value="${1:-}" part
+  local -a scope_parts=()
+  [[ -n "$value" && "$value" != /* && "$value" != *$'\t'* &&
+     "$value" != *$'\n'* && "$value" != *$'\r'* && "$value" != *//* ]] || return 1
+  IFS='/' read -r -a scope_parts <<< "$value"
+  for part in "${scope_parts[@]}"; do
+    [[ -n "$part" && "$part" != . && "$part" != .. ]] || return 1
+  done
+}
+
+scope_has_symlink_ancestor() {
+  local ref="$1" current="$PROJECT_DIR_VALUE" part
+  local -a scope_parts=()
+  IFS='/' read -r -a scope_parts <<< "$ref"
+  for part in "${scope_parts[@]}"; do
+    current="$current/$part"
+    [[ ! -L "$current" ]] || return 0
+    [[ -e "$current" ]] || break
+  done
+  return 1
+}
+
+load_scoped_write_file() {
+  local expected_header=$'schema_version\tcapability\tpath'
+  local actual_sha schema capability ref extra canonical count=0
+  declare -A seen=()
+  [[ -n "$SCOPE_FILE_VALUE" && -f "$SCOPE_FILE_VALUE" && ! -L "$SCOPE_FILE_VALUE" ]] || {
+    echo 'agent-run.sh: scoped-write requires a regular --scope-file' >&2
+    exit 2
+  }
+  [[ "$SCOPE_SHA256_VALUE" =~ ^[0-9a-f]{64}$ ]] || {
+    echo 'agent-run.sh: scoped-write requires an exact --scope-sha256' >&2
+    exit 2
+  }
+  actual_sha="$(sha256sum "$SCOPE_FILE_VALUE" | awk '{print $1}')"
+  [[ "$actual_sha" == "$SCOPE_SHA256_VALUE" ]] || {
+    echo 'agent-run.sh: scope digest mismatch' >&2
+    exit 2
+  }
+  [[ "$(sed -n '1p' "$SCOPE_FILE_VALUE")" == "$expected_header" ]] || {
+    echo 'agent-run.sh: scoped-write file header mismatch' >&2
+    exit 2
+  }
+  while IFS=$'\t' read -r schema capability ref extra; do
+    [[ -z "$extra" && "$schema" == 1 ]] || {
+      echo 'agent-run.sh: invalid scoped-write row' >&2
+      exit 2
+    }
+    case "$capability" in write|deny) ;; *) echo 'agent-run.sh: invalid scoped-write capability' >&2; exit 2 ;; esac
+    scope_safe_relative "$ref" || {
+      echo 'agent-run.sh: invalid scoped-write relative path' >&2
+      exit 2
+    }
+    scope_has_symlink_ancestor "$ref" && {
+      echo 'agent-run.sh: scoped-write path contains a symlink' >&2
+      exit 2
+    }
+    [[ -e "$PROJECT_DIR_VALUE/$ref" ]] || {
+      echo 'agent-run.sh: scoped-write path must already exist; authorize its parent for create' >&2
+      exit 2
+    }
+    canonical="$(realpath -e -- "$PROJECT_DIR_VALUE/$ref")" || exit 2
+    [[ "$canonical" == "$PROJECT_DIR_VALUE/"* ]] || {
+      echo 'agent-run.sh: scoped-write path escapes Project' >&2
+      exit 2
+    }
+    [[ -z "${seen[$capability:$canonical]:-}" ]] || continue
+    seen["$capability:$canonical"]=1
+    if [[ "$capability" == write ]]; then
+      SCOPED_WRITE_PATHS+=("$canonical")
+    else
+      SCOPED_DENY_PATHS+=("$canonical")
+    fi
+    count=$((count + 1))
+  done < <(tail -n +2 "$SCOPE_FILE_VALUE")
+  (( ${#SCOPED_WRITE_PATHS[@]} > 0 )) || {
+    echo 'agent-run.sh: scoped-write file grants no write path' >&2
+    exit 2
+  }
+  (( count <= 48 )) || {
+    echo 'agent-run.sh: scoped-write path set exceeds the supported limit' >&2
+    exit 2
+  }
+}
+
 resolve_local_host() {
   local host="${LOCAL_AGENT_HOST:-}" candidate
   validate_scalar LOCAL_AGENT_HOST "$host"
@@ -171,9 +269,15 @@ ensure_runtime_available() {
 
 RUNTIME="$(normalize_runtime "$RUNTIME")"
 case "$ACCESS" in
-  write|read-only) ;;
-  *) echo "agent-run.sh: --access must be write or read-only" >&2; exit 2 ;;
+  write|read-only|scoped-write) ;;
+  *) echo "agent-run.sh: --access must be write, scoped-write or read-only" >&2; exit 2 ;;
 esac
+if [[ "$ACCESS" == scoped-write ]]; then
+  load_scoped_write_file
+elif [[ -n "$SCOPE_FILE_VALUE$SCOPE_SHA256_VALUE" ]]; then
+  echo 'agent-run.sh: scope file options are valid only for scoped-write' >&2
+  exit 2
+fi
 case "$MODE" in
   task|session-start|interactive) ;;
   continue)
@@ -182,8 +286,8 @@ case "$MODE" in
     ;;
   *) echo "agent-run.sh: unsupported mode: $MODE" >&2; exit 2 ;;
 esac
-if [[ "$ACCESS" == read-only && "$MODE" != task ]]; then
-  echo 'agent-run.sh: read-only access supports task mode only' >&2
+if [[ "$ACCESS" != write && "$MODE" != task ]]; then
+  echo 'agent-run.sh: constrained access supports task mode only' >&2
   exit 2
 fi
 
@@ -267,6 +371,7 @@ run_sanitized() {
     "SDLC_EXECUTION_RUN_ID=${SDLC_EXECUTION_RUN_ID:-}"
     "SDLC_EXECUTION_PLAN_SHA256=${SDLC_EXECUTION_PLAN_SHA256:-}"
     "SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256=${SDLC_CURRENT_ARTIFACT_MANIFEST_SHA256:-}"
+    "SDLC_CHANGE_SCOPE_SHA256=${SDLC_CHANGE_SCOPE_SHA256:-${SCOPE_SHA256_VALUE:-}}"
     "SDLC_SUBAGENTS=off"
     "SDLC_SUBAGENT_MAX=$SDLC_SUBAGENT_MAX"
     "LOCAL_AGENT_HOST=${LOCAL_AGENT_HOST:-}"
@@ -286,6 +391,15 @@ run_sanitized() {
   if [[ "$ACCESS" == write ]]; then
     cycle_boundary+=(--write "$PROJECT_DIR_VALUE")
     [[ -n "$NOTES_DIR_VALUE" ]] && cycle_boundary+=(--write "$NOTES_DIR_VALUE")
+  elif [[ "$ACCESS" == scoped-write ]]; then
+    cycle_boundary+=(--read "$PROJECT_DIR_VALUE")
+    [[ -n "$NOTES_DIR_VALUE" ]] && cycle_boundary+=(--read "$NOTES_DIR_VALUE")
+    for runtime_scoped_write in "${SCOPED_WRITE_PATHS[@]}"; do
+      cycle_boundary+=(--write "$runtime_scoped_write")
+    done
+    for runtime_scoped_deny in "${SCOPED_DENY_PATHS[@]}"; do
+      cycle_boundary+=(--deny "$runtime_scoped_deny")
+    done
   else
     cycle_boundary+=(--read "$PROJECT_DIR_VALUE")
     [[ -n "$NOTES_DIR_VALUE" ]] && cycle_boundary+=(--read "$NOTES_DIR_VALUE")

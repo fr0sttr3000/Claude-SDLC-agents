@@ -16,6 +16,17 @@ assert_not_contains() {
 }
 
 assert_contains plans/principles.md 'Markdown-first governance'
+assert_contains plans/principles.md '### KISS — минимальная достаточная реализация'
+assert_contains plans/principles.md 'не владеет planning/design, quality, security или reliability verdict'
+assert_contains plans/principles.md 'KISS не разрешает удалять или обходить validation'
+assert_contains plans/principles.md 'Intentional complexity, защищённая'
+assert_contains CLAUDE.md 'KISS — только для implementation writers'
+assert_contains CLAUDE.md '`s4-dev`, а также `l2-setup`, `l3-build` и'
+assert_contains cycle1-dev/s4-dev/CLAUDE.md 'KISS: выбирай самое простое решение'
+assert_contains cycle1-dev/s4-dev/.claude/commands/dev-report.md '## KISS'
+assert_contains cycle1-dev/l2-setup/CLAUDE.md '## KISS при изменении repository'
+assert_contains cycle1-dev/l3-build/CLAUDE.md '## KISS при исправлении repository'
+assert_contains cycle1-dev/l4-run/CLAUDE.md '## KISS при изменении repository'
 assert_not_contains plans/principles.md 'Агенты читают и пишут только `.md`'
 assert_not_contains README.md 'Агенты читают входные `.md` файлы и создают выходные `.md` файлы. Никаких баз данных'
 assert_not_contains _standards/quality.md '□ DEVOPS-cicd.yaml (шаблон CI/CD) существует'

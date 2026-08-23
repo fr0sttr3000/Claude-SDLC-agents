@@ -77,3 +77,11 @@ src/main.rs
 - Не запускай код без явной просьбы
 - Не устанавливай зависимости (это l2-setup)
 - Не изменяй файлы проекта
+
+## Change Scope preparation
+
+`/impact` — отдельный SDLC Project workflow, не вариант `/analyze`. Launcher ограничивает
+запись exact preparation directory и передаёт immutable Change Intent. В этом режиме изучай
+весь Project read-only, но создавай только Project Map и L1 impact по
+`_contract/CHANGE_SCOPE_V1.md`. Не используй заметки Local_Run, не меняй source/tests, не
+вызывай S3, не расширяй scope при low/unknown confidence и не утверждай результат.

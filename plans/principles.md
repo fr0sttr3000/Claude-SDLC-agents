@@ -1,5 +1,5 @@
 ---
-date: 2026-08-02
+date: 2026-08-22
 tags: [plans, principles]
 ---
 
@@ -27,6 +27,15 @@ tags: [plans, principles]
 
 Подробнее: [[_contract/GLOBAL#Runtime Invariants]],
 [[_contract/CURRENT_ARTIFACTS_V1#Project current manifest]].
+
+### Границы изменения предшествуют реализации
+
+Перед native mutation система фиксирует Change Intent, карту проекта, техническое и
+архитектурное влияние, exact owners/paths и отдельное человеческое подтверждение. Runtime
+allowlist уменьшает доступную запись, а полный diff доказывает фактический результат; ни один
+агент не расширяет собственную границу.
+
+Подробнее: [[_contract/CHANGE_SCOPE_V1]], [[_contract/RUNTIME_ACCESS_V1]].
 
 ### Runtime-neutral SDLC
 
@@ -105,6 +114,29 @@ Project, scope и план до выполнения. Отдельные инс�
 затем создаётся минимальный Green, выполняется полный затронутый набор и устраняются причины FAIL.
 
 Подробнее: [[_standards/tdd#1. Неизменяемый порядок]].
+
+### KISS — минимальная достаточная реализация
+
+Агент, который непосредственно изменяет implementation code или repository-local
+конфигурацию и не владеет planning/design, quality, security или reliability verdict, выбирает
+самое простое решение, полностью удовлетворяющее approved scope, требованиям, HLD/ADR, NFR,
+security/reliability/data contracts и тестам. По умолчанию он использует существующие
+conventions и public interfaces, делает минимальный связный diff и не добавляет speculative
+layers, dependencies, frameworks, extension points или обобщения «про запас».
+
+KISS не разрешает удалять или обходить validation, error handling, authorization,
+observability, compatibility, recovery controls и тесты. Intentional complexity, защищённая
+current HLD/ADR и Change Scope, сохраняется. Если упрощение требует изменить архитектуру,
+требования или approved paths, агент возвращает `BLOCKED` для нового handoff, а не расширяет
+решение самостоятельно.
+
+В active Cycle 1 принцип обязателен для `s4-dev`; в Local Repositories — для `l2-setup`,
+`l3-build` и `l4-run`, только когда они действительно меняют repository. Он не является
+указанием упрощать независимые проверки и evidence, принадлежащие planning/architecture,
+QA/quality, security, reliability/SRE или validator roles.
+
+Подробнее: [[_contract/CHANGE_SCOPE_V1]], [[_standards/tdd]],
+[[_standards/quality#2. Definition of Done (DoD) — выход из задачи]].
 
 ### Shift Left
 

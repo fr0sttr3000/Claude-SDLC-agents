@@ -188,8 +188,46 @@ contains cycle1-dev/s4-dev/CLAUDE.md 'Denied owner check for unknown resource ty
 not_contains cycle1-dev/s4-dev/CLAUDE.md 'FROM {table}'
 not_contains cycle1-dev/s4-dev/CLAUDE.md 'text(f"'
 contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'quality-policy-read.sh PROJECT METRIC_ID'
-contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'unit_branch_coverage_percent'
+contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'branch_coverage_percent'
 contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'mutation_score_percent'
+not_contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'unit_branch_coverage_percent'
+quality_registry="$ROOT/_contract/quality-policy-v1.tsv"
+while IFS= read -r metric_id; do
+  awk -F'\t' -v metric_id="$metric_id" \
+    'NR > 1 && $1 == metric_id { found=1 } END { exit(found ? 0 : 1) }' \
+    "$quality_registry" || fail "dev-report uses unregistered quality metric: $metric_id"
+done < <(
+  awk -F'|' '/^\| [a-z][a-z0-9_]* \|/ {
+    metric=$2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", metric); print metric
+  }' "$ROOT/cycle1-dev/s4-dev/.claude/commands/dev-report.md"
+)
+if awk -F'\t' '$1 == "unit_branch_coverage_percent" { found=1 } END { exit(found ? 0 : 1) }' \
+  "$quality_registry"; then
+  fail 'quality registry unexpectedly accepts the historical metric typo'
+fi
+
+# Stage ownership and applicability are contract-driven, never inferred from a tier or prose default.
+not_contains cycle1-dev/s4-dev/CLAUDE.md 'Функции: максимум 20 строк'
+contains cycle1-dev/s4-dev/CLAUDE.md 'размер не является отдельным quality threshold'
+not_contains cycle1-dev/s4-dev/CLAUDE.md 'Авторизация на каждом endpoint'
+contains cycle1-dev/s4-dev/CLAUDE.md 'public/unprotected endpoint'
+not_contains cycle1-dev/s4-dev/CLAUDE.md 'стандартный формат {error, detail}'
+contains cycle1-dev/s4-dev/CLAUDE.md 'точно соответствуют current `api-contract`'
+not_contains cycle1-dev/s4-dev/CLAUDE.md 'API-доки — обновить ARCH-api-spec.yaml'
+not_contains cycle1-dev/s4-dev/CLAUDE.md 'создай/обнови ADR в stage3-design/outputs/'
+contains cycle1-dev/s4-dev/CLAUDE.md 's4-dev не изменяет Stage 3 HLD, API contract или ADR'
+contains cycle1-dev/s4-dev/CLAUDE.md 'fresh Change Scope'
+not_contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'API-spec обновлён (если менялись endpoints)'
+contains cycle1-dev/s4-dev/.claude/commands/update-notes.md 'Stage 3 artifacts: не изменяются этой командой'
+not_contains cycle1-dev/s1-pm/.claude/commands/feasibility.md '{/health endpoint (liveness) — если Tier ≥ 1}'
+not_contains cycle1-dev/s1-pm/.claude/commands/feasibility.md '{добавить /metrics в API spec — если Tier ≥ 2}'
+not_contains cycle1-dev/s1-pm/.claude/commands/feasibility.md 'monitoring_stack:'
+not_contains cycle1-dev/s1-pm/.claude/commands/feasibility.md 'runbook: {обязателен если Tier ≥ 1}'
+contains cycle1-dev/s1-pm/.claude/commands/feasibility.md 'confirmed long-running network service'
+contains cycle1-dev/s1-pm/.claude/commands/feasibility.md 'interface: "CONFIRMED from Project facts/NFR/HLD | UNSPECIFIED"'
+contains cycle1-dev/s1-pm/.claude/commands/feasibility.md 'Tier не определяет interface, protocol, stack или runbook applicability'
+not_contains cycle1-dev/s1-pmo/CLAUDE.md 'все сервисы обязаны экспортировать /health если Tier ≥ 1'
+contains cycle1-dev/s1-pmo/CLAUDE.md 'Tier используется только для risk classification'
 contains cycle1-dev/s4-dev/.claude/commands/update-notes.md 'CHANGELOG/release notes: не изменяются этой командой'
 not_contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'coverage >= 80'
 not_contains cycle1-dev/s4-dev/.claude/commands/dev-report.md 'mutation >= 60'

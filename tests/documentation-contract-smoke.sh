@@ -157,7 +157,7 @@ mapfile -d '' -t roles < <(find "$ROOT/cycle1-dev" "$ROOT/_tools" \
 
 mapfile -d '' -t commands < <(find "$ROOT/cycle1-dev" "$ROOT/_tools" \
   -path '*/.claude/commands/*.md' -type f -print0 | sort -z)
-[[ ${#commands[@]} -eq 62 ]] || fail "active command inventory changed: expected=62 actual=${#commands[@]}"
+[[ ${#commands[@]} -eq 64 ]] || fail "active command inventory changed: expected=64 actual=${#commands[@]}"
 for command in "${commands[@]}"; do
   rel="$(relative "$command")"
   [[ "$(sed -n '1p' "$command")" == '---' ]] || fail "$rel has no opening frontmatter fence"

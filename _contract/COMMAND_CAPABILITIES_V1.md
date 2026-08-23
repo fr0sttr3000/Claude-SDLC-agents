@@ -13,8 +13,10 @@ Allowed capabilities:
 
 - `read-only-no-output` — the runtime is forced to `read-only`; exit code `0` may produce
   `READ_ONLY_VERIFIED`, but never `ARTIFACT_VERIFIED`.
-- `mutating-declared-output` — the runtime receives Project write access and every required
-  output group must be created or changed and validated for the current execution.
+- `mutating-declared-output` — every required output group must be created or changed and
+  validated for the current execution. Its registry access is normally `write`; Stage 4 uses
+  `scoped-write` and additionally requires a current approved Change Scope plus a verified
+  full-Project diff.
 - `orchestrated-special` — generic One Agent and Cycle dispatch are forbidden. A dedicated
   launcher workflow owns preview, authorization and its named result verifier.
 
@@ -30,6 +32,11 @@ process exit alone.
 The generic One Agent menu is derived from this registry and displays only
 `read-only-no-output` and `mutating-declared-output` commands. Special commands remain
 available only through their dedicated launcher workflows.
+
+`scoped-write` is valid only for `orchestrated-special` Change Scope preparation commands and
+the five Stage 4 mutators named by Change Scope v1. A generic process exit or declared output
+alone cannot verify either class. L1/S3 preparation has dedicated directory/diff verification;
+Stage 4 requires `change-scope-and-declared-output`.
 
 Tracker mutations are exposed through Project Utilities → Tracker. The launcher collects the
 exact task/sprint arguments before Preview, executes the registered command with Project write

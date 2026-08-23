@@ -34,7 +34,10 @@ if [[ -n "$NOTES_DIR_VALUE" ]]; then
   [[ -d "$NOTES_DIR_VALUE" ]] || { echo "codex-oss: --notes-dir must exist" >&2; exit 2; }
   SCOPE_FLAGS+=(--add-dir "$NOTES_DIR_VALUE")
 fi
-case "$ACCESS" in write|read-only) ;; *) echo 'codex-oss: --access must be write or read-only' >&2; exit 2 ;; esac
+case "$ACCESS" in
+  write|scoped-write|read-only) ;;
+  *) echo 'codex-oss: --access must be write, scoped-write or read-only' >&2; exit 2 ;;
+esac
 case "$PROVIDER" in
   ollama|lmstudio) ;;
   *) echo "codex-oss: LOCAL_MODEL_PROVIDER must be ollama or lmstudio" >&2; exit 2 ;;

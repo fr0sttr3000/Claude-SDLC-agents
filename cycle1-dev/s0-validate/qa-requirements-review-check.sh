@@ -7,11 +7,34 @@ blocked() { echo "QA REQUIREMENTS REVIEW BLOCKED: $*" >&2; exit 1; }
 [[ -d "$PROJECT_INPUT" ]] || blocked 'Project не найден'
 PROJECT="$(cd "$PROJECT_INPUT" && pwd -P)"
 PROFILE="$PROJECT/tracking/product-ci-profile.yaml"
-shopt -s nullglob
-records=("$PROJECT"/stage2-requirements/outputs/QA-REQ-review-v1.yaml)
-(( ${#records[@]} == 1 )) || blocked "ожидался один QA-REQ-review-v1.yaml, найдено ${#records[@]}"
-record="${records[0]}"
-[[ -f "$record" && ! -L "$record" ]] || blocked 'machine review отсутствует или symlink'
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+resolve_one_ref() {
+  local logical="$1" output
+  if ! output="$(bash "$SCRIPT_DIR/current-artifact.sh" \
+      resolve-compatible-one "$PROJECT" "$logical")"; then
+    blocked "current artifact resolution failed: $logical"
+  fi
+  [[ -n "$output" && "$output" != *$'\n'* ]] ||
+    blocked "current artifact cardinality invalid: $logical"
+  printf '%s\n' "$output"
+}
+
+project_file_from_ref() {
+  local ref="$1" path canonical
+  [[ "$ref" =~ ^[A-Za-z0-9._/-]+$ && "$ref" != /* && "$ref" != ../* &&
+    "$ref" != *'/../'* && "$ref" != */.. ]] || blocked "unsafe current artifact ref: $ref"
+  path="$PROJECT/$ref"
+  [[ -f "$path" && ! -L "$path" ]] || blocked "current artifact missing/symlink: $ref"
+  canonical="$(readlink -f "$path")"
+  [[ "$canonical" == "$PROJECT/"* ]] || blocked "current artifact escapes Project: $ref"
+  printf '%s\n' "$path"
+}
+
+decision_ref="$(resolve_one_ref qa-requirements-decision)"
+current_review_ref="$(resolve_one_ref qa-requirements-review)"
+record="$(project_file_from_ref "$decision_ref")"
+current_review="$(project_file_from_ref "$current_review_ref")"
 
 field() { awk -F: -v k="$2" '$1==k {sub(/^[^:]*:[[:space:]]*/, ""); print; exit}' "$1"; }
 expected='schema_version review_id status project owner product_profile_revision reviewed_at review_ref review_sha256 blocker_count'
@@ -35,8 +58,9 @@ revision="$(field "$PROFILE" revision)"
 ref="$(field "$record" review_ref)"
 [[ "$ref" =~ ^stage2-requirements/outputs/QA-REQ-[A-Za-z0-9._-]+-review\.md$ ]] ||
   blocked 'invalid review_ref'
-review="$PROJECT/$ref"
-[[ -f "$review" && ! -L "$review" ]] || blocked 'review_ref отсутствует или symlink'
+[[ "$ref" == "$current_review_ref" ]] || blocked 'review_ref не является current QA review'
+review="$current_review"
+[[ -f "$review" && ! -L "$review" ]] || blocked 'current QA review отсутствует или symlink'
 actual="$(sha256sum "$review" | awk '{print $1}')"
 [[ "$(field "$record" review_sha256)" == "$actual" ]] || blocked 'review digest mismatch'
 grep -Fq 'QA contribution: PASS' "$review" || blocked 'review не содержит QA contribution: PASS'
